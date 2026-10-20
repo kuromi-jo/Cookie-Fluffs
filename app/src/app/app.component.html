@@ -1,0 +1,90 @@
+<ion-app>
+  <ion-menu contentId="main-content" type="overlay" class="cf-menu">
+    <ion-content>
+      <!-- Profile header: user image, name and contact number -->
+      <section class="profile">
+        <img class="profile-cookie" src="assets/brand/cookie-logo.svg" alt="" aria-hidden="true" />
+
+        @if (auth.user(); as user) {
+          <label class="avatar-btn" title="Change profile photo">
+            <app-avatar [src]="user.avatar" [name]="user.fullName" style="--size: 76px" />
+            <span class="camera">
+              @if (uploadingPhoto()) {
+                <ion-spinner name="crescent"></ion-spinner>
+              } @else {
+                <ion-icon name="camera-outline"></ion-icon>
+              }
+            </span>
+            <input type="file" accept="image/*" (change)="onPhotoPicked($event)" [disabled]="uploadingPhoto()" />
+          </label>
+          <h2>{{ user.fullName }}</h2>
+          <p class="contact"><ion-icon name="call-outline"></ion-icon>{{ user.phone }}</p>
+          <p class="email"><ion-icon name="mail-outline"></ion-icon>{{ user.email }}</p>
+        } @else {
+          <div class="avatar-btn guest">
+            <app-avatar name="Guest" src="assets/brand/cookie-logo.svg" style="--size: 76px" />
+          </div>
+          <h2>Hello, Cookie Lover!</h2>
+          <p class="contact"><ion-icon name="call-outline"></ion-icon>Log in to add your number</p>
+          <ion-menu-toggle [autoHide]="false">
+            <button type="button" class="login-pill" (click)="goToLogin()">
+              <ion-icon name="log-in-outline"></ion-icon> Log in or Sign up
+            </button>
+          </ion-menu-toggle>
+        }
+      </section>
+
+      <ion-list lines="none" class="menu-list">
+        <ion-list-header>Shop</ion-list-header>
+        @for (link of shopLinks; track link.url) {
+          <ion-menu-toggle [autoHide]="false">
+            <ion-item
+              button
+              detail="false"
+              routerDirection="root"
+              [routerLink]="link.url"
+              [class.active]="isActive(link.url)"
+            >
+              <ion-icon slot="start" [name]="link.icon"></ion-icon>
+              <ion-label>{{ link.title }}</ion-label>
+              @if (link.url === '/cart' && cart.count() > 0) {
+                <ion-badge slot="end">{{ cart.count() }}</ion-badge>
+              }
+            </ion-item>
+          </ion-menu-toggle>
+        }
+
+        <ion-list-header>About Cookie Fluffs</ion-list-header>
+        @for (link of aboutLinks; track link.url) {
+          <ion-menu-toggle [autoHide]="false">
+            <ion-item
+              button
+              detail="false"
+              routerDirection="root"
+              [routerLink]="link.url"
+              [class.active]="isActive(link.url)"
+            >
+              <ion-icon slot="start" [name]="link.icon"></ion-icon>
+              <ion-label>{{ link.title }}</ion-label>
+            </ion-item>
+          </ion-menu-toggle>
+        }
+      </ion-list>
+    </ion-content>
+
+    <ion-footer class="menu-footer">
+      @if (auth.isLoggedIn()) {
+        <button type="button" class="logout" (click)="confirmLogout()">
+          <ion-icon name="log-out-outline"></ion-icon> Log out
+        </button>
+      }
+      <small>Cookie Fluffs v0.6 · Made with <ion-icon name="heart" aria-label="love"></ion-icon> in Cubao</small>
+    </ion-footer>
+  </ion-menu>
+
+  <ion-router-outlet id="main-content"></ion-router-outlet>
+
+  @if (showSplash()) {
+    <app-splash [leaving]="splashLeaving()" />
+  }
+</ion-app>

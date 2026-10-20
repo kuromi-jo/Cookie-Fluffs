@@ -1,0 +1,123 @@
+.app-card {
+  margin-bottom: 18px;
+  padding: 26px 20px 22px;
+  text-align: center;
+  border-radius: 28px;
+  background: linear-gradient(160deg, #fff 0%, #fdf2f8 100%);
+  border: 1px solid var(--cf-pink-soft);
+
+  .icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 24px;
+  }
+
+  h1 {
+    margin: 14px 0 2px;
+    font-size: 1.7rem;
+    font-weight: 800;
+  }
+
+  .version {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--cf-pink-deep);
+  }
+
+  .title {
+    margin: 12px 0 0;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--cf-choco-medium);
+  }
+}
+
+.flow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 24px;
+  padding: 14px;
+  font-size: 0.74rem;
+  font-weight: 800;
+
+  span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+
+    ion-icon {
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      padding: 9px;
+      border-radius: 14px;
+      background: var(--cf-pink-soft);
+      color: var(--cf-pink-deep);
+    }
+  }
+
+  .arrow {
+    flex: none;
+    margin-bottom: 22px;
+    font-size: 18px;
+    color: var(--cf-pink-accent);
+  }
+}
+
+.checks {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+
+    ion-icon {
+      flex: none;
+      font-size: 20px;
+      color: var(--ion-color-success);
+    }
+  }
+
+  &.soon li {
+    color: var(--cf-choco-light);
+
+    ion-icon {
+      color: var(--cf-pink-accent);
+    }
+  }
+}
+
+.course {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+
+  > ion-icon {
+    flex: none;
+    font-size: 28px;
+    color: var(--cf-pink-deep);
+  }
+
+  strong {
+    display: block;
+    font-size: 0.85rem;
+  }
+
+  small {
+    font-size: 0.74rem;
+    color: var(--cf-choco-light);
+  }
+}

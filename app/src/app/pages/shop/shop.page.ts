@@ -1,0 +1,219 @@
+/**
+ * @file shop.page.ts
+ * @description "All Cookies" tab: the full menu from Neon with search, categories and sorting.
+ * Query params (?category=, ?show=best|new|promo, ?focus=1) let Home deep-link into it.
+ */
+import { Component, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { DecimalPipe } from '@angular/common';
+import {
+  IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
+  IonIcon,
+  IonMenuButton,
+  IonRefresher,
+  IonRefresherContent,
+  IonSearchbar,
+  IonSelect,
+  IonSelectOption,
+  IonSkeletonText,
+  IonTitle,
+  IonToolbar,
+  RefresherCustomEvent,
+} from '@ionic/angular';
+import { CartService } from '../../core/cart.service';
+import { ProductService } from '../../core/product.service';
+import { ShopActionsService } from '../../core/shop-actions.service';
+import {
+  CATEGORIES,
+  COLLECTIONS,
+  Collection,
+  CookieCategory,
+  Product,
+  effectivePrice,
+  inCollection,
+} from '../../core/models';
+import { ProductCardComponent } from '../../components/product-card.component';
+
+type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
+
+const isCategory = (v: unknown): v is CookieCategory | 'all' => CATEGORIES.some((c) => c.id === v);
+const isCollection = (v: unknown): v is Collection => typeof v === 'string' && Object.hasOwn(COLLECTIONS, v);
+
+@Component({
+  selector: 'app-shop',
+  templateUrl: 'shop.page.html',
+  styleUrls: ['../catalog.scss', 'shop.page.scss'],
+  imports: [
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonMenuButton,
+    IonTitle,
+    IonContent,
+    IonRefresher,
+    IonRefresherContent,
+    IonSearchbar,
+    IonSelect,
+    IonSelectOption,
+    IonSkeletonText,
+    IonIcon,
+    IonButton,
+    RouterLink,
+    DecimalPipe,
+    ProductCardComponent,
+  ],
+})
+export class ShopPage {
+  /** Query params, bound by withComponentInputBinding(). */
+  readonly categoryParam = input<string | undefined>(undefined, { alias: 'category' });
+  readonly showParam = input<string | undefined>(undefined, { alias: 'show' });
+  readonly focusParam = input<string | undefined>(undefined, { alias: 'focus' });
+
+  readonly cart = inject(CartService);
+  readonly products = inject(ProductService);
+  private shop = inject(ShopActionsService);
+  private router = inject(Router);
+
+  private readonly searchbar = viewChild(IonSearchbar);
+
+  readonly categories = CATEGORIES;
+  readonly collections = COLLECTIONS;
+  readonly category = signal<CookieCategory | 'all'>('all');
+  readonly collection = signal<Collection | null>(null);
+  readonly search = signal('');
+  readonly sort = signal<SortKey>('recommended');
+  readonly skeletons = [1, 2, 3, 4, 5, 6];
+
+  readonly sortOptions: { value: SortKey; label: string }[] = [
+    { value: 'recommended', label: 'Recommended' },
+    { value: 'price-asc', label: 'Price: low to high' },
+    { value: 'price-desc', label: 'Price: high to low' },
+    { value: 'rating', label: 'Top rated' },
+  ];
+
+  readonly visible = computed(() => {
+    const term = this.search().trim().toLowerCase();
+    const cat = this.category();
+    const col = this.collection();
+    const list = this.products
+      .products()
+      .filter(
+        (p) =>
+          (cat === 'all' || p.category === cat) &&
+          (!col || inCollection(p, col)) &&
+          (!term || `${p.name} ${p.tagline} ${p.flavorNotes}`.toLowerCase().includes(term)),
+      );
+    switch (this.sort()) {
+      case 'price-asc':
+        return [...list].sort((a, b) => effectivePrice(a) - effectivePrice(b));
+      case 'price-desc':
+        return [...list].sort((a, b) => effectivePrice(b) - effectivePrice(a));
+      case 'rating':
+        return [...list].sort((a, b) => b.rating - a.rating || b.reviewsCount - a.reviewsCount);
+      default:
+        return list;
+    }
+  });
+
+  /** How many cookies each category chip holds. */
+  readonly categoryCounts = computed(() => {
+    const counts = new Map<string, number>([['all', this.products.products().length]]);
+    for (const p of this.products.products()) counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+    return counts;
+  });
+
+  /* ---------- Cookie roulette: "Can't decide? Spin!" ---------- */
+  readonly rouletteFace = signal<Product | null>(null);
+  readonly rouletteResult = signal<Product | null>(null);
+  readonly spinning = signal(false);
+  /** Bumped on every win so the sprinkle burst replays. */
+  readonly burst = signal(0);
+  readonly sprinkles = Array.from({ length: 14 }, (_, i) => ({
+    angle: (360 / 14) * i,
+    color: ['#f472b6', '#523628', '#f5a524', '#be185d', '#fbcfe8'][i % 5],
+  }));
+  readonly price = effectivePrice;
+
+  /** Flicks through the cookies on screen like a slot machine, slowing down until one lands. */
+  spin(): void {
+    const pool = this.visible().length ? this.visible() : this.products.products();
+    if (this.spinning() || !pool.length) return;
+    this.spinning.set(true);
+    this.rouletteResult.set(null);
+    const steps = 16;
+    let step = 0;
+    const tick = () => {
+      let next = pool[Math.floor(Math.random() * pool.length)];
+      if (pool.length > 1 && next === this.rouletteFace()) next = pool[(pool.indexOf(next) + 1) % pool.length];
+      this.rouletteFace.set(next);
+      step++;
+      if (step < steps) {
+        setTimeout(tick, 45 + step * step * 1.4); // each flick a little slower, like a wheel
+      } else {
+        this.spinning.set(false);
+        this.rouletteResult.set(next);
+        this.burst.update((n) => n + 1);
+      }
+    };
+    tick();
+  }
+
+  readonly hasFilters = computed(
+    () => this.category() !== 'all' || !!this.collection() || !!this.search().trim(),
+  );
+
+  constructor() {
+    void this.products.load();
+
+    // Follow deep links from Home (the tab stays alive, so react to every change).
+    effect(() => {
+      const cat = this.categoryParam();
+      const col = this.showParam();
+      this.category.set(isCategory(cat) ? cat : 'all');
+      this.collection.set(isCollection(col) ? col : null);
+    });
+    effect(() => {
+      if (this.focusParam() === '1') setTimeout(() => void this.searchbar()?.setFocus(), 450);
+    });
+  }
+
+  onSearch(value: string | null | undefined): void {
+    this.search.set(value ?? '');
+  }
+
+  pickCategory(id: CookieCategory | 'all'): void {
+    this.category.set(id);
+  }
+
+  setSort(value: unknown): void {
+    if (this.sortOptions.some((o) => o.value === value)) this.sort.set(value as SortKey);
+  }
+
+  clearCollection(): void {
+    this.collection.set(null);
+    void this.router.navigate([], { queryParams: { show: null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  resetFilters(): void {
+    this.search.set('');
+    this.category.set('all');
+    this.collection.set(null);
+    void this.router.navigate(['/shop'], { replaceUrl: true });
+  }
+
+  async refresh(event: RefresherCustomEvent): Promise<void> {
+    await this.products.load(true);
+    await event.target.complete();
+  }
+
+  retry(): void {
+    void this.products.load(true);
+  }
+
+  addToCart(product: Product): void {
+    void this.shop.choosePack(product);
+  }
+}

@@ -1,0 +1,155 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="cf-title">All Cookies</ion-title>
+  </ion-toolbar>
+  <ion-toolbar class="search-bar">
+    <ion-searchbar
+      class="search"
+      placeholder="Search cookies, flavors…"
+      [value]="search()"
+      (ionInput)="onSearch($event.detail.value)"
+      [debounce]="150"
+      showClearButton="focus"
+    ></ion-searchbar>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="cf-page">
+    <nav class="chips" aria-label="Cookie categories">
+      @for (c of categories; track c.id) {
+        <button type="button" class="chip" [class.on]="category() === c.id" (click)="pickCategory(c.id)" [attr.aria-pressed]="category() === c.id">
+          <ion-icon [name]="c.icon" aria-hidden="true"></ion-icon>{{ c.label }}
+          @if (categoryCounts().get(c.id); as n) {
+            <span class="chip-count">{{ n }}</span>
+          }
+        </button>
+      }
+    </nav>
+
+    <!-- Cookie roulette -->
+    @if (products.loaded() && !search().trim()) {
+      <section class="roulette" [class.won]="rouletteResult()" aria-live="polite">
+        <div class="plate" [class.spinning]="spinning()">
+          @if (rouletteFace(); as f) {
+            <img [src]="f.imageUrl" [alt]="f.name" />
+          } @else {
+            <img src="assets/brand/cookie-logo.svg" alt="" class="logo" />
+          }
+          @for (b of [burst()]; track b) {
+            @if (b > 0) {
+              <span class="burst" aria-hidden="true">
+                @for (sp of sprinkles; track $index) {
+                  <i [style.--a.deg]="sp.angle" [style.background]="sp.color"></i>
+                }
+              </span>
+            }
+          }
+        </div>
+        <div class="roulette-text">
+          @if (rouletteResult(); as r) {
+            <span class="cf-eyebrow">The oven picked</span>
+            <strong>{{ r.name }}</strong>
+            <small>{{ r.flavorNotes }} · ₱{{ price(r) | number: '1.0-0' }}</small>
+            <div class="roulette-actions">
+              <button type="button" class="r-btn primary" (click)="addToCart(r)">
+                <ion-icon name="cart-outline"></ion-icon> Add
+              </button>
+              <a class="r-btn" [routerLink]="['/product', r.id]">View</a>
+              <button type="button" class="r-btn icon" (click)="spin()" aria-label="Spin again">
+                <ion-icon name="refresh-outline"></ion-icon>
+              </button>
+            </div>
+          } @else {
+            <span class="cf-eyebrow">Cookie roulette</span>
+            <strong>{{ spinning() ? 'Picking a cookie…' : 'Can’t decide?' }}</strong>
+            <small>Let the oven pick from {{ visible().length }} {{ visible().length === 1 ? 'cookie' : 'cookies' }}</small>
+            <button type="button" class="r-btn primary spin" (click)="spin()" [disabled]="spinning()">
+              <ion-icon name="shuffle-outline"></ion-icon> {{ spinning() ? 'Spinning…' : 'Spin' }}
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+    <div class="toolbar-row">
+      <div class="result">
+        @if (collection(); as col) {
+          <button type="button" class="collection-pill" (click)="clearCollection()" [attr.aria-label]="'Remove filter ' + collections[col].title">
+            <ion-icon [name]="collections[col].icon" aria-hidden="true"></ion-icon>
+            {{ collections[col].title }}
+            <ion-icon name="close" aria-hidden="true"></ion-icon>
+          </button>
+        }
+        @if (products.loaded()) {
+          <span class="count">{{ visible().length }} {{ visible().length === 1 ? 'cookie' : 'cookies' }}</span>
+        }
+      </div>
+      <ion-select
+        class="sort"
+        aria-label="Sort cookies"
+        interface="popover"
+        [value]="sort()"
+        (ionChange)="setSort($event.detail.value)"
+      >
+        <ion-icon slot="start" name="swap-vertical-outline" aria-hidden="true"></ion-icon>
+        @for (o of sortOptions; track o.value) {
+          <ion-select-option [value]="o.value">{{ o.label }}</ion-select-option>
+        }
+      </ion-select>
+    </div>
+
+    @if (products.loaded()) {
+      @if (visible().length) {
+        <div class="grid">
+          @for (p of visible(); track p.id; let i = $index) {
+            <app-product-card
+              class="cf-rise"
+              [style.animation-delay.ms]="i * 40"
+              [product]="p"
+              [inCart]="cart.quantityOf(p.id)"
+              [busy]="cart.busy().has(p.id)"
+              (add)="addToCart($event)"
+            />
+          }
+        </div>
+      } @else {
+        <div class="state">
+          <div class="state-icon"><ion-icon name="search-outline"></ion-icon></div>
+          <h3>No cookies match that</h3>
+          <p>Try another flavor or browse the whole menu.</p>
+          @if (hasFilters()) {
+            <ion-button fill="outline" (click)="resetFilters()">Show all cookies</ion-button>
+          }
+        </div>
+      }
+    } @else if (products.error()) {
+      <div class="state">
+        <div class="state-icon"><ion-icon name="cloud-offline-outline"></ion-icon></div>
+        <h3>We couldn't load the menu</h3>
+        <p>{{ products.error() }}</p>
+        <ion-button (click)="retry()">
+          <ion-icon slot="start" name="refresh-outline"></ion-icon>
+          Try again
+        </ion-button>
+      </div>
+    } @else {
+      <div class="grid">
+        @for (s of skeletons; track s) {
+          <div class="skeleton">
+            <ion-skeleton-text [animated]="true" class="sk-img"></ion-skeleton-text>
+            <ion-skeleton-text [animated]="true" style="width: 80%"></ion-skeleton-text>
+            <ion-skeleton-text [animated]="true" style="width: 50%"></ion-skeleton-text>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</ion-content>

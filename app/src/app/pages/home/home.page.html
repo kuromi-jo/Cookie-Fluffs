@@ -1,0 +1,127 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+
+    <div class="brand" slot="start">
+      <img src="assets/brand/cookie-logo.svg" alt="" />
+      <span>Cookie <em>Fluffs</em></span>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="cf-page">
+    <!-- Greeting -->
+    <section class="hello">
+      <p class="cf-muted"><ion-icon [name]="greetingIcon" aria-hidden="true"></ion-icon>{{ greeting }}{{ auth.firstName() ? ', ' + auth.firstName() : '' }}</p>
+      <h1>What are you <em>craving</em> today?</h1>
+    </section>
+
+    <!-- Search shortcut: opens the All Cookies tab with the search box focused -->
+    <a class="search-link" routerLink="/shop" [queryParams]="{ focus: 1 }">
+      <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+      <span>Search cookies, flavors…</span>
+    </a>
+
+    <!-- Promo banner -->
+    <section class="promo cf-rise">
+      <div class="promo-text">
+        <span class="tag">Baked daily</span>
+        <h2>Free delivery on orders ₱500+</h2>
+        <p>Baked every morning in Cubao, QC.</p>
+      </div>
+      <img class="promo-cookie" src="assets/brand/cookie-logo.svg" alt="" />
+      <span class="sprinkle s1"></span><span class="sprinkle s2"></span><span class="sprinkle s3"></span>
+    </section>
+
+    <!-- Category shortcuts -->
+    <nav class="cat-grid" aria-label="Shop by category">
+      @for (c of categories; track c.id) {
+        <a class="cat" routerLink="/shop" [queryParams]="{ category: c.id }">
+          <span class="cat-icon"><ion-icon [name]="c.icon" aria-hidden="true"></ion-icon></span>
+          <span>{{ c.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <!-- Build-a-box entry -->
+    <button type="button" class="box-cta" (click)="buildBox()">
+      <span class="box-art" aria-hidden="true">
+        @for (c of boxPreview; track $index) {
+          <img [src]="c" alt="" />
+        }
+      </span>
+      <span class="box-text">
+        <span class="cf-eyebrow">Mix &amp; match</span>
+        <strong>Build your own box</strong>
+        <small>Boxes of 4, 6 or 12 · save up to 15%</small>
+      </span>
+      <ion-icon name="arrow-forward" aria-hidden="true"></ion-icon>
+    </button>
+
+    @if (products.loaded()) {
+      <!-- Sections: Promos, Best sellers, New arrivals -->
+      @for (s of sections(); track s.id) {
+        <section [class]="'collection is-' + s.id">
+          <header class="collection-head">
+            <span class="collection-icon"><ion-icon [name]="s.icon" aria-hidden="true"></ion-icon></span>
+            <div>
+              <h2 class="cf-section-title">{{ s.title }}</h2>
+              <p>{{ s.subtitle }}</p>
+            </div>
+            <a class="see-all" routerLink="/shop" [queryParams]="{ show: s.id }">
+              See all <ion-icon name="chevron-forward" aria-hidden="true"></ion-icon>
+            </a>
+          </header>
+          <div class="rail">
+            @for (p of s.items; track p.id) {
+              <app-product-card
+                [product]="p"
+                [inCart]="cart.quantityOf(p.id)"
+                [busy]="cart.busy().has(p.id)"
+                (add)="addToCart($event)"
+              />
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Full menu call-to-action -->
+      <a class="all-cta" routerLink="/shop">
+        <img src="assets/brand/cookie-logo.svg" alt="" />
+        <div>
+          <strong>Explore the full menu</strong>
+          <span>{{ totalCount() }} freshly baked cookies</span>
+        </div>
+        <ion-icon name="arrow-forward" aria-hidden="true"></ion-icon>
+      </a>
+    } @else if (products.error()) {
+      <div class="state">
+        <div class="state-icon"><ion-icon name="cloud-offline-outline"></ion-icon></div>
+        <h3>We couldn't load the menu</h3>
+        <p>{{ products.error() }}</p>
+        <ion-button (click)="retry()">
+          <ion-icon slot="start" name="refresh-outline"></ion-icon>
+          Try again
+        </ion-button>
+      </div>
+    } @else {
+      <div class="collection-head"><ion-skeleton-text [animated]="true" class="sk-title"></ion-skeleton-text></div>
+      <div class="rail">
+        @for (s of skeletons; track s) {
+          <div class="skeleton">
+            <ion-skeleton-text [animated]="true" class="sk-img"></ion-skeleton-text>
+            <ion-skeleton-text [animated]="true" style="width: 80%"></ion-skeleton-text>
+            <ion-skeleton-text [animated]="true" style="width: 50%"></ion-skeleton-text>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</ion-content>

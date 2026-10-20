@@ -1,0 +1,46 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="cf-title">Developers</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page">
+    <section class="cf-hero-band hero cf-rise">
+      <span class="cf-eyebrow light">Meet the bakers of code</span>
+      <h1>The Cookie Fluffs Team</h1>
+      <p>Six IT students from TIP Quezon City who turned a cookie craving into a mobile app.</p>
+      <img class="hero-art" src="assets/brand/cookie-logo.svg" alt="" />
+    </section>
+
+    <div class="team">
+      @for (d of team; track d.name; let i = $index) {
+        <article class="dev cf-card cf-rise" [class.leader]="d.leader" [style.animation-delay.ms]="i * 60">
+          <app-avatar [name]="d.name" [src]="d.photo" style="--size: 64px" />
+          <div class="who">
+            @if (d.leader) {
+              <span class="lead-tag"><ion-icon name="star"></ion-icon> Team Leader</span>
+            }
+            <h3>{{ d.name }}</h3>
+            <p>{{ d.role }}</p>
+            <div class="tags">
+              @for (f of d.focus; track f) {
+                <span>{{ f }}</span>
+              }
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+
+    <section class="course cf-card">
+      <div class="course-row"><ion-icon name="school-outline"></ion-icon><span><small>Course</small>IT 005 · Integrative Programming and Technologies</span></div>
+      <div class="course-row"><ion-icon name="people-outline"></ion-icon><span><small>Section</small>IT31S6</span></div>
+      <div class="course-row"><ion-icon name="person-outline"></ion-icon><span><small>Professor</small>Dr. Daisy-Ann Y. Santos</span></div>
+      <div class="course-row"><ion-icon name="location-outline"></ion-icon><span><small>School</small>Technological Institute of the Philippines, Quezon City</span></div>
+    </section>
+  </div>
+</ion-content>

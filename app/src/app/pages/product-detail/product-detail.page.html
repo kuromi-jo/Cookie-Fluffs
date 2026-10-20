@@ -1,0 +1,136 @@
+<ion-header class="cf-header floating">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home" text="" icon="arrow-back"></ion-back-button>
+    </ion-buttons>
+    <ion-buttons slot="end">
+      <ion-button class="round" routerLink="/cart" aria-label="Open cart">
+        <ion-icon slot="icon-only" name="cart-outline"></ion-icon>
+        @if (cart.count() > 0) {
+          <ion-badge>{{ cart.count() }}</ion-badge>
+        }
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (product(); as p) {
+    <div class="hero">
+      <span class="halo" aria-hidden="true"></span>
+      <img [src]="p.imageUrl" [alt]="p.name" />
+      @if (p.salePrice !== null) {
+        <span class="sticker">-{{ discount() }}%</span>
+      }
+    </div>
+
+    <section class="sheet cf-rise">
+      <div class="top-row">
+        <span class="cf-eyebrow">{{ p.category | titlecase }} · {{ p.badge || 'House recipe' }}</span>
+        @if (inCart() > 0) {
+          <span class="in-cart"><ion-icon name="cart-outline"></ion-icon>{{ inCart() }} in cart</span>
+        }
+      </div>
+
+      <h1>{{ p.name }}</h1>
+      <p class="tagline">{{ p.tagline }}</p>
+
+      <div class="meta">
+        <div class="stars" [attr.aria-label]="p.rating + ' out of 5 stars'">
+          @for (s of stars(p.rating); track $index) {
+            <ion-icon [name]="s"></ion-icon>
+          }
+          <strong>{{ p.rating | number: '1.1-1' }}</strong>
+          <span>({{ p.reviewsCount }} reviews)</span>
+        </div>
+        <div class="price">
+          @if (p.salePrice !== null) {
+            <span class="was">₱{{ p.price | number: '1.0-0' }}</span>
+            <span class="now"><small>₱</small>{{ p.salePrice | number: '1.0-0' }}</span>
+          } @else {
+            <span><small>₱</small>{{ p.price | number: '1.0-0' }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="facts">
+        <div><ion-icon name="flame-outline"></ion-icon><strong>{{ p.calories }}</strong><span>kcal</span></div>
+        <div><ion-icon name="resize-outline"></ion-icon><strong>4.5"</strong><span>jumbo</span></div>
+        <div><ion-icon name="time-outline"></ion-icon><strong>Daily</strong><span>fresh bake</span></div>
+      </div>
+
+      <h2>How many?</h2>
+      <app-pack-options [product]="p" [(selected)]="pack" />
+
+      <h2>About this cookie</h2>
+      <p class="desc">{{ p.description }}</p>
+
+      <h2>Flavor notes</h2>
+      <div class="pills">
+        @for (note of p.flavorNotes.split('•'); track $index) {
+          <span class="cf-chip">{{ note.trim() }}</span>
+        }
+      </div>
+
+      <h2>Allergens</h2>
+      <div class="pills">
+        @for (a of p.allergens; track a) {
+          <span class="cf-chip allergen"><ion-icon name="warning-outline"></ion-icon>{{ a }}</span>
+        } @empty {
+          <span class="cf-chip">None listed</span>
+        }
+      </div>
+
+      @if (related().length) {
+        <h2>You might also love</h2>
+        <div class="related">
+          @for (r of related(); track r.id) {
+            <a [routerLink]="['/product', r.id]" class="rel" routerDirection="forward">
+              <span class="rel-img"><img [src]="thumb(r.imageUrl)" [alt]="r.name" loading="lazy" /></span>
+              <span>{{ r.name }}</span>
+              <small>₱{{ (r.salePrice ?? r.price) | number: '1.0-0' }}</small>
+            </a>
+          }
+        </div>
+      }
+    </section>
+  } @else if (error()) {
+    <div class="state">
+      <div class="state-icon"><ion-icon name="cf-cookie"></ion-icon></div>
+      <h3>Cookie not found</h3>
+      <p>{{ error() }}</p>
+      <ion-button routerLink="/home" routerDirection="root">Back to menu</ion-button>
+    </div>
+  } @else {
+    <div class="loading"><ion-spinner name="crescent"></ion-spinner></div>
+  }
+</ion-content>
+
+@if (product(); as p) {
+  <ion-footer class="buy-bar">
+    @if (pack() === 1) {
+      <div class="stepper" role="group" aria-label="Quantity">
+        <button type="button" (click)="changeQty(-1)" [disabled]="qty() <= 1" aria-label="Fewer">
+          <ion-icon name="remove"></ion-icon>
+        </button>
+        <span aria-live="polite">{{ qty() }}</span>
+        <button type="button" (click)="changeQty(1)" [disabled]="qty() >= 20" aria-label="More">
+          <ion-icon name="add"></ion-icon>
+        </button>
+      </div>
+      <ion-button class="add-btn cf-btn-lg" expand="block" (click)="add()" [disabled]="adding()">
+        @if (adding()) {
+          <ion-spinner name="crescent"></ion-spinner>
+        } @else {
+          <ion-icon slot="start" name="cart-outline"></ion-icon>
+          Add · ₱{{ total() | number: '1.0-0' }}
+        }
+      </ion-button>
+    } @else {
+      <ion-button class="add-btn cf-btn-lg" expand="block" (click)="buildBox()">
+        <ion-icon slot="start" name="cube-outline"></ion-icon>
+        Build your box of {{ pack() }}
+      </ion-button>
+    }
+  </ion-footer>
+}

@@ -1,0 +1,80 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="cf-title">Contact Us</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page">
+    <section class="cf-hero-band hero cf-rise">
+      <span class="cf-eyebrow light">We'd love to hear from you</span>
+      <h1>Questions, cravings or big orders?</h1>
+      <p>Send us a message and our team will get back to you within a day.</p>
+      <img class="hero-art" src="assets/brand/cookie-logo.svg" alt="" />
+    </section>
+
+    <div class="quick">
+      <a class="cf-card" [href]="shop.phoneHref"><ion-icon name="call-outline"></ion-icon><span>Call</span></a>
+      <a class="cf-card" [href]="'mailto:' + shop.email"><ion-icon name="mail-outline"></ion-icon><span>Email</span></a>
+      <a class="cf-card" href="https://www.facebook.com/" target="_blank" rel="noopener"><ion-icon name="logo-facebook"></ion-icon><span>Facebook</span></a>
+      <a class="cf-card" href="https://www.instagram.com/" target="_blank" rel="noopener"><ion-icon name="logo-instagram"></ion-icon><span>Instagram</span></a>
+    </div>
+
+    <div class="list-card cf-card">
+      <a class="row" [href]="shop.phoneHref">
+        <ion-icon name="call-outline"></ion-icon>
+        <div><small>Phone / Viber</small><strong>{{ shop.phone }}</strong></div>
+      </a>
+      <a class="row" [href]="'mailto:' + shop.email">
+        <ion-icon name="mail-outline"></ion-icon>
+        <div><small>Email</small><strong>{{ shop.email }}</strong></div>
+      </a>
+      <div class="row">
+        <ion-icon name="location-outline"></ion-icon>
+        <div><small>Kitchen</small><strong>{{ shop.address }}</strong></div>
+      </div>
+      <div class="row">
+        <ion-icon name="time-outline"></ion-icon>
+        <div><small>Baking hours</small><strong>{{ shop.hours }}</strong></div>
+      </div>
+    </div>
+
+    <h2 class="cf-section-title">Send us a message</h2>
+    <form #f="ngForm" (ngSubmit)="send(f)" novalidate class="cf-card form">
+      @if (sent()) {
+        <p class="sent"><ion-icon name="checkmark-circle"></ion-icon>Thanks! Your message is saved and our team will reply soon.</p>
+      }
+      <ion-input class="cf-input" label="Your name" labelPlacement="floating" name="name" [(ngModel)]="name" required minlength="2"></ion-input>
+      <ion-input class="cf-input" type="email" label="Email" labelPlacement="floating" name="email" [(ngModel)]="email" required email></ion-input>
+      <ion-select class="cf-input" label="Topic" labelPlacement="floating" name="subject" [(ngModel)]="subject" interface="action-sheet">
+        @for (s of subjects; track s) {
+          <ion-select-option [value]="s">{{ s }}</ion-select-option>
+        }
+      </ion-select>
+      <ion-textarea
+        class="cf-input"
+        label="Message"
+        labelPlacement="floating"
+        name="message"
+        [(ngModel)]="message"
+        [autoGrow]="true"
+        rows="4"
+        required
+        minlength="5"
+        maxlength="2000"
+        [counter]="true"
+      ></ion-textarea>
+      <ion-button type="submit" expand="block" class="cf-btn-lg" [disabled]="sending()">
+        @if (sending()) {
+          <ion-spinner name="crescent"></ion-spinner>
+        } @else {
+          <ion-icon slot="start" name="send-outline"></ion-icon>
+          Send message
+        }
+      </ion-button>
+    </form>
+  </div>
+</ion-content>

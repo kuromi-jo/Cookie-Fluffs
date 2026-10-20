@@ -1,0 +1,121 @@
+/* Shared catalog styles for the Home and All Cookies tabs: chips, product grid, skeletons, empty states. */
+
+/* ---------- Category chips ---------- */
+.chips {
+  display: flex;
+  gap: 8px;
+  margin: 0 -20px 18px;
+  padding: 2px 20px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--cf-pink-border);
+  background: #fff;
+  color: var(--cf-choco);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  ion-icon {
+    font-size: 16px;
+    color: var(--cf-pink-deep);
+  }
+
+  &.on {
+    background: var(--cf-choco-btn);
+    border-color: var(--cf-choco-btn);
+    color: #fff5f7;
+   
+
+    ion-icon {
+      color: #f9a8d4;
+    }
+  }
+}
+
+/* ---------- Grid ---------- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  .count {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--cf-choco-light);
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.skeleton {
+  padding: 6px 6px 12px;
+  border-radius: 22px;
+  background: #fff;
+  border: 1px solid var(--cf-pink-soft);
+
+  ion-skeleton-text {
+    --background: var(--cf-pink-soft);
+    --background-rgb: 252, 231, 243;
+    border-radius: 8px;
+    margin: 8px 6px 0;
+  }
+
+  .sk-img {
+    width: auto;
+    height: 140px;
+    margin: 0;
+    border-radius: 18px;
+  }
+}
+
+/* ---------- Empty / error ---------- */
+.state {
+  padding: 36px 20px;
+  text-align: center;
+  border-radius: 24px;
+  background: #fff;
+  border: 1px dashed var(--cf-pink-border);
+
+  .state-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
+    border-radius: 22px;
+    background: var(--cf-pink-soft);
+    color: var(--cf-pink-deep);
+    font-size: 30px;
+  }
+
+  h3 {
+    margin: 8px 0 6px;
+    font-size: 1.15rem;
+  }
+
+  p {
+    margin: 0 0 16px;
+    font-size: 0.85rem;
+    color: var(--cf-choco-light);
+  }
+}

@@ -1,0 +1,61 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="cf-title">Company History</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page">
+    <section class="cf-hero-band hero cf-rise">
+      <span class="cf-eyebrow light">Our story</span>
+      <h1>From one tiny oven to your doorstep</h1>
+      <p>Cookie Fluffs is a small Quezon City bakery on a sweet mission: the fluffiest cookie you've ever had.</p>
+      <img class="hero-art" src="assets/brand/cookie-logo.svg" alt="" />
+    </section>
+
+    <p class="lead">
+      Cookie Fluffs began with a simple question: why can't a cookie be <strong>crispy, chewy and fluffy</strong> all at
+      once? Many test batches later, we found our answer. It's a thick, soft-centered cookie, generously loaded and topped with
+      our signature white heart.
+    </p>
+
+    <h2 class="cf-section-title">How we grew</h2>
+    <ol class="timeline">
+      @for (m of milestones; track m.year; let last = $last) {
+        <li [class.last]="last">
+          <span class="dot"></span>
+          <span class="year">{{ m.year }}</span>
+          <h3>{{ m.title }}</h3>
+          <p>{{ m.text }}</p>
+        </li>
+      }
+    </ol>
+
+    <h2 class="cf-section-title">What we believe in</h2>
+    <div class="value-grid">
+      @for (v of values; track v.title) {
+        <div class="cf-card value">
+          <ion-icon [name]="v.icon"></ion-icon>
+          <h3>{{ v.title }}</h3>
+          <p>{{ v.text }}</p>
+        </div>
+      }
+    </div>
+
+    <section class="logo-story cf-card">
+      <img src="assets/brand/cookie-logo.svg" alt="Cookie Fluffs logo" />
+      <div>
+        <h3>About our logo</h3>
+        <p>A bitten chocolate cookie with a white heart of frosting, because every cookie we bake is made to be shared with someone you love.</p>
+      </div>
+    </section>
+
+    <ion-button expand="block" class="cf-btn-lg" routerLink="/home" routerDirection="root">
+      <ion-icon slot="start" name="storefront-outline"></ion-icon>
+      Taste the story
+    </ion-button>
+  </div>
+</ion-content>

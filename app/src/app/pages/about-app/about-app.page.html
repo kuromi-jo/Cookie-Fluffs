@@ -1,0 +1,67 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="cf-title">About the App</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page">
+    <section class="app-card cf-rise">
+      <img class="icon" src="assets/icon/icon-512.png" alt="Cookie Fluffs app icon" />
+      <h1>Cookie Fluffs</h1>
+      <p class="version">Version {{ version }} · 60% build</p>
+      <p class="title">A Mobile-Based Cookie Shop Management Application for Online Ordering and Sales Tracking</p>
+    </section>
+
+    <p class="lead">
+      Cookie Fluffs lets cookie lovers browse our freshly baked menu, save favorites to a personal cart and order in a few
+      taps. Behind the scenes, the app helps the shop manage its catalog and keep track of sales.
+    </p>
+
+    <h2 class="cf-section-title">Built with</h2>
+    <div class="list-card cf-card">
+      @for (s of stack; track s.name) {
+        <div class="row">
+          <ion-icon [name]="s.icon"></ion-icon>
+          <div>
+            <strong>{{ s.name }}</strong>
+            <small>{{ s.role }}</small>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="flow cf-card">
+      <span><ion-icon name="phone-portrait-outline"></ion-icon>Ionic app</span>
+      <ion-icon class="arrow" name="arrow-forward"></ion-icon>
+      <span><ion-icon name="server-outline"></ion-icon>Express API</span>
+      <ion-icon class="arrow" name="arrow-forward"></ion-icon>
+      <span><ion-icon name="cloud-done-outline"></ion-icon>Neon DB</span>
+    </div>
+
+    <h2 class="cf-section-title">Ready in this build</h2>
+    <ul class="checks">
+      @for (f of ready; track f) {
+        <li><ion-icon name="checkmark-circle"></ion-icon>{{ f }}</li>
+      }
+    </ul>
+
+    <h2 class="cf-section-title">Coming next</h2>
+    <ul class="checks soon">
+      @for (f of next; track f) {
+        <li><ion-icon name="time-outline"></ion-icon>{{ f }}</li>
+      }
+    </ul>
+
+    <section class="course cf-card">
+      <ion-icon name="school-outline"></ion-icon>
+      <div>
+        <strong>IT 005 · Integrative Programming and Technologies</strong>
+        <small>Technological Institute of the Philippines · Quezon City · IT31S6</small>
+      </div>
+    </section>
+  </div>
+</ion-content>

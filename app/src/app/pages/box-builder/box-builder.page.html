@@ -1,0 +1,144 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/shop" text="" icon="arrow-back"></ion-back-button>
+    </ion-buttons>
+    <ion-title class="cf-title">Build your box</ion-title>
+    @if (box.count() > 0) {
+      <ion-buttons slot="end">
+        <ion-button class="clear" (click)="box.clear()">Empty</ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page">
+    <!-- Box size -->
+    <div class="sizes" role="radiogroup" aria-label="Box size">
+      @for (o of sizes; track o.size) {
+        <button
+          type="button"
+          role="radio"
+          class="size"
+          [class.on]="box.size() === o.size"
+          [attr.aria-checked]="box.size() === o.size"
+          (click)="setSize($any(o.size))"
+        >
+          <strong>{{ o.size }}</strong>
+          <span>cookies</span>
+          <em>-{{ o.discountPercent }}%</em>
+        </button>
+      }
+    </div>
+
+    <!-- The open box -->
+    <section class="stage" aria-label="Your cookie box">
+      <div class="box" [attr.data-size]="box.size()">
+        <div class="lid" aria-hidden="true">
+          <img src="assets/brand/cookie-logo.svg" alt="" />
+          <span>Cookie <em>Fluffs</em></span>
+        </div>
+        <div class="tray" [style.--cols]="box.option().cols">
+          @for (slot of box.slots(); track $index; let i = $index) {
+            @if (slot; as p) {
+              <button
+                type="button"
+                class="spot filled"
+                (click)="box.removeAt(i)"
+                [attr.aria-label]="'Remove ' + p.name + ' from spot ' + (i + 1)"
+              >
+                <img [src]="thumb(p.imageUrl)" [alt]="p.name" [style.--tilt.deg]="tilts[i % tilts.length]" />
+                <span class="remove" aria-hidden="true"><ion-icon name="close"></ion-icon></span>
+              </button>
+            } @else {
+              <div class="spot empty" [attr.aria-label]="'Empty spot ' + (i + 1)">
+                <span>{{ i + 1 }}</span>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <div class="status">
+        <p class="progress">
+          @if (box.isFull()) {
+            <ion-icon name="checkmark-circle"></ion-icon> Your box is full!
+          } @else {
+            <strong>{{ box.count() }}</strong> of {{ box.size() }} cookies ·
+            {{ box.remaining() }} {{ box.remaining() === 1 ? 'spot' : 'spots' }} left
+          }
+        </p>
+        @if (!box.isFull()) {
+          <button type="button" class="surprise" (click)="surprise()" [disabled]="!products.loaded()">
+            <ion-icon name="shuffle-outline"></ion-icon> Surprise me
+          </button>
+        }
+      </div>
+      <div class="bar"><span [style.width.%]="(box.count() / box.size()) * 100"></span></div>
+      @if (box.count() > 0) {
+        <p class="tip">Tap a cookie in the box to take it out.</p>
+      }
+    </section>
+
+    <!-- Cookie picker -->
+    <h2 class="cf-section-title">Pick your cookies</h2>
+    <nav class="chips" aria-label="Filter cookies">
+      @for (c of categories; track c.id) {
+        <button type="button" class="chip" [class.on]="category() === c.id" (click)="category.set(c.id)" [attr.aria-pressed]="category() === c.id">
+          <ion-icon [name]="c.icon" aria-hidden="true"></ion-icon>{{ c.label }}
+        </button>
+      }
+    </nav>
+
+    @if (products.loaded()) {
+      <div class="picker">
+        @for (p of menu(); track p.id) {
+          <button
+            type="button"
+            class="pick"
+            [class.disabled]="box.isFull()"
+            (click)="pick(p)"
+            [attr.aria-label]="'Add ' + p.name + ' to the box'"
+          >
+            <span class="pick-img">
+              <img [src]="thumb(p.imageUrl)" [alt]="p.name" loading="lazy" />
+              @if (counts().get(p.id); as n) {
+                <span class="count">{{ n }}</span>
+              } @else {
+                <span class="plus" aria-hidden="true"><ion-icon name="add"></ion-icon></span>
+              }
+            </span>
+            <span class="pick-name">{{ p.name }}</span>
+            <span class="pick-price">₱{{ price(p) | number: '1.0-0' }}</span>
+          </button>
+        }
+      </div>
+    } @else if (products.error()) {
+      <p class="cf-muted">{{ products.error() }}</p>
+    } @else {
+      <div class="loading"><ion-spinner name="crescent"></ion-spinner></div>
+    }
+  </div>
+</ion-content>
+
+<ion-footer class="buy-bar">
+  <div class="sum">
+    @if (box.count() > 0) {
+      <small><s>₱{{ box.price().regular | number: '1.0-0' }}</s> Save {{ box.option().discountPercent }}%</small>
+    } @else {
+      <small>Box of {{ box.size() }}</small>
+    }
+    <strong>₱{{ box.price().price | number: '1.0-0' }}</strong>
+  </div>
+  <ion-button class="cf-btn-lg" (click)="addToCart()" [disabled]="!box.isFull() || adding()">
+    @if (adding()) {
+      <ion-spinner name="crescent"></ion-spinner>
+    } @else if (box.isFull()) {
+      <ion-icon slot="start" name="cart-outline"></ion-icon>
+      Add box to cart
+    } @else {
+      Add {{ box.remaining() }} more
+    }
+  </ion-button>
+</ion-footer>

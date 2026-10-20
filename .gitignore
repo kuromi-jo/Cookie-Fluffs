@@ -1,0 +1,8 @@
+node_modules
+server/.env
+app/www
+app/.angular
+
+# original source images (the app uses the optimized copies in app/src/assets)
+/*.png
+/*.jpg

@@ -1,0 +1,128 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home" text="" icon="arrow-back"></ion-back-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="wrap">
+    <header class="intro cf-rise">
+      <div class="logo">
+        <img src="assets/brand/cookie-logo.svg" alt="Cookie Fluffs logo" />
+      </div>
+      @if (mode() === 'login') {
+        <h1>Welcome <em>back!</em></h1>
+        <p>Log in to fill your cookie box.</p>
+      } @else {
+        <h1>Join the <em>fluff</em></h1>
+        <p>Create your account in under a minute.</p>
+      }
+    </header>
+
+    <ion-segment [value]="mode()" (ionChange)="setMode($event.detail.value)" class="switch">
+      <ion-segment-button value="login"><ion-label>Log in</ion-label></ion-segment-button>
+      <ion-segment-button value="signup"><ion-label>Sign up</ion-label></ion-segment-button>
+    </ion-segment>
+
+    <form #f="ngForm" (ngSubmit)="submit(f)" novalidate class="form">
+      @if (mode() === 'signup') {
+        <label class="photo">
+          <app-avatar [src]="avatar()" [name]="fullName || 'You'" style="--size: 84px" />
+          <span class="cam"><ion-icon name="camera-outline"></ion-icon></span>
+          <input type="file" accept="image/*" (change)="pickPhoto($event)" />
+          <small>{{ avatar() ? 'Change photo' : 'Add a profile photo (optional)' }}</small>
+        </label>
+
+        <ion-input
+          class="cf-input"
+         
+          label="Full name"
+          labelPlacement="floating"
+          name="fullName"
+          autocomplete="name"
+          [(ngModel)]="fullName"
+          required
+          minlength="2"
+        >
+          <ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon>
+        </ion-input>
+      }
+
+      <ion-input
+        class="cf-input"
+        type="email"
+        label="Email"
+        labelPlacement="floating"
+        name="email"
+        autocomplete="email"
+        inputmode="email"
+        [(ngModel)]="email"
+        required
+        email
+      >
+        <ion-icon slot="start" name="mail-outline" aria-hidden="true"></ion-icon>
+      </ion-input>
+
+      @if (mode() === 'signup') {
+        <ion-input
+          class="cf-input"
+         
+          type="tel"
+          label="Mobile number"
+          labelPlacement="floating"
+          placeholder="0917 123 4567"
+          name="phone"
+          autocomplete="tel"
+          inputmode="tel"
+          [(ngModel)]="phone"
+          required
+          pattern="[0-9+\-\s()]{7,20}"
+        >
+          <ion-icon slot="start" name="call-outline" aria-hidden="true"></ion-icon>
+        </ion-input>
+      }
+
+      <ion-input
+        class="cf-input"
+        type="password"
+        label="Password"
+        labelPlacement="floating"
+        name="password"
+        [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
+        [(ngModel)]="password"
+        required
+        [minlength]="mode() === 'signup' ? 6 : 1"
+      >
+        <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
+        <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+      </ion-input>
+      @if (mode() === 'signup') {
+        <p class="hint">Use at least 6 characters.</p>
+      }
+
+      @if (error()) {
+        <p class="error" role="alert"><ion-icon name="alert-circle"></ion-icon>{{ error() }}</p>
+      }
+
+      <ion-button type="submit" expand="block" class="cf-btn-lg submit" [disabled]="submitting()">
+        @if (submitting()) {
+          <ion-spinner name="crescent"></ion-spinner>
+        } @else {
+          {{ mode() === 'login' ? 'Log in' : 'Create account' }}
+        }
+      </ion-button>
+    </form>
+
+    <p class="swap">
+      @if (mode() === 'login') {
+        New to Cookie Fluffs? <button type="button" (click)="setMode('signup')">Create an account</button>
+      } @else {
+        Already have an account? <button type="button" (click)="setMode('login')">Log in</button>
+      }
+    </p>
+
+    <button type="button" class="guest" (click)="browseAsGuest()">Continue browsing as guest</button>
+  </div>
+</ion-content>

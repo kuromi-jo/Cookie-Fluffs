@@ -1,0 +1,70 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="cf-title">About Our Products</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page">
+    <section class="cf-hero-band hero cf-rise">
+      <span class="cf-eyebrow light">What makes a fluff</span>
+      <h1>Thick. Soft. Loaded.</h1>
+      <p>Every Cookie Fluffs cookie is rested for 24 hours, hand-scooped and baked in small batches.</p>
+      <img class="hero-art" src="assets/brand/cookie-logo.svg" alt="" />
+    </section>
+
+    <div class="promise-grid">
+      @for (p of promises; track p.title) {
+        <div class="cf-card value">
+          <ion-icon [name]="p.icon"></ion-icon>
+          <h3>{{ p.title }}</h3>
+          <p>{{ p.text }}</p>
+        </div>
+      }
+    </div>
+
+    <h2 class="cf-section-title">Our cookie families</h2>
+    @if (products.loaded()) {
+      @for (g of groups(); track g.id) {
+        @if (g.items.length) {
+          <section class="family cf-card">
+            <header>
+              <span class="cat-icon" aria-hidden="true"><ion-icon [name]="g.icon"></ion-icon></span>
+              <div>
+                <h3>{{ g.label }}</h3>
+                <p>{{ g.blurb }}</p>
+              </div>
+              <span class="from">from ₱{{ g.from | number: '1.0-0' }}</span>
+            </header>
+            <div class="minis">
+              @for (p of g.items; track p.id) {
+                <a [routerLink]="['/product', p.id]" class="mini">
+                  <img [src]="p.imageUrl" [alt]="p.name" loading="lazy" />
+                  <span>{{ p.name }}</span>
+                </a>
+              }
+            </div>
+          </section>
+        }
+      }
+    } @else if (products.error()) {
+      <p class="cf-muted">{{ products.error() }}</p>
+    } @else {
+      <p class="cf-muted">Loading the menu…</p>
+    }
+
+    <section class="note cf-card">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      <div>
+        <h3>Allergen &amp; storage notes</h3>
+        <p>
+          Our kitchen handles gluten, dairy, eggs, peanuts and tree nuts. Each cookie's allergens are listed on its page.
+          Best enjoyed within 3 days at room temperature. Warm for 10 seconds for that fresh-baked feel.
+        </p>
+      </div>
+    </section>
+  </div>
+</ion-content>

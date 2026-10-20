@@ -1,0 +1,110 @@
+/*
+ * Cookie Fluffs brand theme
+ * Warm roasted cocoa on soft bakery pinks.
+ * https://ionicframework.com/docs/theming/
+ */
+
+:root {
+  /* ---------- Brand tokens ---------- */
+  --cf-choco: #4a3024;
+  --cf-choco-dark: #3b2419;
+  --cf-choco-medium: #74513e;
+  --cf-choco-light: #9a725c;
+  --cf-choco-btn: #523628;
+
+  --cf-canvas: #fff5f7;
+  --cf-pink-soft: #fce7f3;
+  --cf-pink-card: #fdf2f8;
+  --cf-pink-border: #fbcfe8;
+  --cf-pink-accent: #f472b6;
+  --cf-pink-vibrant: #ec4899;
+  --cf-pink-deep: #be185d;
+  --cf-cream: #fffafb;
+  --cf-gold: #f5a524;
+
+  --cf-font-display: 'Fraunces', Georgia, serif;
+  --cf-font-body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --cf-radius-sm: 12px;
+  --cf-radius: 20px;
+  --cf-radius-lg: 28px;
+  /* Flat design: Cookie Fluffs uses no drop shadows; separate surfaces with color and borders. */
+
+  /* ---------- Ionic globals ---------- */
+  --ion-font-family: var(--cf-font-body);
+  --ion-background-color: var(--cf-canvas);
+  --ion-background-color-rgb: 255, 245, 247;
+  --ion-text-color: var(--cf-choco);
+  --ion-text-color-rgb: 74, 48, 36;
+  --ion-toolbar-background: var(--cf-canvas);
+  --ion-toolbar-color: var(--cf-choco);
+  --ion-item-background: transparent;
+  --ion-border-color: var(--cf-pink-border);
+
+  /* primary = cocoa */
+  --ion-color-primary: #523628;
+  --ion-color-primary-rgb: 82, 54, 40;
+  --ion-color-primary-contrast: #fff5f7;
+  --ion-color-primary-contrast-rgb: 255, 245, 247;
+  --ion-color-primary-shade: #48301f;
+  --ion-color-primary-tint: #634a3e;
+
+  /* secondary = bakery pink */
+  --ion-color-secondary: #f472b6;
+  --ion-color-secondary-rgb: 244, 114, 182;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #d764a0;
+  --ion-color-secondary-tint: #f580bd;
+
+  /* tertiary = deep raspberry */
+  --ion-color-tertiary: #be185d;
+  --ion-color-tertiary-rgb: 190, 24, 93;
+  --ion-color-tertiary-contrast: #ffffff;
+  --ion-color-tertiary-contrast-rgb: 255, 255, 255;
+  --ion-color-tertiary-shade: #a71552;
+  --ion-color-tertiary-tint: #c52f6d;
+
+  --ion-color-success: #3f8f5b;
+  --ion-color-success-rgb: 63, 143, 91;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #377e50;
+  --ion-color-success-tint: #529a6b;
+
+  --ion-color-warning: #f5a524;
+  --ion-color-warning-rgb: 245, 165, 36;
+  --ion-color-warning-contrast: #3b2419;
+  --ion-color-warning-contrast-rgb: 59, 36, 25;
+  --ion-color-warning-shade: #d89120;
+  --ion-color-warning-tint: #f6ae3a;
+
+  --ion-color-danger: #d6336c;
+  --ion-color-danger-rgb: 214, 51, 108;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #bc2d5f;
+  --ion-color-danger-tint: #da477b;
+
+  /* light = soft pink surface */
+  --ion-color-light: #fce7f3;
+  --ion-color-light-rgb: 252, 231, 243;
+  --ion-color-light-contrast: #4a3024;
+  --ion-color-light-contrast-rgb: 74, 48, 36;
+  --ion-color-light-shade: #ddcbd6;
+  --ion-color-light-tint: #fce9f4;
+
+  --ion-color-medium: #9a725c;
+  --ion-color-medium-rgb: 154, 114, 92;
+  --ion-color-medium-contrast: #ffffff;
+  --ion-color-medium-contrast-rgb: 255, 255, 255;
+  --ion-color-medium-shade: #886451;
+  --ion-color-medium-tint: #a4806c;
+
+  --ion-color-dark: #3b2419;
+  --ion-color-dark-rgb: 59, 36, 25;
+  --ion-color-dark-contrast: #ffffff;
+  --ion-color-dark-contrast-rgb: 255, 255, 255;
+  --ion-color-dark-shade: #342016;
+  --ion-color-dark-tint: #4f3a30;
+}

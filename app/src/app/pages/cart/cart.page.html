@@ -1,0 +1,217 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="cf-title">My Cart</ion-title>
+    @if (auth.isLoggedIn() && lineCount()) {
+      <ion-buttons slot="end">
+        <ion-button class="clear" (click)="confirmClear()">Clear</ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page">
+    @if (!auth.isLoggedIn()) {
+      <!-- Guest -->
+      <div class="empty cf-rise">
+        <div class="art"><img src="assets/brand/cookie-logo.svg" alt="" /></div>
+        <h2>Log in to see your cart</h2>
+        <p>Your cart is saved to your Cookie Fluffs account so it's waiting for you on any device.</p>
+        <ion-button class="cf-btn-lg" expand="block" (click)="login()">
+          <ion-icon slot="start" name="log-in-outline"></ion-icon>
+          Log in or Sign up
+        </ion-button>
+        <ion-button fill="clear" routerLink="/home" routerDirection="root">Keep browsing</ion-button>
+      </div>
+    } @else if (cartService.loading() && !lineCount()) {
+      <div class="loading"><ion-spinner name="crescent"></ion-spinner></div>
+    } @else if (!lineCount()) {
+      <!-- Empty -->
+      <div class="empty cf-rise">
+        <div class="art"><img src="assets/brand/cookie-logo.svg" alt="" /><span class="crumb"></span></div>
+        <h2>Your cookie box is empty</h2>
+        <p>Fill it up with something sweet. Our Midnight Choco is calling your name.</p>
+        <ion-button class="cf-btn-lg" expand="block" routerLink="/shop">
+          <ion-icon slot="start" name="storefront-outline"></ion-icon>
+          Browse cookies
+        </ion-button>
+      </div>
+    } @else {
+      <!-- Free delivery progress -->
+      <section class="delivery cf-rise">
+        <ion-icon [name]="toFreeDelivery() > 0 ? 'bicycle-outline' : 'checkmark-circle'"></ion-icon>
+        <div>
+          @if (toFreeDelivery() > 0) {
+            <p>Add <strong>₱{{ toFreeDelivery() | number: '1.0-0' }}</strong> more for <strong>free delivery</strong></p>
+          } @else {
+            <p>You unlocked <strong>free delivery</strong>. Enjoy!</p>
+          }
+          <div class="bar"><span [style.width.%]="freeDeliveryProgress()"></span></div>
+        </div>
+      </section>
+
+      <!-- Select all -->
+      <div class="select-all">
+        <button
+          type="button"
+          class="check"
+          role="checkbox"
+          [class.on]="allSelected()"
+          [class.partial]="someSelected() && !allSelected()"
+          [attr.aria-checked]="allSelected() ? 'true' : someSelected() ? 'mixed' : 'false'"
+          [disabled]="selectingAll()"
+          (click)="toggleAll()"
+        >
+          <ion-icon [name]="someSelected() && !allSelected() ? 'remove' : 'checkmark'" aria-hidden="true"></ion-icon>
+          <span class="label">Select all ({{ lineCount() }})</span>
+        </button>
+        <span class="hint">Swipe left to remove</span>
+      </div>
+
+      <ion-list lines="none" class="items">
+        @for (item of cart().items; track item.productId) {
+          <ion-item-sliding #sliding class="cf-rise">
+            <ion-item class="cart-item">
+              <div class="row" [class.unselected]="!item.selected">
+                <button
+                  type="button"
+                  class="check item-check"
+                  role="checkbox"
+                  [class.on]="item.selected"
+                  [attr.aria-checked]="item.selected"
+                  [attr.aria-label]="(item.selected ? 'Unselect ' : 'Select ') + item.name"
+                  [disabled]="cartService.busy().has(item.productId)"
+                  (click)="toggle(item)"
+                >
+                  <ion-icon name="checkmark" aria-hidden="true"></ion-icon>
+                </button>
+                <a [routerLink]="['/product', item.productId]" class="thumb">
+                  <img [src]="thumb(item.imageUrl)" [alt]="item.name" />
+                </a>
+                <div class="info">
+                  <a [routerLink]="['/product', item.productId]" class="name">{{ item.name }}</a>
+                  <span class="each">
+                    @if (item.regularPrice > item.price) {
+                      <s>₱{{ item.regularPrice | number: '1.0-0' }}</s>
+                      <span class="sale">₱{{ item.price | number: '1.0-0' }} each</span>
+                    } @else {
+                      ₱{{ item.price | number: '1.0-0' }} each
+                    }
+                  </span>
+                  <div class="bottom">
+                    <div class="stepper" [class.busy]="cartService.busy().has(item.productId)">
+                      <button type="button" (click)="change(item, -1)" [attr.aria-label]="'One less ' + item.name">
+                        <ion-icon [name]="item.quantity === 1 ? 'trash-outline' : 'remove'"></ion-icon>
+                      </button>
+                      <span>{{ item.quantity }}</span>
+                      <button type="button" (click)="change(item, 1)" [disabled]="item.quantity >= 99" [attr.aria-label]="'One more ' + item.name">
+                        <ion-icon name="add"></ion-icon>
+                      </button>
+                    </div>
+                    <strong class="line">₱{{ item.lineTotal | number: '1.0-0' }}</strong>
+                  </div>
+                </div>
+              </div>
+            </ion-item>
+            <ion-item-options side="end">
+              <ion-item-option color="danger" expandable (click)="remove(item, sliding)">
+                <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+              </ion-item-option>
+            </ion-item-options>
+          </ion-item-sliding>
+        }
+
+        <!-- Mix-and-match boxes -->
+        @for (box of cart().boxes; track box.id) {
+          <ion-item-sliding #boxSliding class="cf-rise">
+            <ion-item class="cart-item">
+              <div class="row" [class.unselected]="!box.selected">
+                <button
+                  type="button"
+                  class="check item-check"
+                  role="checkbox"
+                  [class.on]="box.selected"
+                  [attr.aria-checked]="box.selected"
+                  [attr.aria-label]="(box.selected ? 'Unselect ' : 'Select ') + 'box of ' + box.size"
+                  [disabled]="cartService.boxBusy().has(box.id)"
+                  (click)="toggleBox(box)"
+                >
+                  <ion-icon name="checkmark" aria-hidden="true"></ion-icon>
+                </button>
+                <span class="mini-box thumb" [attr.data-size]="box.size" aria-hidden="true">
+                  @for (c of box.cookies; track $index) {
+                    <img [src]="thumb(c.imageUrl)" alt="" />
+                  }
+                </span>
+                <div class="info">
+                  <span class="name">Box of {{ box.size }} <em class="save">-{{ box.discountPercent }}%</em></span>
+                  <span class="contents">{{ boxSummary(box) }}</span>
+                  <span class="each">
+                    <s>₱{{ box.regularPrice | number: '1.0-0' }}</s>
+                    <span class="sale">₱{{ box.price | number: '1.0-0' }} per box</span>
+                  </span>
+                  <div class="bottom">
+                    <div class="stepper" [class.busy]="cartService.boxBusy().has(box.id)">
+                      <button type="button" (click)="changeBox(box, -1)" [attr.aria-label]="'One less box of ' + box.size">
+                        <ion-icon [name]="box.quantity === 1 ? 'trash-outline' : 'remove'"></ion-icon>
+                      </button>
+                      <span>{{ box.quantity }}</span>
+                      <button type="button" (click)="changeBox(box, 1)" [disabled]="box.quantity >= 99" [attr.aria-label]="'One more box of ' + box.size">
+                        <ion-icon name="add"></ion-icon>
+                      </button>
+                    </div>
+                    <strong class="line">₱{{ box.lineTotal | number: '1.0-0' }}</strong>
+                  </div>
+                </div>
+              </div>
+            </ion-item>
+            <ion-item-options side="end">
+              <ion-item-option color="danger" expandable (click)="removeBox(box, boxSliding)">
+                <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+              </ion-item-option>
+            </ion-item-options>
+          </ion-item-sliding>
+        }
+      </ion-list>
+
+      <button type="button" class="add-box" (click)="buildBox()">
+        <ion-icon name="cube-outline" aria-hidden="true"></ion-icon>
+        Build another box
+      </button>
+
+      <!-- Summary -->
+      <section class="summary">
+        <h2>Order summary</h2>
+        @if (!someSelected()) {
+          <p class="none-selected"><ion-icon name="information-circle-outline"></ion-icon>Tick the cookies you want to check out.</p>
+        }
+        <div class="line-row"><span>Subtotal ({{ cart().selectedCount }} selected {{ cart().selectedCount === 1 ? 'item' : 'items' }})</span><span>₱{{ cart().subtotal | number: '1.2-2' }}</span></div>
+        <div class="line-row">
+          <span>Delivery fee</span>
+          @if (cart().deliveryFee === 0) {
+            <span class="free">FREE</span>
+          } @else {
+            <span>₱{{ cart().deliveryFee | number: '1.2-2' }}</span>
+          }
+        </div>
+        <div class="line-row total"><span>Total</span><span>₱{{ cart().total | number: '1.2-2' }}</span></div>
+      </section>
+    }
+  </div>
+</ion-content>
+
+@if (auth.isLoggedIn() && lineCount()) {
+  <ion-footer class="checkout-bar">
+    <div class="sum">
+      <small>Total</small>
+      <strong>₱{{ cart().total | number: '1.2-2' }}</strong>
+    </div>
+    <ion-button class="cf-btn-lg" (click)="checkout()" [disabled]="cart().selectedCount === 0">
+      Checkout ({{ cart().selectedCount }})
+      <ion-icon slot="end" name="arrow-forward"></ion-icon>
+    </ion-button>
+  </ion-footer>
+}

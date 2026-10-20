@@ -1,0 +1,49 @@
+.quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+
+  a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 4px;
+    color: var(--cf-choco);
+    text-decoration: none;
+    font-size: 0.7rem;
+    font-weight: 800;
+
+    ion-icon {
+      font-size: 22px;
+      color: var(--cf-pink-deep);
+    }
+  }
+}
+
+.form {
+  padding: 18px 16px 16px;
+
+  ion-spinner {
+    color: #fff;
+  }
+}
+
+.sent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #ecfdf3;
+  color: #276749;
+  font-size: 0.82rem;
+  font-weight: 700;
+
+  ion-icon {
+    flex: none;
+    font-size: 18px;
+  }
+}

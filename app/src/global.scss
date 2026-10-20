@@ -1,0 +1,325 @@
+/*
+ * Cookie Fluffs global styles
+ * Ionic core CSS + brand typography, shared utility classes and overlay styling.
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import '@ionic/angular/css/core.css';
+
+/* Basic CSS for apps built with Ionic */
+@import '@ionic/angular/css/normalize.css';
+@import '@ionic/angular/css/structure.css';
+@import '@ionic/angular/css/typography.css';
+@import '@ionic/angular/css/display.css';
+
+/* Optional CSS utils */
+@import '@ionic/angular/css/padding.css';
+@import '@ionic/angular/css/float-elements.css';
+@import '@ionic/angular/css/text-alignment.css';
+@import '@ionic/angular/css/text-transformation.css';
+@import '@ionic/angular/css/flex-utils.css';
+
+/* Cookie Fluffs is a light, pink brand on purpose, so the dark palette is not imported. */
+
+html,
+body {
+  background: var(--cf-canvas);
+  color: var(--cf-choco);
+  -webkit-tap-highlight-color: transparent;
+  /* Fraunces' SOFT axis rounds its corners for a fluffier, bakery feel.
+     Fonts without this axis (Plus Jakarta Sans) simply ignore it. */
+  font-variation-settings: 'SOFT' 60;
+}
+
+h1,
+h2,
+h3,
+.cf-display {
+  font-family: var(--cf-font-display);
+  color: var(--cf-choco);
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Desktop preview: show the app inside a phone-sized frame ---------- */
+@media (min-width: 768px) {
+  body {
+    background:
+      radial-gradient(circle at 12% 18%, rgba(244, 114, 182, 0.18) 0 120px, transparent 121px),
+      radial-gradient(circle at 88% 82%, rgba(244, 114, 182, 0.14) 0 180px, transparent 181px),
+      #fae8eb;
+  }
+
+  html ion-app.ion-page {
+    width: 412px;
+    height: min(880px, calc(100vh - 48px));
+    top: max(24px, calc(50vh - 440px));
+    bottom: auto;
+    left: calc(50% - 206px);
+    right: auto;
+    overflow: hidden;
+    border-radius: 36px;
+    /* solid phone bezel (rings, not a drop shadow) */
+    box-shadow:
+      0 0 0 10px #4a3024,
+      0 0 0 12px #fbcfe8;
+  }
+}
+
+/* Flat UI: no drop shadows, including on Ionic's own overlays */
+ion-modal,
+ion-popover,
+ion-toast {
+  --box-shadow: none;
+}
+
+ion-menu::part(container) {
+  box-shadow: none;
+}
+
+ion-searchbar {
+  --box-shadow: none;
+}
+
+/* Bottom sheet (add-to-cart) */
+ion-modal.cf-sheet {
+  --border-radius: 28px;
+  --background: var(--cf-canvas);
+}
+
+/* Hide desktop scrollbars inside the app so it feels like a phone */
+ion-content::part(scroll) {
+  scrollbar-width: none;
+}
+
+/* ---------- Toolbars ---------- */
+ion-toolbar {
+  --border-width: 0 !important;
+  --min-height: 58px;
+}
+
+ion-header.cf-header::after,
+ion-header ion-toolbar::after {
+  display: none;
+}
+
+ion-title.cf-title {
+  font-family: var(--cf-font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+ion-menu-button,
+ion-back-button {
+  --color: var(--cf-choco);
+}
+
+/* ---------- Reusable pieces ---------- */
+.cf-card {
+  background: #fff;
+  border: 1px solid var(--cf-pink-soft);
+  border-radius: var(--cf-radius);
+}
+
+.cf-eyebrow {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cf-pink-deep);
+}
+
+.cf-section-title {
+  margin: 0;
+  font-family: var(--cf-font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.cf-muted {
+  color: var(--cf-choco-light);
+}
+
+.cf-price {
+  font-weight: 800;
+  color: var(--cf-choco);
+}
+
+.cf-page {
+  padding: 8px 20px 32px;
+}
+
+.cf-hero-band {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--cf-radius-lg);
+  padding: 22px;
+  color: #fff5f7;
+  background: linear-gradient(135deg, #523628 0%, #74513e 100%);
+
+  h1,
+  h2 {
+    color: #fff5f7;
+  }
+}
+
+ion-button {
+  --border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+ion-button.cf-btn-lg {
+  height: 52px;
+  font-size: 1rem;
+}
+
+/* Pills / chips */
+.cf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--cf-pink-soft);
+  color: var(--cf-choco);
+  border: 1px solid var(--cf-pink-border);
+}
+
+/* ---------- Form fields ---------- */
+/* Rounded "pill box" fields (drawn on the host so they look the same in iOS and MD mode) */
+ion-input.cf-input,
+ion-textarea.cf-input,
+ion-select.cf-input {
+  --background: transparent;
+  --border-width: 0;
+  --highlight-height: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --color: var(--cf-choco);
+  --placeholder-color: var(--cf-choco-light);
+  min-height: 58px;
+  margin-bottom: 14px;
+  padding: 0 16px;
+  border: 1.5px solid var(--cf-pink-border);
+  border-radius: 18px;
+  background: #fff;
+  font-weight: 600;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &.has-focus,
+  &.select-expanded {
+    border-color: var(--cf-pink-accent);
+    box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15);
+  }
+
+  &.ion-touched.ion-invalid {
+    border-color: var(--ion-color-danger);
+  }
+
+  &::part(label) {
+    color: var(--cf-choco-light);
+    font-weight: 600;
+  }
+}
+
+/* ion-input ignores host padding, so pad it through its own variables */
+ion-input.cf-input {
+  padding: 0;
+  --padding-start: 16px;
+  --padding-end: 12px;
+}
+
+/* ---------- Overlays ---------- */
+ion-toast.cf-toast {
+  --background: #3b2419;
+  --color: #fff5f7;
+  --border-radius: 16px;
+  --button-color: #f9a8d4;
+  font-weight: 600;
+}
+
+ion-toast.cf-toast-error {
+  --background: #be185d;
+  --button-color: #fff;
+}
+
+ion-alert {
+  --background: #fffafb;
+
+  .alert-title {
+    font-family: var(--cf-font-display);
+    color: var(--cf-choco) !important;
+  }
+
+  .alert-button {
+    color: var(--cf-pink-deep) !important;
+    font-weight: 700 !important;
+  }
+}
+
+/*
+ * Confirm dialogs where one choice is the safe default (e.g. "Keep items" vs "Empty cart"):
+ * buttons stack, the safe choice is a filled pill on top, the risky one a quiet text button below.
+ */
+ion-alert.cf-alert-confirm {
+  .alert-button-group {
+    flex-direction: column-reverse;
+    gap: 6px;
+    padding: 4px 16px 14px;
+    border-top: 0;
+  }
+
+  .alert-button {
+    flex: none;
+    min-height: 46px;
+    margin: 0;
+    border: 0 !important;
+    border-radius: 999px;
+  }
+
+  .alert-button.alert-btn-primary {
+    background: var(--cf-choco-btn);
+    color: #fff5f7 !important;
+    font-weight: 800 !important;
+   
+  }
+
+  .alert-button.alert-btn-quiet {
+    min-height: 38px;
+    background: transparent;
+    color: var(--cf-choco-light) !important;
+    font-size: 0.9rem;
+    font-weight: 600 !important;
+  }
+}
+
+/* ---------- Motion ---------- */
+@keyframes cf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cf-rise {
+  /* "backwards" (not "both") so finished cards drop their compositor layer;
+     a lingering layer can stop icons below it from repainting in Chromium. */
+  animation: cf-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-rise {
+    animation: none;
+  }
+}

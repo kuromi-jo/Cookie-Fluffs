@@ -1,0 +1,7 @@
+{
+  "name": "Cookie Fluffs",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
