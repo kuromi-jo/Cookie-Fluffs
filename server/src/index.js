@@ -10,6 +10,7 @@ import productsRouter from './routes/products.js';
 import authRouter from './routes/auth.js';
 import cartRouter from './routes/cart.js';
 import contactRouter from './routes/contact.js';
+import ordersRouter from './routes/orders.js';
 
 process.on('unhandledRejection', (reason) => console.error('[api] unhandled rejection:', reason));
 
@@ -34,11 +35,15 @@ app.use('/api/products', productsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/contact', contactRouter);
+app.use('/api/orders', ordersRouter);
 
 app.use('/api', (_req, res) => res.status(404).json({ message: 'Endpoint not found.' }));
 
 // Error handler: friendly message to the app, full details in the terminal
 app.use((err, _req, res, _next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'Request body must be valid JSON.' });
+  }
   const status = err.status || 500;
   if (status >= 500) console.error('[api]', err);
   res.status(status).json({

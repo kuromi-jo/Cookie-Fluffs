@@ -10,22 +10,21 @@ const { Pool } = pg;
 
 export const isDbConfigured = Boolean(process.env.DATABASE_URL);
 
-/**
- * Neon's copied string ends with ?sslmode=require&channel_binding=require.
- * We drop those flags and turn on full TLS certificate checking ourselves,
- * which is what pg does anyway and keeps its "SSL modes" warning out of the logs.
- */
-function connectionString() {
+/** Builds strict remote TLS options while allowing isolated loopback test databases. */
+function connectionOptions() {
   const url = new URL(process.env.DATABASE_URL);
   url.searchParams.delete('sslmode');
   url.searchParams.delete('channel_binding');
-  return url.toString();
+  const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  return {
+    connectionString: url.toString(),
+    ssl: isLoopback ? false : { rejectUnauthorized: true },
+  };
 }
 
 export const pool = isDbConfigured
   ? new Pool({
-      connectionString: connectionString(),
-      ssl: { rejectUnauthorized: true },
+      ...connectionOptions(),
       max: 5,
       idleTimeoutMillis: 10_000,
       keepAlive: true,
@@ -127,11 +126,94 @@ const SCHEMA = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
 `;
 
+const ORDER_SCHEMA = `
+  -- P2a-1: immutable, server-priced cash orders.
+  CREATE TABLE IF NOT EXISTS orders (
+    id                     BIGSERIAL PRIMARY KEY,
+    public_id              UUID NOT NULL UNIQUE,
+    user_id                INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    idempotency_key        UUID NOT NULL,
+    request_fingerprint    CHAR(64) NOT NULL,
+    fulfillment_method     TEXT NOT NULL CHECK (fulfillment_method IN ('delivery', 'pickup')),
+    payment_method         TEXT NOT NULL CHECK (payment_method IN ('cash_on_delivery', 'cash_on_pickup')),
+    payment_status         TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
+    order_status           TEXT NOT NULL DEFAULT 'placed' CHECK (order_status IN ('placed', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled')),
+    scheduling_mode        TEXT NOT NULL DEFAULT 'asap' CHECK (scheduling_mode = 'asap'),
+    contact_name           TEXT NOT NULL CHECK (char_length(contact_name) BETWEEN 2 AND 80),
+    contact_phone          TEXT NOT NULL CHECK (char_length(contact_phone) BETWEEN 12 AND 13),
+    address_line_1         TEXT,
+    address_line_2         TEXT,
+    barangay               TEXT,
+    city                   TEXT,
+    province               TEXT,
+    postal_code            TEXT,
+    notes                  TEXT NOT NULL DEFAULT '' CHECK (char_length(notes) <= 500),
+    merchandise_subtotal   NUMERIC(12, 2) NOT NULL CHECK (merchandise_subtotal >= 0),
+    promotion_discount     NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (promotion_discount >= 0),
+    pack_discount          NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (pack_discount >= 0),
+    discount_total         NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (discount_total = promotion_discount + pack_discount),
+    delivery_fee           NUMERIC(12, 2) NOT NULL CHECK (delivery_fee >= 0),
+    order_total            NUMERIC(12, 2) NOT NULL CHECK (order_total = merchandise_subtotal + delivery_fee),
+    currency               CHAR(3) NOT NULL DEFAULT 'PHP' CHECK (currency = 'PHP'),
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, idempotency_key),
+    CHECK (
+      (fulfillment_method = 'delivery' AND payment_method = 'cash_on_delivery'
+        AND address_line_1 IS NOT NULL AND barangay IS NOT NULL AND city IS NOT NULL
+        AND province IS NOT NULL AND postal_code IS NOT NULL)
+      OR
+      (fulfillment_method = 'pickup' AND payment_method = 'cash_on_pickup'
+        AND address_line_1 IS NULL AND address_line_2 IS NULL AND barangay IS NULL
+        AND city IS NULL AND province IS NULL AND postal_code IS NULL AND delivery_fee = 0)
+    )
+  );
+
+  CREATE INDEX IF NOT EXISTS orders_user_created_idx ON orders (user_id, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS order_items (
+    id                     BIGSERIAL PRIMARY KEY,
+    order_id               BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    line_position          INT NOT NULL CHECK (line_position >= 0),
+    line_type              TEXT NOT NULL CHECK (line_type IN ('single', 'box')),
+    product_id             INT REFERENCES products(id) ON DELETE SET NULL,
+    display_name           TEXT NOT NULL,
+    quantity               INT NOT NULL CHECK (quantity > 0),
+    pack_size              INT,
+    regular_unit_price     NUMERIC(12, 2) NOT NULL CHECK (regular_unit_price >= 0),
+    unit_price             NUMERIC(12, 2) NOT NULL CHECK (unit_price >= 0),
+    promotion_discount     NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (promotion_discount >= 0),
+    pack_discount          NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (pack_discount >= 0),
+    line_total             NUMERIC(12, 2) NOT NULL CHECK (
+      line_total = unit_price * quantity
+      AND line_total = regular_unit_price * quantity - promotion_discount - pack_discount
+    ),
+    UNIQUE (order_id, line_position),
+    CHECK (
+      (line_type = 'single' AND pack_size IS NULL)
+      OR (line_type = 'box' AND product_id IS NULL AND pack_size IN (4, 6, 12))
+    )
+  );
+
+  CREATE INDEX IF NOT EXISTS order_items_order_idx ON order_items (order_id);
+
+  CREATE TABLE IF NOT EXISTS order_box_items (
+    order_item_id          BIGINT NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+    slot                   INT NOT NULL CHECK (slot >= 0),
+    product_id             INT REFERENCES products(id) ON DELETE SET NULL,
+    product_name           TEXT NOT NULL,
+    regular_price          NUMERIC(12, 2) NOT NULL CHECK (regular_price >= 0),
+    unit_price             NUMERIC(12, 2) NOT NULL CHECK (unit_price >= 0),
+    PRIMARY KEY (order_item_id, slot)
+  );
+`;
+
 /** Creates the tables (if missing) and loads the Cookie Fluffs menu. */
 export async function initDb() {
   if (!pool) return { ready: false, seeded: 0 };
 
   await query(SCHEMA);
+  await applyOrderSchemaOnce();
   await splitNamesOnce();
 
   let seeded = 0;
@@ -155,6 +237,32 @@ export async function initDb() {
   await applyCollectionsOnce();
   await retireOldMenuOnce();
   return { ready: true, seeded };
+}
+
+/** Applies the additive P2a-1 order schema once in an atomic migration. */
+async function applyOrderSchemaOnce() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const claim = await client.query(
+      `INSERT INTO app_meta (key, value)
+       VALUES ('orders_v1', 'pending')
+       ON CONFLICT (key) DO NOTHING
+       RETURNING key`,
+    );
+    if (!claim.rowCount) {
+      await client.query('ROLLBACK');
+      return;
+    }
+    await client.query(ORDER_SCHEMA);
+    await client.query(`UPDATE app_meta SET value = now()::text WHERE key = 'orders_v1'`);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /** Backfills split name fields once while preserving each user's display name. */

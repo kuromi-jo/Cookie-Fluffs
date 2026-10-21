@@ -137,11 +137,13 @@ Cookie-Fluffs/
 | POST | `/api/cart/boxes` | Add a box `{ size: 4 | 6 | 12, productIds: [...] }` (one id per spot) |
 | PATCH / DELETE | `/api/cart/boxes/:boxId` | Box `quantity` / `selected`, or remove it |
 | DELETE | `/api/cart/:productId` · `/api/cart` | Remove one item · empty cart |
+| POST | `/api/orders` | Place one server-priced delivery or pickup order from selected cart lines |
+| GET | `/api/orders/:id` | Read one order confirmation owned by the logged-in customer |
 | POST | `/api/contact` | Save a Contact Us message |
 
 ### Database tables (Neon)
 
-`users` · `products` · `cart_items` · `cart_boxes` + `cart_box_items` · `contact_messages` · `app_meta` (records one-time data migrations)
+`users` · `products` · `cart_items` · `cart_boxes` + `cart_box_items` · `orders` + `order_items` + `order_box_items` · `contact_messages` · `app_meta` (records one-time data migrations)
 
 ---
 

@@ -58,11 +58,13 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] Signup validation with inline errors, password guidance, read-to-agree consent window, and draft policy pages (`pages/login/`, `components/consent-modal.component.ts`)
 - [x] Signup hardening: aligned consent control, complete password policy, and phone-frame-safe policy modal
 - [x] Signup consent validation message uses the shared field-error alignment and styling
+- [x] P2a-1 backend: immutable cash orders, exact server pricing, idempotent checkout, and owned confirmation reads
+- [x] P2a-1.1: PostgreSQL 17 migration, transaction, API, and deterministic concurrency verification
 
 ### Next milestones (not started)
-- [ ] **Checkout**: delivery or pickup, time slot, order notes (Checkout button currently shows a "coming next" alert in `pages/cart/cart.page.ts`)
-- [ ] **Payment**: GCash, Maya, card, COD, promo codes
-- [ ] **Orders**: order tracking, order history, "reorder", digital receipt (needs `orders` / `order_items` tables)
+- [ ] **Checkout UI (P2a-2)**: delivery or pickup, contact/address form, order review, and confirmation (Checkout button currently shows a "coming next" alert in `pages/cart/cart.page.ts`)
+- [ ] **Payment**: GCash, Maya, card, payment verification, promo codes
+- [ ] **Orders**: order tracking, order history, "reorder", digital receipt
 - [ ] **Custom Cookie Builder**: dough, mix-ins, toppings, live preview (the core feature from the project plan)
 - [ ] **Community gallery**: share creations, likes, leaderboard
 - [ ] **Loyalty**: Fluff Points, rewards, taste profile
@@ -71,14 +73,25 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [ ] Replace placeholder content: shop contact info (`pages/contact/contact.page.ts`), company story (`pages/company-history/`), cookie descriptions and prices (`server/src/seed-data.js`)
 - [ ] Optional: Android build with Capacitor
 
+### P2a-1 backend contract
+
+- `POST /api/orders` creates an order only from the authenticated user's selected persisted cart rows. It accepts a UUID `idempotencyKey`, `delivery` + `cash_on_delivery` or `pickup` + `cash_on_pickup`, `asap`, contact details, an optional note, and a required address snapshot for delivery.
+- `GET /api/orders/:id` reloads one confirmation by public UUID and authenticated owner. Order history remains deferred to P2c.
+- Prices use integer centavos at the server integrity boundary. Existing promo prices and 5 / 10 / 15% box discounts apply first; delivery is ₱49 below a ₱500 merchandise subtotal, free at ₱500, and always free for pickup.
+- New cash orders use order status `placed` and payment status `pending`. P2b owns future verified payment transitions; P2c owns fulfillment transitions and history.
+- A user-scoped database uniqueness constraint plus a canonical request fingerprint makes retries safe. The same key and details return the original order; different details return a conflict.
+- Checkout uses one transaction, a per-user advisory lock, selected cart row locks, and product availability locks. It snapshots items and boxes, removes only purchased selected rows, and rolls back every change on failure.
+- Schema additions: `orders`, `order_items`, and `order_box_items`. They were applied twice to a disposable local PostgreSQL 17 database; Neon was not used or changed.
+- P2a-1.1 added loopback database support and one shared per-user advisory lock for every cart write and checkout. This prevents stale checkout snapshots while allowing different customers to proceed independently.
+- Automated verification: 36 server unit/route tests, 10 real PostgreSQL integration tests, and 16 app tests pass; app lint and the production build also pass.
+
 ---
 
 ## Last session (where work stopped)
 
-**Date:** 2026-10-21
-**State:** the 60% build is complete, working, and pushed to GitHub. No work is in progress, and nothing is half-finished.
-**Most recent changes:** calmer splash screen with orbiting sprinkles, team photos on the Developers page, the halo centered behind the cookie on the product page.
-**Suggested next step:** start the **Checkout** milestone. Add `orders` and `order_items` tables in `server/src/db.js`, a `POST /api/orders` route that turns the selected cart lines into an order, and a checkout page reached from the Cart's Checkout button.
+**Date:** 2026-10-22
+**State:** P2a-1 passed its PostgreSQL migration, rollback, concurrency, API, ownership, and idempotency gate; Neon remains untouched.
+**Next:** checkpoint the mixed P0/P1/P2 work safely, then begin P2a-2 checkout UI.
 
 ## Key files map
 
