@@ -13,11 +13,11 @@ const TOKEN_KEY = 'cf.token';
 const USER_KEY = 'cf.user';
 
 export interface SignupData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   password: string;
-  avatar: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -30,7 +30,7 @@ export class AuthService {
   readonly isLoggedIn = computed(() => !!this.token() && !!this.user());
 
   /** First name for friendly greetings, e.g. "Hi, Jonie". */
-  readonly firstName = computed(() => this.user()?.fullName.split(' ')[0] ?? '');
+  readonly firstName = computed(() => this.user()?.firstName ?? this.user()?.fullName.split(' ')[0] ?? '');
 
   async login(email: string, password: string): Promise<User> {
     const res = await firstValueFrom(this.http.post<AuthResponse>(`${this.base}/login`, { email, password }));
@@ -51,7 +51,7 @@ export class AuthService {
     this.setUser(user);
   }
 
-  async updateProfile(changes: Partial<Pick<User, 'fullName' | 'phone' | 'avatar'>>): Promise<User> {
+  async updateProfile(changes: Partial<Pick<User, 'firstName' | 'lastName' | 'phone' | 'avatar'>>): Promise<User> {
     const user = await firstValueFrom(this.http.put<User>(`${this.base}/me`, changes));
     this.setUser(user);
     return user;

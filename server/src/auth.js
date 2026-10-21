@@ -4,6 +4,7 @@
  */
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
+import { splitFullName } from './validation.js';
 
 const SECRET =
   process.env.JWT_SECRET ||
@@ -16,9 +17,12 @@ export function signToken(userId) {
 
 /** Shapes a users row into what the app sees (never includes the password hash). */
 export function toPublicUser(row) {
+  const fallbackName = splitFullName(row.full_name);
   return {
     id: row.id,
     fullName: row.full_name,
+    firstName: row.first_name ?? fallbackName.firstName,
+    lastName: row.last_name ?? fallbackName.lastName,
     email: row.email,
     phone: row.phone,
     avatar: row.avatar,

@@ -3,8 +3,9 @@
  * @description "All Cookies" tab: the full menu from Neon with search, categories and sorting.
  * Query params (?category=, ?show=best|new|promo, ?focus=1) let Home deep-link into it.
  */
-import { Component, computed, effect, inject, input, signal, viewChild } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 import {
   IonButton,
@@ -67,17 +68,16 @@ const isCollection = (v: unknown): v is Collection => typeof v === 'string' && O
   ],
 })
 export class ShopPage {
-  /** Query params, bound by withComponentInputBinding(). */
-  readonly categoryParam = input<string | undefined>(undefined, { alias: 'category' });
-  readonly showParam = input<string | undefined>(undefined, { alias: 'show' });
-  readonly focusParam = input<string | undefined>(undefined, { alias: 'focus' });
-
   readonly cart = inject(CartService);
   readonly products = inject(ProductService);
   private shop = inject(ShopActionsService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   private readonly searchbar = viewChild(IonSearchbar);
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
 
   readonly categories = CATEGORIES;
   readonly collections = COLLECTIONS;
@@ -170,13 +170,14 @@ export class ShopPage {
 
     // Follow deep links from Home (the tab stays alive, so react to every change).
     effect(() => {
-      const cat = this.categoryParam();
-      const col = this.showParam();
+      const params = this.queryParams();
+      const cat = params.get('category');
+      const col = params.get('show');
       this.category.set(isCategory(cat) ? cat : 'all');
       this.collection.set(isCollection(col) ? col : null);
     });
     effect(() => {
-      if (this.focusParam() === '1') setTimeout(() => void this.searchbar()?.setFocus(), 450);
+      if (this.queryParams().get('focus') === '1') setTimeout(() => void this.searchbar()?.setFocus(), 450);
     });
   }
 

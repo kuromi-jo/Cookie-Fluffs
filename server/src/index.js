@@ -11,6 +11,8 @@ import authRouter from './routes/auth.js';
 import cartRouter from './routes/cart.js';
 import contactRouter from './routes/contact.js';
 
+process.on('unhandledRejection', (reason) => console.error('[api] unhandled rejection:', reason));
+
 const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 

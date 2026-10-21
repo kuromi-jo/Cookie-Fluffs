@@ -39,7 +39,7 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] Splash screen (`components/splash.component.ts`)
 - [x] Home screen shows products immediately (`pages/home/`)
 - [x] Side menu: user photo, name, phone, Company History, About Our Products, Cart, About the App, Developers, Contact Us (`app.component.html`)
-- [x] Login / sign-up with profile photo (`pages/login/`, `server/src/routes/auth.js`)
+- [x] Login / sign-up with separate first and last names; profile photos are added from the side menu (`pages/login/`, `server/src/routes/auth.js`)
 - [x] Product list from the database (18 cookies, `server/src/seed-data.js`)
 - [x] Shopping cart: add and view, saved in Neon (`pages/cart/`, `server/src/routes/cart.js`)
 
@@ -55,6 +55,9 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] Empty-cart dialog with "Keep items" as the emphasized choice
 - [x] Contact Us form saved to Neon (`server/src/routes/contact.js`)
 - [x] Developers page with team photos (`app/src/assets/team/`)
+- [x] Signup validation with inline errors, password guidance, read-to-agree consent window, and draft policy pages (`pages/login/`, `components/consent-modal.component.ts`)
+- [x] Signup hardening: aligned consent control, complete password policy, and phone-frame-safe policy modal
+- [x] Signup consent validation message uses the shared field-error alignment and styling
 
 ### Next milestones (not started)
 - [ ] **Checkout**: delivery or pickup, time slot, order notes (Checkout button currently shows a "coming next" alert in `pages/cart/cart.page.ts`)

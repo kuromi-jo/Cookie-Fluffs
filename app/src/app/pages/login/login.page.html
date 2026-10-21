@@ -26,84 +26,240 @@
       <ion-segment-button value="signup"><ion-label>Sign up</ion-label></ion-segment-button>
     </ion-segment>
 
-    <form #f="ngForm" (ngSubmit)="submit(f)" novalidate class="form">
+    <form (ngSubmit)="submit()" novalidate class="form">
       @if (mode() === 'signup') {
-        <label class="photo">
-          <app-avatar [src]="avatar()" [name]="fullName || 'You'" style="--size: 84px" />
-          <span class="cam"><ion-icon name="camera-outline"></ion-icon></span>
-          <input type="file" accept="image/*" (change)="pickPhoto($event)" />
-          <small>{{ avatar() ? 'Change photo' : 'Add a profile photo (optional)' }}</small>
-        </label>
+        <div id="firstName-field" class="field-group">
+          <ion-input
+            #firstNameInput
+            id="firstName"
+            class="cf-input"
+            [class.ion-invalid]="!!fieldError('firstName')"
+            [class.ion-touched]="isTouched('firstName')"
+            label="First name"
+            labelPlacement="floating"
+            name="firstName"
+            autocomplete="given-name"
+            autocapitalize="words"
+            [ngModel]="firstName"
+            (ngModelChange)="updateText('firstName', $event)"
+            (ionBlur)="blurField('firstName')"
+          >
+            <ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon>
+          </ion-input>
+          @if (fieldError('firstName'); as message) {
+            <p class="field-error" role="alert">
+              <ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}
+            </p>
+          }
+        </div>
 
-        <ion-input
-          class="cf-input"
-         
-          label="Full name"
-          labelPlacement="floating"
-          name="fullName"
-          autocomplete="name"
-          [(ngModel)]="fullName"
-          required
-          minlength="2"
-        >
-          <ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon>
-        </ion-input>
+        <div id="lastName-field" class="field-group">
+          <ion-input
+            #lastNameInput
+            id="lastName"
+            class="cf-input"
+            [class.ion-invalid]="!!fieldError('lastName')"
+            [class.ion-touched]="isTouched('lastName')"
+            label="Last name"
+            labelPlacement="floating"
+            name="lastName"
+            autocomplete="family-name"
+            autocapitalize="words"
+            [ngModel]="lastName"
+            (ngModelChange)="updateText('lastName', $event)"
+            (ionBlur)="blurField('lastName')"
+          >
+            <ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon>
+          </ion-input>
+          @if (fieldError('lastName'); as message) {
+            <p class="field-error" role="alert">
+              <ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}
+            </p>
+          }
+        </div>
       }
 
-      <ion-input
-        class="cf-input"
-        type="email"
-        label="Email"
-        labelPlacement="floating"
-        name="email"
-        autocomplete="email"
-        inputmode="email"
-        [(ngModel)]="email"
-        required
-        email
-      >
-        <ion-icon slot="start" name="mail-outline" aria-hidden="true"></ion-icon>
-      </ion-input>
+      <div id="email-field" class="field-group">
+        <ion-input
+          #emailInput
+          id="email"
+          class="cf-input"
+          [class.ion-invalid]="!!fieldError('email')"
+          [class.ion-touched]="isTouched('email')"
+          type="email"
+          label="Email"
+          labelPlacement="floating"
+          name="email"
+          autocomplete="email"
+          inputmode="email"
+          [ngModel]="email"
+          (ngModelChange)="updateText('email', $event)"
+          (ionBlur)="blurField('email')"
+        >
+          <ion-icon slot="start" name="mail-outline" aria-hidden="true"></ion-icon>
+        </ion-input>
+        @if (fieldError('email'); as message) {
+          <p class="field-error" role="alert">
+            <ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}
+          </p>
+        }
+      </div>
 
       @if (mode() === 'signup') {
-        <ion-input
-          class="cf-input"
-         
-          type="tel"
-          label="Mobile number"
-          labelPlacement="floating"
-          placeholder="0917 123 4567"
-          name="phone"
-          autocomplete="tel"
-          inputmode="tel"
-          [(ngModel)]="phone"
-          required
-          pattern="[0-9+\-\s()]{7,20}"
-        >
-          <ion-icon slot="start" name="call-outline" aria-hidden="true"></ion-icon>
-        </ion-input>
+        <div id="phone-field" class="field-group">
+          <ion-input
+            #phoneInput
+            id="phone"
+            class="cf-input"
+            [class.ion-invalid]="!!fieldError('phone')"
+            [class.ion-touched]="isTouched('phone')"
+            type="tel"
+            label="Mobile number"
+            labelPlacement="floating"
+            placeholder="0917 123 4567"
+            name="phone"
+            autocomplete="tel"
+            inputmode="tel"
+            [ngModel]="phone"
+            (ngModelChange)="updateText('phone', $event)"
+            (ionBlur)="blurField('phone')"
+          >
+            <ion-icon slot="start" name="call-outline" aria-hidden="true"></ion-icon>
+          </ion-input>
+          @if (fieldError('phone'); as message) {
+            <p class="field-error" role="alert">
+              <ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}
+            </p>
+          }
+          <p class="helper">Used for delivery updates.</p>
+        </div>
       }
 
-      <ion-input
-        class="cf-input"
-        type="password"
-        label="Password"
-        labelPlacement="floating"
-        name="password"
-        [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
-        [(ngModel)]="password"
-        required
-        [minlength]="mode() === 'signup' ? 6 : 1"
-      >
-        <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
-        <ion-input-password-toggle slot="end"></ion-input-password-toggle>
-      </ion-input>
+      <div id="password-field" class="field-group">
+        <ion-input
+          #passwordInput
+          id="password"
+          class="cf-input"
+          [class.ion-invalid]="!!fieldError('password')"
+          [class.ion-touched]="isTouched('password')"
+          type="password"
+          label="Password"
+          labelPlacement="floating"
+          name="password"
+          [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
+          [ngModel]="password"
+          (ngModelChange)="updateText('password', $event)"
+          (ionBlur)="blurField('password')"
+        >
+          <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
+          <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+        </ion-input>
+        @if (fieldError('password'); as message) {
+          <p class="field-error" role="alert">
+            <ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}
+          </p>
+        }
+
+        @if (mode() === 'signup') {
+          <section class="password-guide" aria-live="polite">
+            <div class="strength-heading">
+              <span>Password strength</span>
+              @if (passwordStrength().label) {
+                <strong [class]="'strength-' + passwordStrength().level">{{ passwordStrength().label }}</strong>
+              }
+            </div>
+            <div class="strength-bar" aria-hidden="true">
+              @for (segment of [1, 2, 3]; track segment) {
+                <span
+                  [class.active]="segment <= passwordStrength().segments"
+                  [class]="'segment strength-' + passwordStrength().level"
+                ></span>
+              }
+            </div>
+            <ul class="password-checks">
+              <li [class.done]="passwordLengthOkay()">
+                <ion-icon [name]="passwordLengthOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+                8–64 characters
+              </li>
+              <li [class.done]="passwordUppercaseOkay()">
+                <ion-icon [name]="passwordUppercaseOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+                One uppercase letter
+              </li>
+              <li [class.done]="passwordLowercaseOkay()">
+                <ion-icon [name]="passwordLowercaseOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+                One lowercase letter
+              </li>
+              <li [class.done]="passwordNumberOkay()">
+                <ion-icon [name]="passwordNumberOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+                One number
+              </li>
+              <li [class.done]="passwordSpecialCharacterOkay()">
+                <ion-icon [name]="passwordSpecialCharacterOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+                One special character
+              </li>
+              <li [class.done]="passwordPersonalInfoOkay()">
+                <ion-icon [name]="passwordPersonalInfoOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+                Does not contain your name or email
+              </li>
+            </ul>
+            <p class="password-tip">A few random words make a strong password.</p>
+          </section>
+        }
+      </div>
+
       @if (mode() === 'signup') {
-        <p class="hint">Use at least 6 characters.</p>
+        <div id="confirmPassword-field" class="field-group">
+          <ion-input
+            #confirmPasswordInput
+            id="confirmPassword"
+            class="cf-input"
+            [class.ion-invalid]="!!fieldError('confirmPassword')"
+            [class.ion-touched]="isTouched('confirmPassword')"
+            type="password"
+            label="Confirm password"
+            labelPlacement="floating"
+            name="confirmPassword"
+            autocomplete="new-password"
+            [ngModel]="confirmPassword"
+            (ngModelChange)="updateText('confirmPassword', $event)"
+            (ionBlur)="blurField('confirmPassword')"
+          >
+            <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
+            <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+          </ion-input>
+          @if (fieldError('confirmPassword'); as message) {
+            <p class="field-error" role="alert">
+              <ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}
+            </p>
+          }
+        </div>
+
+        <div id="terms-field" class="consent-field">
+          <div class="consent-row">
+            <ion-checkbox
+              #termsInput
+              id="terms"
+              aria-label="Agree to the Terms of Use and Privacy Policy"
+              [checked]="acceptedTerms"
+              (ionChange)="onTermsChange($event)"
+            ></ion-checkbox>
+            <p class="consent-copy">
+              I agree to the
+              <a routerLink="/terms" routerDirection="forward">Terms of Use</a>
+              and
+              <a routerLink="/privacy" routerDirection="forward">Privacy Policy</a>
+            </p>
+          </div>
+          @if (fieldError('terms'); as message) {
+            <p class="field-error" role="alert">
+              <ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}
+            </p>
+          }
+        </div>
       }
 
       @if (error()) {
-        <p class="error" role="alert"><ion-icon name="alert-circle"></ion-icon>{{ error() }}</p>
+        <p class="form-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ error() }}</p>
       }
 
       <ion-button type="submit" expand="block" class="cf-btn-lg submit" [disabled]="submitting()">

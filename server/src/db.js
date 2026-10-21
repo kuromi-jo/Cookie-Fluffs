@@ -4,6 +4,7 @@
  */
 import pg from 'pg';
 import { SEED_PRODUCTS } from './seed-data.js';
+import { splitFullName } from './validation.js';
 
 const { Pool } = pg;
 
@@ -26,8 +27,13 @@ export const pool = isDbConfigured
       connectionString: connectionString(),
       ssl: { rejectUnauthorized: true },
       max: 5,
+      idleTimeoutMillis: 10_000,
+      keepAlive: true,
     })
   : null;
+
+// Neon closes idle connections when it suspends, so log pool errors instead of crashing the API.
+pool?.on('error', (err) => console.error('[db] idle connection dropped:', err.message));
 
 /** Runs a parameterized query against Neon. */
 export function query(text, params = []) {
@@ -116,6 +122,9 @@ const SCHEMA = `
     product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     PRIMARY KEY (box_id, slot)
   );
+
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
 `;
 
 /** Creates the tables (if missing) and loads the Cookie Fluffs menu. */
@@ -123,6 +132,7 @@ export async function initDb() {
   if (!pool) return { ready: false, seeded: 0 };
 
   await query(SCHEMA);
+  await splitNamesOnce();
 
   let seeded = 0;
   for (const p of SEED_PRODUCTS) {
@@ -145,6 +155,18 @@ export async function initDb() {
   await applyCollectionsOnce();
   await retireOldMenuOnce();
   return { ready: true, seeded };
+}
+
+/** Backfills split name fields once while preserving each user's display name. */
+async function splitNamesOnce() {
+  const done = await query(`SELECT 1 FROM app_meta WHERE key = 'names_v1'`);
+  if (done.rowCount) return;
+  const { rows } = await query('SELECT id, full_name FROM users WHERE first_name IS NULL');
+  for (const row of rows) {
+    const { firstName, lastName } = splitFullName(row.full_name);
+    await query('UPDATE users SET first_name = $2, last_name = $3 WHERE id = $1', [row.id, firstName, lastName]);
+  }
+  await query(`INSERT INTO app_meta (key, value) VALUES ('names_v1', now()::text)`);
 }
 
 /**

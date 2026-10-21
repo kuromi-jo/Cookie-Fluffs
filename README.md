@@ -26,7 +26,7 @@ Built with **Ionic Framework 9 + Angular 22** (mobile app), a **Node.js + Expres
 | ↳ User Name | From the logged-in account | |
 | ↳ Contact / Phone Number | From the logged-in account | |
 | ↳ Company History · About Our Products · Cart · About the App · Developers · Contact Us | Menu links | `app/src/app/pages/*` |
-| **4. Login Page** | Log in / Sign up (with optional profile photo) | `app/src/app/pages/login/` |
+| **4. Login Page** | Log in / Sign up | `app/src/app/pages/login/` |
 | **5. Product List** (database) | **All Cookies** tab: all 18 cookies (real product cut-out photos) from **Neon**, with search, categories and sorting | `server/src/seed-data.js`, `server/src/routes/products.js` |
 | **6. Shopping Cart** (add + view) | Cart button opens **Single / Box of 4 / 6 / 12**. Boxes open the **box builder**: an open pink box where tapped cookies drop into place. Cart tab: singles and boxes, tick / untick (saved in Neon), Select all, change qty, swipe to remove; totals count only ticked items | `app/src/app/pages/cart/`, `server/src/routes/cart.js` |
 
@@ -43,14 +43,14 @@ Extras: mix-and-match boxes with 5 / 10 / 15% off, "Surprise me" box filler, fla
    ```
    DATABASE_URL=postgresql://...your Neon string...
    ```
-3. Install everything (root, server and app). Run this in the `COOKIE FLUFFS` folder:
+3. Install everything (root, server and app). Run this in the `Cookie-Fluffs` folder:
    ```bash
    npm run setup
    ```
 
 ### Every time
 
-In the `COOKIE FLUFFS` folder:
+In the `Cookie-Fluffs` folder:
 
 ```bash
 npm run dev
@@ -58,7 +58,7 @@ npm run dev
 
 This starts **both** the API (port 3000) and the Ionic app (port 4200) and opens **http://localhost:4200** in your browser. Stop with **Ctrl + C**.
 
-The first time the API connects, it creates the tables in Neon and loads the 12-cookie menu automatically.
+The first time the API connects, it creates the tables in Neon and loads the 18-cookie menu automatically.
 
 > Prefer two terminals? Run `npm run api` in one and `npm run app` in the other.
 > Prefer the Ionic CLI? Start the API with `npm run api`, then `cd app` and `ionic serve`.
@@ -78,7 +78,7 @@ The first time the API connects, it creates the tables in Neon and loads the 12-
 3. **Home screen:** products load immediately. Scroll, use **search** ("choco"), tap a **category** chip.
 4. **Side menu as a guest:** open the menu and point out the menu items.
 5. **Add to cart as a guest:** the app asks you to log in → **Log in**.
-6. **Sign up:** add a profile photo, name, email, phone, password → you are logged in and back on Home.
+6. **Sign up:** enter your first name, last name, email, phone and password → you are logged in and back on Home.
 7. **Side menu again:** now shows **your photo, name and phone number**.
 8. **Product list → cart:** on Home, scroll the Sweet deals / Best sellers / New sections and tap **See all**; open the **All Cookies** tab, search and sort. Tap the cart button on a cookie and choose **Single** (quantity 2, **Add**). Tap it again and choose **Box of 6** → **Build your box**: tap cookies to drop them into the pink box, tap one in the box to take it out, try **Surprise me** and switching between 4 / 6 / 12, then **Add box to cart**.
 9. **Cart:** show the box (mini pink box with its cookies, discount and price) next to the single cookies. Untick an item and watch the totals and Checkout count change; use **Select all**; change quantities, swipe one left to delete. Tap **Clear** to show the confirm dialog (Keep items is the highlighted choice).
@@ -92,7 +92,7 @@ The first time the API connects, it creates the tables in Neon and loads the 12-
 ## Project structure
 
 ```
-COOKIE FLUFFS/
+Cookie-Fluffs/
 ├── package.json            ← "npm run dev" runs API + app together
 ├── server/                 ← Express REST API
 │   ├── .env                ← DATABASE_URL + JWT_SECRET (private, never share)

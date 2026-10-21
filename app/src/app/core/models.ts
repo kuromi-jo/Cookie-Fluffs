@@ -53,6 +53,8 @@ export function discountPercent(p: Product): number {
 export interface User {
   id: number;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone: string;
   avatar: string | null;

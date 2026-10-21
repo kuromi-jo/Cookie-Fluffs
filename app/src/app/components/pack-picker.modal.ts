@@ -82,7 +82,7 @@ export interface PackChoice {
     .stepper span { min-width: 26px; text-align: center; font-weight: 800; }
   `,
 })
-export class PackPickerModal {
+export class PackPickerComponent {
   readonly product = input.required<Product>();
 
   private modal = inject(ModalController);
@@ -104,3 +104,5 @@ export class PackPickerModal {
     void this.modal.dismiss(null, 'cancel');
   }
 }
+
+export { PackPickerComponent as PackPickerModal };

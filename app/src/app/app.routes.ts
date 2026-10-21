@@ -40,6 +40,16 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/login/login.page').then((m) => m.LoginPage),
   },
   {
+    path: 'terms',
+    title: 'Terms of Use',
+    loadComponent: () => import('./pages/terms/terms.page').then((m) => m.TermsPage),
+  },
+  {
+    path: 'privacy',
+    title: 'Privacy Policy',
+    loadComponent: () => import('./pages/privacy/privacy.page').then((m) => m.PrivacyPage),
+  },
+  {
     path: 'company-history',
     title: 'Our Story',
     loadComponent: () => import('./pages/company-history/company-history.page').then((m) => m.CompanyHistoryPage),
