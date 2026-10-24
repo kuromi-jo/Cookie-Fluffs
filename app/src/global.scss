@@ -31,6 +31,35 @@ body {
   font-variation-settings: 'SOFT' 60;
 }
 
+html.cf-larger-text {
+  font-size: 112.5%;
+}
+
+/* P4B checkout address choices live here to avoid growing the already budgeted checkout component stylesheet. */
+app-checkout {
+  .saved-addresses { display: grid; gap: 8px; margin-bottom: 8px; }
+  .saved-address-option {
+    display: grid; grid-template-columns: 24px minmax(0, 1fr) 20px; align-items: center; gap: 9px; width: 100%; min-height: 62px; padding: 9px 12px; border: 1px solid var(--cf-pink-border); border-radius: 15px; background: #fff; color: var(--cf-choco); font: inherit; text-align: left;
+    > ion-icon:first-child { color: var(--cf-pink-deep); font-size: 21px; }
+    > span { display: grid; gap: 3px; min-width: 0; }
+    strong { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; }
+    strong small { padding: 2px 6px; border-radius: 999px; background: var(--cf-pink-soft); color: var(--cf-pink-deep); font-size: 0.58rem; }
+    em { overflow: hidden; color: var(--cf-choco-light); font-size: 0.68rem; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+    .selected-mark { opacity: 0; color: var(--cf-pink-deep); }
+    &.selected { border-color: var(--cf-pink-accent); background: var(--cf-pink-card); }
+    &.selected .selected-mark { opacity: 1; }
+    &:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15); }
+  }
+  .manual-address, .manage-addresses, .saved-address-error button { min-height: 44px; border: 0; background: transparent; color: var(--cf-pink-deep); font: inherit; font-size: 0.72rem; font-weight: 800; }
+  .manual-address { width: 100%; border-radius: 12px; }
+  .manual-address.selected { background: var(--cf-pink-soft); }
+  .manage-addresses { display: inline-flex; align-items: center; margin: 0 4px 12px; text-decoration: underline; text-underline-offset: 3px; }
+  .saved-address-state { display: flex; align-items: center; gap: 8px; min-height: 48px; margin-bottom: 8px; color: var(--cf-choco-light); font-size: 0.72rem; }
+  .saved-address-state ion-spinner { width: 18px; height: 18px; }
+  .saved-address-error { margin: 0 3px 8px; color: var(--ion-color-danger); font-size: 0.7rem; line-height: 1.45; }
+  .saved-address-error button { padding: 0 5px; text-decoration: underline; }
+}
+
 h1,
 h2,
 h3,
@@ -84,6 +113,38 @@ ion-searchbar {
 ion-modal.cf-sheet {
   --border-radius: 28px;
   --background: var(--cf-canvas);
+}
+
+/* The pack picker is portaled at the Ionic app host; constrain its wrapper to that host, not the desktop viewport. */
+ion-modal.pack-picker {
+  --width: 100%;
+  --max-width: 100%;
+  --height: min(560px, calc(100dvh - 16px - env(safe-area-inset-top)));
+  --max-height: calc(100dvh - env(safe-area-inset-top));
+  --border-radius: 28px 28px 0 0;
+}
+
+ion-modal.pack-picker::part(content) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Location sheets are Ionic overlays, so host sizing must live outside component-scoped styles. */
+ion-modal.location-picker {
+  --width: 100%;
+  --max-width: 100%;
+  --height: min(520px, 66dvh);
+  --max-height: calc(100dvh - env(safe-area-inset-top));
+  --border-radius: 28px 28px 0 0;
+}
+
+ion-modal.location-picker::part(content) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 ion-modal.cf-consent-modal {
@@ -255,6 +316,24 @@ ion-input.cf-input {
   --padding-end: 12px;
 }
 
+/* Shared inline validation layout used by signup and checkout. */
+.field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 6px 0;
+  color: var(--ion-color-danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+
+  ion-icon {
+    flex: none;
+    margin-top: 1px;
+    font-size: 16px;
+  }
+}
+
 /* ---------- Overlays ---------- */
 ion-toast.cf-toast {
   --background: #3b2419;
@@ -341,4 +420,28 @@ ion-alert.cf-alert-confirm {
   .cf-rise {
     animation: none;
   }
+}
+
+html.cf-reduce-motion .cf-rise {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *:not(ion-spinner),
+  *:not(ion-spinner)::before,
+  *:not(ion-spinner)::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html.cf-reduce-motion *:not(ion-spinner),
+html.cf-reduce-motion *:not(ion-spinner)::before,
+html.cf-reduce-motion *:not(ion-spinner)::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }

@@ -11,15 +11,27 @@ import {
   priceSingle,
 } from './pricing.js';
 import { lockUserCart } from './cart-lock.js';
+import { loadOrderLifecycle } from './order-lifecycle.js';
+import { loadOrderRefund } from './refund-service.js';
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
+const LOCAL_COOKIE_IMAGE_RE = /^assets\/cookies\/[a-z0-9][a-z0-9-]*\.(?:avif|jpeg|jpg|png|webp)$/i;
+
+/** Keeps order images inside the reviewed local cookie-asset directory. */
+export function safeCookieImagePath(value) {
+  return typeof value === 'string' && LOCAL_COOKIE_IMAGE_RE.test(value) ? value : null;
+}
 
 function mapAddress(row) {
   if (row.fulfillmentMethod !== 'delivery') return null;
   return {
     addressLine1: row.addressLine1,
     addressLine2: row.addressLine2 ?? '',
+    regionCode: row.regionCode ?? '',
+    region: row.region ?? '',
+    barangayCode: row.barangayCode ?? '',
     barangay: row.barangay,
+    cityCode: row.cityCode ?? '',
     city: row.city,
     province: row.province,
     postalCode: row.postalCode,
@@ -41,16 +53,21 @@ function mapMoneyRow(row) {
 async function loadOrder(client, userId, selector, selectorValue) {
   const orderResult = await client.query(
     `SELECT id AS "internalId", public_id AS "id", fulfillment_method AS "fulfillmentMethod",
-            payment_method AS "paymentMethod", payment_status AS "paymentStatus",
+            COALESCE(payment_method_v2, payment_method) AS "paymentMethod",
+            COALESCE(payment_state, payment_status) AS "paymentStatus",
+            payment_is_demo AS "paymentIsDemo",
             order_status AS "orderStatus", scheduling_mode AS "schedulingMode",
             contact_name AS "contactName", contact_phone AS "contactPhone",
             address_line_1 AS "addressLine1", address_line_2 AS "addressLine2",
-            barangay, city, province, postal_code AS "postalCode", notes,
+            region_code AS "regionCode", region_name AS region,
+            barangay_code AS "barangayCode", barangay, city_code AS "cityCode", city,
+            province, postal_code AS "postalCode", notes,
             merchandise_subtotal::text AS "merchandiseSubtotal",
             promotion_discount::text AS "promotionDiscount",
             pack_discount::text AS "packDiscount", discount_total::text AS "discountTotal",
             delivery_fee::text AS "deliveryFee", order_total::text AS total,
-            currency, created_at AS "createdAt"
+            currency, order_agreement_version AS "agreementVersion",
+            order_agreement_accepted_at AS "agreementAcceptedAt", created_at AS "createdAt"
      FROM orders WHERE user_id = $1 AND ${selector} = $2`,
     [userId, selectorValue],
   );
@@ -60,21 +77,27 @@ async function loadOrder(client, userId, selector, selectorValue) {
   delete order.internalId;
 
   const itemResult = await client.query(
-    `SELECT id, line_position AS "linePosition", line_type AS "lineType",
-            product_id AS "productId", display_name AS "displayName", quantity,
+    `SELECT order_items.id, line_position AS "linePosition", line_type AS "lineType",
+            order_items.product_id AS "productId", display_name AS "displayName", quantity,
+            COALESCE(order_items.image_url, products.image_url) AS "imageUrl",
             pack_size AS "packSize", regular_unit_price::text AS "regularUnitPrice",
             unit_price::text AS "unitPrice", promotion_discount::text AS "promotionDiscount",
             pack_discount::text AS "packDiscount", line_total::text AS "lineTotal"
-     FROM order_items WHERE order_id = $1 ORDER BY line_position`,
+     FROM order_items
+     LEFT JOIN products ON products.id = order_items.product_id
+     WHERE order_id = $1 ORDER BY order_items.line_position`,
     [internalOrderId],
   );
   const itemIds = itemResult.rows.map((item) => item.id);
   const componentResult = itemIds.length
     ? await client.query(
-      `SELECT order_item_id AS "orderItemId", slot, product_id AS "productId",
+      `SELECT order_item_id AS "orderItemId", slot, order_box_items.product_id AS "productId",
               product_name AS "productName", regular_price::text AS "regularPrice",
-              unit_price::text AS "unitPrice"
-       FROM order_box_items WHERE order_item_id = ANY($1) ORDER BY order_item_id, slot`,
+              unit_price::text AS "unitPrice",
+              COALESCE(order_box_items.image_url, products.image_url) AS "imageUrl"
+       FROM order_box_items
+       LEFT JOIN products ON products.id = order_box_items.product_id
+       WHERE order_item_id = ANY($1) ORDER BY order_item_id, slot`,
       [itemIds],
     )
     : { rows: [] };
@@ -85,6 +108,7 @@ async function loadOrder(client, userId, selector, selectorValue) {
       slot: component.slot,
       productId: component.productId,
       productName: component.productName,
+      imageUrl: safeCookieImagePath(component.imageUrl),
       regularPrice: Number(component.regularPrice),
       unitPrice: Number(component.unitPrice),
     });
@@ -92,7 +116,11 @@ async function loadOrder(client, userId, selector, selectorValue) {
   order.deliveryAddress = mapAddress(order);
   delete order.addressLine1;
   delete order.addressLine2;
+  delete order.regionCode;
+  delete order.region;
+  delete order.barangayCode;
   delete order.barangay;
+  delete order.cityCode;
   delete order.city;
   delete order.province;
   delete order.postalCode;
@@ -101,6 +129,7 @@ async function loadOrder(client, userId, selector, selectorValue) {
     lineType: item.lineType,
     productId: item.productId,
     displayName: item.displayName,
+    imageUrl: safeCookieImagePath(item.imageUrl),
     quantity: item.quantity,
     packSize: item.packSize,
     regularUnitPrice: Number(item.regularUnitPrice),
@@ -110,6 +139,31 @@ async function loadOrder(client, userId, selector, selectorValue) {
     lineTotal: Number(item.lineTotal),
     boxItems: componentsByItem.get(item.id) ?? [],
   }));
+  if (order.paymentIsDemo && order.paymentMethod === 'card') {
+    const demoResult = await client.query(
+      `SELECT scenario, status, created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM demo_payment_attempts WHERE order_id = $1
+       ORDER BY created_at DESC LIMIT 1`,
+      [internalOrderId],
+    );
+    order.demoPayment = demoResult.rows[0] ?? null;
+    order.walletDemoPayment = null;
+  } else if (order.paymentIsDemo && ['gcash', 'maya'].includes(order.paymentMethod)) {
+    const demoResult = await client.query(
+      `SELECT wallet_method AS "walletMethod", outcome AS status,
+              created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM wallet_demo_attempts WHERE order_id = $1
+       ORDER BY created_at DESC LIMIT 1`,
+      [internalOrderId],
+    );
+    order.demoPayment = null;
+    order.walletDemoPayment = demoResult.rows[0] ?? null;
+  } else {
+    order.demoPayment = null;
+    order.walletDemoPayment = null;
+  }
+  Object.assign(order, await loadOrderLifecycle(client, internalOrderId, order.orderStatus));
+  order.refund = await loadOrderRefund(client, internalOrderId);
   return order;
 }
 
@@ -117,7 +171,119 @@ export function getOrderByPublicId(client, userId, publicId) {
   return loadOrder(client, userId, 'public_id', publicId);
 }
 
-export async function createOrder(client, userId, checkout, requestFingerprint) {
+function encodeCursor(row) {
+  return Buffer.from(JSON.stringify({ createdAt: row.createdAt.toISOString(), id: String(row.internalId) }))
+    .toString('base64url');
+}
+
+export function decodeOrderCursor(cursor) {
+  if (!cursor) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    const createdAt = new Date(parsed.createdAt);
+    if (!Number.isSafeInteger(Number(parsed.id)) || Number(parsed.id) < 1 || Number.isNaN(createdAt.getTime())) {
+      return null;
+    }
+    return { createdAt: createdAt.toISOString(), id: String(parsed.id) };
+  } catch {
+    return null;
+  }
+}
+
+export async function listOrders(client, userId, { limit, cursor = null }) {
+  const cursorValues = cursor ? decodeOrderCursor(cursor) : null;
+  if (cursor && !cursorValues) throw httpError(400, 'The order history cursor is invalid.');
+  const params = [userId];
+  let cursorClause = '';
+  if (cursorValues) {
+    params.push(cursorValues.createdAt, cursorValues.id);
+    cursorClause = 'AND (created_at, id) < ($2::timestamptz, $3::bigint)';
+  }
+  params.push(limit + 1);
+  const result = await client.query(
+    `SELECT id AS "internalId", public_id AS id, fulfillment_method AS "fulfillmentMethod",
+            COALESCE(payment_method_v2, payment_method) AS "paymentMethod",
+            COALESCE(payment_state, payment_status) AS "paymentStatus",
+            payment_is_demo AS "paymentIsDemo", order_status AS "orderStatus",
+            (SELECT status FROM order_cancellation_requests
+             WHERE order_id = orders.id ORDER BY requested_at DESC, id DESC LIMIT 1) AS "cancellationStatus",
+            (SELECT status FROM order_refunds
+             WHERE order_id = orders.id) AS "refundStatus",
+            CASE WHEN payment_is_demo THEN COALESCE(
+              (SELECT status FROM demo_payment_attempts WHERE order_id = orders.id ORDER BY created_at DESC LIMIT 1),
+              (SELECT outcome FROM wallet_demo_attempts WHERE order_id = orders.id ORDER BY created_at DESC LIMIT 1)
+            ) END AS "demoPaymentStatus",
+            order_total::text AS total, currency, created_at AS "createdAt"
+     FROM orders
+     WHERE user_id = $1 ${cursorClause}
+     ORDER BY created_at DESC, id DESC
+     LIMIT $${params.length}`,
+    params,
+  );
+  const hasMore = result.rows.length > limit;
+  const page = result.rows.slice(0, limit);
+  const internalIds = page.map((order) => order.internalId);
+  const itemResult = internalIds.length
+    ? await client.query(
+      `SELECT order_items.order_id AS "orderId", order_items.id AS "orderItemId",
+              line_position AS "linePosition", line_type AS "lineType", display_name AS "displayName",
+              quantity, pack_size AS "packSize",
+              COALESCE(order_items.image_url, products.image_url) AS "imageUrl"
+       FROM order_items
+       LEFT JOIN products ON products.id = order_items.product_id
+       WHERE order_items.order_id = ANY($1)
+       ORDER BY order_items.order_id, line_position`,
+      [internalIds],
+    )
+    : { rows: [] };
+  const orderItemIds = itemResult.rows.filter((item) => item.lineType === 'box').map((item) => item.orderItemId);
+  const componentResult = orderItemIds.length
+    ? await client.query(
+      `SELECT order_items.order_id AS "orderId", order_box_items.order_item_id AS "orderItemId",
+              order_box_items.slot,
+              COALESCE(order_box_items.image_url, products.image_url) AS "imageUrl"
+       FROM order_box_items
+       JOIN order_items ON order_items.id = order_box_items.order_item_id
+       LEFT JOIN products ON products.id = order_box_items.product_id
+       WHERE order_box_items.order_item_id = ANY($1)
+       ORDER BY order_items.order_id, order_box_items.order_item_id, order_box_items.slot`,
+      [orderItemIds],
+    )
+    : { rows: [] };
+  const componentsByItem = new Map();
+  for (const component of componentResult.rows) {
+    if (!componentsByItem.has(component.orderItemId)) componentsByItem.set(component.orderItemId, []);
+    componentsByItem.get(component.orderItemId).push(component);
+  }
+  const summariesByOrder = new Map();
+  for (const item of itemResult.rows) {
+    if (!summariesByOrder.has(item.orderId)) {
+      summariesByOrder.set(item.orderId, { itemNames: [], itemCount: 0, thumbnailUrls: [] });
+    }
+    const summary = summariesByOrder.get(item.orderId);
+    summary.itemNames.push(item.displayName);
+    summary.itemCount += item.lineType === 'box' ? item.quantity * item.packSize : item.quantity;
+    const candidates = item.lineType === 'box'
+      ? (componentsByItem.get(item.orderItemId) ?? []).map((component) => component.imageUrl)
+      : [item.imageUrl];
+    for (const candidate of candidates) {
+      const imageUrl = safeCookieImagePath(candidate);
+      if (imageUrl && !summary.thumbnailUrls.includes(imageUrl) && summary.thumbnailUrls.length < 3) {
+        summary.thumbnailUrls.push(imageUrl);
+      }
+    }
+  }
+  return {
+    orders: page.map(({ internalId, ...order }) => ({
+      ...order,
+      total: Number(order.total),
+      ...(summariesByOrder.get(internalId) ?? { itemNames: [], itemCount: 0, thumbnailUrls: [] }),
+    })),
+    nextCursor: hasMore && page.length ? encodeCursor(page.at(-1)) : null,
+  };
+}
+
+export async function createOrder(client, userId, checkout, requestFingerprint, options = {}) {
   await client.query('BEGIN');
   try {
     // Serializes checkout attempts for one customer without blocking other customers.
@@ -164,7 +330,8 @@ export async function createOrder(client, userId, checkout, requestFingerprint) 
       ...componentResult.rows.map((item) => item.productId),
     ])].sort((a, b) => a - b);
     const productResult = await client.query(
-      `SELECT id, name, price::text AS price, sale_price::text AS "salePrice", is_available AS "isAvailable"
+      `SELECT id, name, price::text AS price, sale_price::text AS "salePrice",
+              image_url AS "imageUrl", is_available AS "isAvailable"
        FROM products WHERE id = ANY($1) ORDER BY id FOR SHARE`,
       [productIds],
     );
@@ -181,6 +348,7 @@ export async function createOrder(client, userId, checkout, requestFingerprint) 
         lineType: 'single',
         productId: product.id,
         displayName: product.name,
+        imageUrl: safeCookieImagePath(product.imageUrl),
         quantity: item.quantity,
         packSize: null,
         priced: priceSingle({ price: product.price, salePrice: product.salePrice, quantity: item.quantity }),
@@ -215,16 +383,23 @@ export async function createOrder(client, userId, checkout, requestFingerprint) 
     const totalCentavos = merchandiseSubtotalCentavos + feeCentavos;
     const address = checkout.deliveryAddress;
     const publicId = crypto.randomUUID();
+    const legacyPaymentMethod = checkout.fulfillmentMethod === 'pickup' ? 'cash_on_pickup' : 'cash_on_delivery';
+    const paymentState = checkout.paymentMethod === 'cash_on_delivery' || checkout.paymentMethod === 'cash_on_pickup'
+      ? 'pending_cash'
+      : 'awaiting_payment';
     const orderResult = await client.query(
       `INSERT INTO orders
          (public_id, user_id, idempotency_key, request_fingerprint, fulfillment_method,
-          payment_method, payment_status, order_status, scheduling_mode, contact_name,
-          contact_phone, address_line_1, address_line_2, barangay, city, province,
+          payment_method, payment_method_v2, payment_status, payment_state, order_status,
+          scheduling_mode, contact_name, contact_phone, address_line_1, address_line_2,
+          region_code, region_name, barangay_code, barangay, city_code, city, province,
           postal_code, notes, merchandise_subtotal, promotion_discount, pack_discount,
-          discount_total, delivery_fee, order_total, currency)
+          discount_total, delivery_fee, order_total, currency, payment_is_demo,
+          order_agreement_version, order_agreement_accepted_at)
        VALUES
-         ($1, $2, $3, $4, $5, $6, 'pending', 'placed', $7, $8, $9, $10, $11,
-          $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'PHP')
+         ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, 'placed', $9, $10, $11,
+          $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+          $25, $26, $27, $28, 'PHP', $29, $30, CASE WHEN $30::text IS NULL THEN NULL ELSE now() END)
        RETURNING id`,
       [
         publicId,
@@ -232,13 +407,19 @@ export async function createOrder(client, userId, checkout, requestFingerprint) 
         checkout.idempotencyKey,
         requestFingerprint,
         checkout.fulfillmentMethod,
+        legacyPaymentMethod,
         checkout.paymentMethod,
+        paymentState,
         checkout.schedulingMode,
         checkout.contactName,
         checkout.contactPhone,
         address?.addressLine1 ?? null,
         address?.addressLine2 || null,
+        address?.regionCode ?? null,
+        address?.region ?? null,
+        address?.barangayCode ?? null,
         address?.barangay ?? null,
+        address?.cityCode ?? null,
         address?.city ?? null,
         address?.province ?? null,
         address?.postalCode ?? null,
@@ -249,22 +430,31 @@ export async function createOrder(client, userId, checkout, requestFingerprint) 
         centavosToMoney(promotionDiscountCentavos + packDiscountCentavos),
         centavosToMoney(feeCentavos),
         centavosToMoney(totalCentavos),
+        options.paymentIsDemo ?? checkout.paymentMethod === 'card',
+        checkout.agreementAccepted ? checkout.agreementVersion : null,
       ],
     );
     const orderId = orderResult.rows[0].id;
+    await client.query(
+      `INSERT INTO order_status_events
+         (public_id, order_id, from_status, to_status, actor_type, actor_user_id, idempotency_key)
+       VALUES ($1, $2, NULL, 'placed', 'customer', $3, $4)`,
+      [crypto.randomUUID(), orderId, userId, checkout.idempotencyKey],
+    );
 
     for (const line of lines) {
       const itemResult = await client.query(
         `INSERT INTO order_items
-           (order_id, line_position, line_type, product_id, display_name, quantity, pack_size,
+           (order_id, line_position, line_type, product_id, display_name, image_url, quantity, pack_size,
             regular_unit_price, unit_price, promotion_discount, pack_discount, line_total)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
         [
           orderId,
           line.linePosition,
           line.lineType,
           line.productId,
           line.displayName,
+          line.imageUrl,
           line.quantity,
           line.packSize,
           centavosToMoney(line.priced.regularUnitCentavos),
@@ -280,13 +470,14 @@ export async function createOrder(client, userId, checkout, requestFingerprint) 
           const componentPrice = line.priced.componentPrices[index];
           await client.query(
             `INSERT INTO order_box_items
-               (order_item_id, slot, product_id, product_name, regular_price, unit_price)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+               (order_item_id, slot, product_id, product_name, image_url, regular_price, unit_price)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               itemResult.rows[0].id,
               component.slot,
               component.product.id,
               component.product.name,
+              safeCookieImagePath(component.product.imageUrl),
               centavosToMoney(componentPrice.regularUnitCentavos),
               centavosToMoney(componentPrice.unitCentavos),
             ],

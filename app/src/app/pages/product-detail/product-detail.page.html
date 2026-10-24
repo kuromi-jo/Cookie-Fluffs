@@ -4,6 +4,21 @@
       <ion-back-button defaultHref="/home" text="" icon="arrow-back"></ion-back-button>
     </ion-buttons>
     <ion-buttons slot="end">
+      @if (product(); as p) {
+        <ion-button
+          class="round"
+          [disabled]="favorites.isBusy(p.id)"
+          [attr.aria-pressed]="favorites.isFavorite(p.id)"
+          [attr.aria-label]="favorites.isFavorite(p.id) ? 'Remove ' + p.name + ' from favorites' : 'Save ' + p.name + ' to favorites'"
+          (click)="saveFavorite(p)"
+        >
+          @if (favorites.isBusy(p.id)) {
+            <ion-spinner name="crescent"></ion-spinner>
+          } @else {
+            <ion-icon slot="icon-only" [name]="favorites.isFavorite(p.id) ? 'heart' : 'heart-outline'"></ion-icon>
+          }
+        </ion-button>
+      }
       <ion-button class="round" routerLink="/cart" aria-label="Open cart">
         <ion-icon slot="icon-only" name="cart-outline"></ion-icon>
         @if (cart.count() > 0) {
@@ -34,6 +49,9 @@
 
       <h1>{{ p.name }}</h1>
       <p class="tagline">{{ p.tagline }}</p>
+      @if (!p.isAvailable) {
+        <p class="availability" role="status">This cookie is not currently available, but you can keep it in your favorites.</p>
+      }
 
       <div class="meta">
         <div class="stars" [attr.aria-label]="p.rating + ' out of 5 stars'">
@@ -108,7 +126,9 @@
 
 @if (product(); as p) {
   <ion-footer class="buy-bar">
-    @if (pack() === 1) {
+    @if (!p.isAvailable) {
+      <p class="unavailable-action">Currently unavailable</p>
+    } @else if (pack() === 1) {
       <div class="stepper" role="group" aria-label="Quantity">
         <button type="button" (click)="changeQty(-1)" [disabled]="qty() <= 1" aria-label="Fewer">
           <ion-icon name="remove"></ion-icon>

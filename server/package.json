@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env src/index.js",
     "dev": "node --watch --env-file-if-exists=.env src/index.js",
+    "order-operations": "node src/order-operations-cli.js",
     "test": "node --test",
     "test:integration": "node --test --test-concurrency=1 src/order-integration.test.js"
   },

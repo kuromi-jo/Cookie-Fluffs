@@ -18,11 +18,10 @@ import {
   validatePhone,
 } from '../validation.js';
 
-const router = Router();
-
 const MAX_AVATAR_LENGTH = 400_000; // ~300 KB image as a data URL
 const AVATAR_ERROR = 'Profile photo must be an image under 300 KB.';
 const DUPLICATE_EMAIL_ERROR = 'That email already has an account. Try logging in.';
+const PROFILE_FIELDS = new Set(['firstName', 'lastName', 'phone', 'avatar']);
 
 function sendValidationFailure(res, errors) {
   const fieldOrder = ['firstName', 'lastName', 'email', 'phone', 'password', 'avatar'];
@@ -37,6 +36,9 @@ function cleanAvatar(avatar) {
   }
   return avatar;
 }
+
+export function createAuthRouter(dbQuery = query) {
+  const router = Router();
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res, next) => {
@@ -78,14 +80,14 @@ router.post('/signup', async (req, res, next) => {
     }
     if (Object.keys(errors).length) return sendValidationFailure(res, errors);
 
-    const exists = await query('SELECT 1 FROM users WHERE email = $1', [email]);
+    const exists = await dbQuery('SELECT 1 FROM users WHERE email = $1', [email]);
     if (exists.rowCount) {
       return res.status(409).json({ message: DUPLICATE_EMAIL_ERROR, errors: { email: DUPLICATE_EMAIL_ERROR } });
     }
 
     const hash = await bcrypt.hash(password, 10);
     try {
-      const { rows } = await query(
+      const { rows } = await dbQuery(
         `INSERT INTO users (first_name, last_name, full_name, email, phone, avatar, password_hash)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
         [firstName, lastName, fullName, email, normalizePhone(phone), avatar, hash],
@@ -108,7 +110,7 @@ router.post('/login', async (req, res, next) => {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
     if (password.length > 128) return res.status(401).json({ message: 'Wrong email or password.' });
-    const { rows } = await query('SELECT * FROM users WHERE email = $1', [email]);
+    const { rows } = await dbQuery('SELECT * FROM users WHERE email = $1', [email]);
     const ok = rows.length && (await bcrypt.compare(password, rows[0].password_hash));
     if (!ok) return res.status(401).json({ message: 'Wrong email or password.' });
     res.json({ token: signToken(rows[0].id), user: toPublicUser(rows[0]) });
@@ -120,7 +122,7 @@ router.post('/login', async (req, res, next) => {
 // GET /api/auth/me
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM users WHERE id = $1', [req.userId]);
+    const { rows } = await dbQuery('SELECT * FROM users WHERE id = $1', [req.userId]);
     if (!rows.length) return res.status(401).json({ message: 'Account not found. Please log in again.' });
     res.json(toPublicUser(rows[0]));
   } catch (err) {
@@ -131,6 +133,13 @@ router.get('/me', requireAuth, async (req, res, next) => {
 // PUT /api/auth/me  (update first name, last name, phone, or photo)
 router.put('/me', requireAuth, async (req, res, next) => {
   try {
+    const unknownField = Object.keys(req.body ?? {}).find((field) => !PROFILE_FIELDS.has(field));
+    if (unknownField) {
+      return res.status(400).json({
+        message: `Unknown profile field: ${unknownField}.`,
+        errors: { profile: `Unknown profile field: ${unknownField}.` },
+      });
+    }
     const firstName = req.body.firstName !== undefined ? String(req.body.firstName).trim() : undefined;
     const lastName = req.body.lastName !== undefined ? String(req.body.lastName).trim() : undefined;
     const phone = req.body.phone !== undefined ? String(req.body.phone).trim() : undefined;
@@ -152,7 +161,7 @@ router.put('/me', requireAuth, async (req, res, next) => {
     }
     if (Object.keys(errors).length) return sendValidationFailure(res, errors);
 
-    const currentResult = await query('SELECT * FROM users WHERE id = $1', [req.userId]);
+    const currentResult = await dbQuery('SELECT * FROM users WHERE id = $1', [req.userId]);
     if (!currentResult.rows.length) {
       return res.status(401).json({ message: 'Account not found. Please log in again.' });
     }
@@ -161,7 +170,7 @@ router.put('/me', requireAuth, async (req, res, next) => {
     const mergedFirstName = firstName ?? current.first_name ?? fallbackName.firstName;
     const mergedLastName = lastName ?? current.last_name ?? fallbackName.lastName;
 
-    const { rows } = await query(
+    const { rows } = await dbQuery(
       `UPDATE users SET
          first_name = $2,
          last_name  = $3,
@@ -185,4 +194,7 @@ router.put('/me', requireAuth, async (req, res, next) => {
   }
 });
 
-export default router;
+  return router;
+}
+
+export default createAuthRouter();

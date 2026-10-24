@@ -91,23 +91,6 @@ ion-toolbar {
   font-weight: 600;
 }
 
-.field-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin: 6px 6px 0;
-  color: var(--ion-color-danger);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.4;
-
-  ion-icon {
-    flex: none;
-    margin-top: 1px;
-    font-size: 16px;
-  }
-}
-
 .password-guide {
   margin-top: 10px;
   padding: 12px 14px;

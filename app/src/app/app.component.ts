@@ -35,12 +35,22 @@ import { ProductService } from './core/product.service';
 import { UiService } from './core/ui.service';
 import { fileToAvatar } from './core/image';
 import { apiErrorMessage } from './core/api-error';
+import { PreferenceService } from './core/preference.service';
 
 interface MenuLink {
   title: string;
   url: string;
   icon: string;
   note?: string;
+}
+
+export function menuLinkIsActive(currentUrl: string, linkUrl: string): boolean {
+  const path = currentUrl.split('?')[0].split('#')[0];
+  if (linkUrl === '/shop') return path === '/shop' || path.startsWith('/product/');
+  if (linkUrl === '/orders') return path === '/orders' || path.startsWith('/orders/');
+  if (linkUrl === '/profile/addresses') return path === linkUrl || path.startsWith(`${linkUrl}/`);
+  if (linkUrl === '/help') return path === '/help' || path.startsWith('/help/');
+  return path === linkUrl;
 }
 
 const SPLASH_MIN_MS = 2400;
@@ -72,6 +82,7 @@ const SPLASH_MIN_MS = 2400;
 export class AppComponent {
   readonly auth = inject(AuthService);
   readonly cart = inject(CartService);
+  readonly preferences = inject(PreferenceService);
   private products = inject(ProductService);
   private router = inject(Router);
   private menu = inject(MenuController);
@@ -85,7 +96,16 @@ export class AppComponent {
   readonly shopLinks: MenuLink[] = [
     { title: 'Home', url: '/home', icon: 'home-outline' },
     { title: 'All Cookies', url: '/shop', icon: 'cf-cookie' },
+    { title: 'Favorites', url: '/profile/favorites', icon: 'heart-outline' },
     { title: 'Cart', url: '/cart', icon: 'cart-outline' },
+  ];
+
+  readonly accountLinks: MenuLink[] = [
+    { title: 'My Account', url: '/profile', icon: 'person-outline' },
+    { title: 'My Orders', url: '/orders', icon: 'receipt-outline' },
+    { title: 'My Addresses', url: '/profile/addresses', icon: 'location-outline' },
+    { title: 'Settings', url: '/profile/settings', icon: 'settings-outline' },
+    { title: 'Help & Support', url: '/help', icon: 'help-circle-outline' },
   ];
 
   readonly aboutLinks: MenuLink[] = [
@@ -122,12 +142,17 @@ export class AppComponent {
   }
 
   isActive(url: string): boolean {
-    return this.activePath() === url || (url === '/home' && this.activePath().startsWith('/product/'));
+    return menuLinkIsActive(this.activePath(), url);
   }
 
   goToLogin(): void {
     void this.menu.close();
     void this.router.navigate(['/login'], { queryParams: { returnUrl: this.activePath() } });
+  }
+
+  manageAccount(): void {
+    void this.menu.close();
+    void this.router.navigateByUrl('/profile');
   }
 
   async confirmLogout(): Promise<void> {

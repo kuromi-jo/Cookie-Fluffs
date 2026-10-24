@@ -1,6 +1,6 @@
 /**
  * @file contact.page.ts
- * @description Shop contact details and a message form (messages are saved to Neon).
+ * @description Customer support message form.
  */
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -52,15 +52,6 @@ export class ContactPage {
   private auth = inject(AuthService);
   private ui = inject(UiService);
 
-  // Placeholder shop details: replace with your real ones.
-  readonly shop = {
-    phone: '0917 123 4567',
-    phoneHref: 'tel:+639171234567',
-    email: 'hello@cookiefluffs.ph',
-    address: 'Cubao, Quezon City, Metro Manila',
-    hours: 'Mon–Sat · 9:00 AM – 7:00 PM',
-  };
-
   readonly subjects = ['General question', 'Order concern', 'Bulk / event order', 'Feedback', 'Partnership'];
 
   readonly sending = signal(false);
@@ -90,7 +81,7 @@ export class ContactPage {
       this.sent.set(true);
       this.message = '';
       form.resetForm({ name: this.name, email: this.email, subject: this.subject, message: '' });
-      await this.ui.toast('Message sent! We will reply within 24 hours.', { icon: 'send-outline' });
+      await this.ui.toast('Your message was saved.', { icon: 'send-outline' });
     } catch (err) {
       await this.ui.toast(apiErrorMessage(err), { error: true });
     } finally {

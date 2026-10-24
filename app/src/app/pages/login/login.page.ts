@@ -43,6 +43,7 @@ import {
   validatePhone,
 } from '../../core/signup-rules';
 import { ConsentModalComponent } from '../../components/consent-modal.component';
+import { prefersReducedMotion } from '../../core/preference.service';
 
 type Mode = 'login' | 'signup';
 type FieldName = 'firstName' | 'lastName' | 'email' | 'phone' | 'password' | 'confirmPassword' | 'terms';
@@ -343,7 +344,7 @@ export class LoginPage {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
     const element = document.getElementById(`${field}-field`);
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduceMotion = prefersReducedMotion();
     element?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
 
     if (field === 'terms') {

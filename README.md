@@ -28,7 +28,7 @@ Built with **Ionic Framework 9 + Angular 22** (mobile app), a **Node.js + Expres
 | ↳ Company History · About Our Products · Cart · About the App · Developers · Contact Us | Menu links | `app/src/app/pages/*` |
 | **4. Login Page** | Log in / Sign up | `app/src/app/pages/login/` |
 | **5. Product List** (database) | **All Cookies** tab: all 18 cookies (real product cut-out photos) from **Neon**, with search, categories and sorting | `server/src/seed-data.js`, `server/src/routes/products.js` |
-| **6. Shopping Cart** (add + view) | Cart button opens **Single / Box of 4 / 6 / 12**. Boxes open the **box builder**: an open pink box where tapped cookies drop into place. Cart tab: singles and boxes, tick / untick (saved in Neon), Select all, change qty, swipe to remove; totals count only ticked items | `app/src/app/pages/cart/`, `server/src/routes/cart.js` |
+| **6. Shopping Cart** (add + view) | Cart button opens **Single / Box of 4 / 6 / 12**. Boxes open the **box builder**: an open pink box where tapped cookies drop into place. Cart tab: singles and boxes, tick / untick (saved in Neon), Select all, change qty, swipe to remove; totals count only ticked items. Checkout guides customers through Information, Fulfillment, Payment and Review before submitting one server-priced order; cash works without provider credentials, test-mode PayMongo wallets appear only when configured, and an explicitly enabled nonproduction card demo accepts supplied synthetic values without processing money. | `app/src/app/pages/cart/`, `app/src/app/pages/checkout/`, `server/src/routes/cart.js`, `server/src/routes/orders.js` |
 
 Extras: mix-and-match boxes with 5 / 10 / 15% off, "Surprise me" box filler, flat no-shadow design, bottom tabs (Home · All Cookies · Cart), promo prices, sorting, search, category filters, product detail page, free-delivery progress bar, pull-to-refresh, a contact form saved to the database, and a login that persists after refresh.
 
@@ -43,6 +43,7 @@ Extras: mix-and-match boxes with 5 / 10 / 15% off, "Surprise me" box filler, fla
    ```
    DATABASE_URL=postgresql://...your Neon string...
    ```
+   Optional test-mode PayMongo settings are documented with blank values in **`server/.env.example`**. Never use a live key for this project.
 3. Install everything (root, server and app). Run this in the `Cookie-Fluffs` folder:
    ```bash
    npm run setup
@@ -81,8 +82,8 @@ The first time the API connects, it creates the tables in Neon and loads the 18-
 6. **Sign up:** enter your first name, last name, email, phone and password → you are logged in and back on Home.
 7. **Side menu again:** now shows **your photo, name and phone number**.
 8. **Product list → cart:** on Home, scroll the Sweet deals / Best sellers / New sections and tap **See all**; open the **All Cookies** tab, search and sort. Tap the cart button on a cookie and choose **Single** (quantity 2, **Add**). Tap it again and choose **Box of 6** → **Build your box**: tap cookies to drop them into the pink box, tap one in the box to take it out, try **Surprise me** and switching between 4 / 6 / 12, then **Add box to cart**.
-9. **Cart:** show the box (mini pink box with its cookies, discount and price) next to the single cookies. Untick an item and watch the totals and Checkout count change; use **Select all**; change quantities, swipe one left to delete. Tap **Clear** to show the confirm dialog (Keep items is the highlighted choice).
-10. **Prove it's in the database:** refresh the browser. You're still logged in and the cart is still there (it comes back from Neon).
+9. **Cart and checkout:** show the box next to the single cookies. Untick an item and watch the totals and Checkout count change; then open Checkout and continue through Information, Fulfillment, Payment and Review. Point out that vouchers are clearly unavailable until backend support exists, place the cash order, then refresh the confirmation to show that it reloads the existing order. In an explicitly enabled nonproduction environment, the supplied synthetic Visa and Mastercard values demonstrate approved and declined card outcomes without a real charge.
+10. **Prove it's in the database:** refresh the browser. You're still logged in, and unselected cart entries are still there.
     *Optional:* open the Neon dashboard → **Tables** → `cart_items` / `users` to show the rows.
 11. **Menu pages:** Company History, About Our Products, About the App, Developers, Contact Us (send a message).
 12. **Log out** from the side menu.
@@ -101,7 +102,7 @@ Cookie-Fluffs/
 │       ├── db.js           ← Neon connection + table definitions
 │       ├── auth.js         ← login tokens (JWT)
 │       ├── seed-data.js    ← the 18 Cookie Fluffs products
-│       └── routes/         ← products, auth, cart, contact
+│       └── routes/         ← products, auth, cart, orders, geography, payments, contact
 └── app/                    ← Ionic + Angular mobile app
     ├── proxy.conf.json     ← forwards /api calls to the server
     └── src/
@@ -113,10 +114,10 @@ Cookie-Fluffs/
             ├── app.component.*    ← side menu + splash
             ├── icons.ts           ← registers every SVG icon (Ionicons + brand icons)
             ├── brand-icons.ts     ← custom cookie / chocolate / strawberry / acorn icons
-            ├── core/              ← services: auth, products, cart, toasts
-            ├── components/        ← splash, product card, avatar
+            ├── core/              ← services: auth, products, cart, orders, toasts
+            ├── components/        ← splash, product card, avatar, location picker
             └── pages/             ← tabs, home, shop, product-detail, box-builder, cart, login,
-                                      company-history, about-products,
+                                      checkout, order-confirmation, company-history, about-products,
                                       about-app, developers, contact
 ```
 
@@ -139,17 +140,22 @@ Cookie-Fluffs/
 | DELETE | `/api/cart/:productId` · `/api/cart` | Remove one item · empty cart |
 | POST | `/api/orders` | Place one server-priced delivery or pickup order from selected cart lines |
 | GET | `/api/orders/:id` | Read one order confirmation owned by the logged-in customer |
+| POST | `/api/orders/:id/payment-session` | Create or recover the owned order's test Hosted Checkout session |
+| POST | `/api/orders/:id/demo-card` | Run an allowlisted, nonproduction card-demo scenario for an owned demo order |
+| GET | `/api/geography/ncr` | Versioned NCR PSGC cities and barangays used by checkout |
+| GET | `/api/payments/config` | Customer-safe list of enabled test payment methods |
+| POST | `/api/webhooks/paymongo` | Verify and reconcile signed PayMongo test payment events |
 | POST | `/api/contact` | Save a Contact Us message |
 
 ### Database tables (Neon)
 
-`users` · `products` · `cart_items` · `cart_boxes` + `cart_box_items` · `orders` + `order_items` + `order_box_items` · `contact_messages` · `app_meta` (records one-time data migrations)
+`users` · `products` · `cart_items` · `cart_boxes` + `cart_box_items` · `orders` + `order_items` + `order_box_items` · `payment_attempts` + `payment_webhook_events` · `demo_payment_attempts` · `contact_messages` · `app_meta` (records one-time data migrations)
 
 ---
 
 ## Placeholder content to personalize
 
-* **Shop phone / email / address / hours:** `app/src/app/pages/contact/contact.page.ts` (the `shop` object)
+* **Shop phone / email / address / hours:** `app/src/app/pages/contact/contact.page.ts` (the `shop` object). Production checkout keeps delivery and pickup disabled until approved service-area and pickup details are set in `app/src/app/core/checkout-config.ts`; local development enables both only as a clearly labelled class-project demo.
 * **Company story and timeline:** `app/src/app/pages/company-history/company-history.page.ts`
 * **Team roles:** `app/src/app/pages/developers/developers.page.ts`
 * **Product photos:** the cookie PNGs in the project folder, converted to light WebP files in `app/src/assets/cookies/` (and `thumbs/` for small sizes). To add a cookie: put `<slug>.png` in the project folder, convert it to `app/src/assets/cookies/<slug>.webp`, and add it to `server/src/seed-data.js`.

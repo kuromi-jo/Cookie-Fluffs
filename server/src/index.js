@@ -11,6 +11,12 @@ import authRouter from './routes/auth.js';
 import cartRouter from './routes/cart.js';
 import contactRouter from './routes/contact.js';
 import ordersRouter from './routes/orders.js';
+import geographyRouter from './routes/geography.js';
+import paymentsRouter from './routes/payments.js';
+import paymongoWebhookRouter from './routes/paymongo-webhook.js';
+import addressesRouter from './routes/addresses.js';
+import favoritesRouter from './routes/favorites.js';
+import preferencesRouter from './routes/preferences.js';
 
 process.on('unhandledRejection', (reason) => console.error('[api] unhandled rejection:', reason));
 
@@ -18,6 +24,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 
 app.use(cors());
+app.use('/api/webhooks/paymongo', express.raw({ type: 'application/json', limit: '256kb' }), paymongoWebhookRouter);
 app.use(express.json({ limit: '1mb' }));
 
 // GET /api/health  (quick check that the API and database are reachable)
@@ -36,6 +43,11 @@ app.use('/api/auth', authRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/contact', contactRouter);
 app.use('/api/orders', ordersRouter);
+app.use('/api/geography', geographyRouter);
+app.use('/api/payments', paymentsRouter);
+app.use('/api/addresses', addressesRouter);
+app.use('/api/favorites', favoritesRouter);
+app.use('/api/preferences', preferencesRouter);
 
 app.use('/api', (_req, res) => res.status(404).json({ message: 'Endpoint not found.' }));
 

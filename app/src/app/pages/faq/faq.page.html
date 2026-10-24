@@ -1,0 +1,16 @@
+<!-- @file faq.page.html @description Frequently asked questions about working app features. -->
+<ion-header class="cf-header"><ion-toolbar><ion-buttons slot="start"><ion-back-button defaultHref="/help" text="" icon="arrow-back"></ion-back-button></ion-buttons><ion-title class="cf-title">FAQ</ion-title></ion-toolbar></ion-header>
+<ion-content><main class="cf-page faq-page">
+  <h1>Quick answers</h1><p class="lead">Helpful details about your account, orders, and payments.</p>
+  <div class="questions">
+    <details class="cf-card"><summary>Do I need an account to browse?</summary><p>No. You can explore cookies as a guest. Log in when you want to save favorites, keep a cart, manage addresses, or place an order.</p></details>
+    <details class="cf-card"><summary>Where are my favorite cookies saved?</summary><p>Favorites belong to your Cookie Fluffs account, so they return after you log in again. An unavailable cookie can stay saved, but it cannot be added to the cart.</p></details>
+    <details class="cf-card"><summary>How are prices calculated?</summary><p>The app asks Cookie Fluffs for current product prices, pack discounts, and delivery fees. The final order keeps a snapshot of the accepted items and totals.</p></details>
+    <details class="cf-card"><summary>How do online payment updates work?</summary><p>The order page shows the payment state verified by Cookie Fluffs. Returning from a payment page alone does not mark an order paid.</p></details>
+    <details class="cf-card"><summary>Can I cancel an order?</summary><p>Cancellation options depend on the current fulfillment stage. The Order Details page shows the action currently allowed. A paid cancellation does not automatically mean a refund was issued.</p></details>
+    <details class="cf-card"><summary>Where can I review a refund?</summary><p>Eligible cancelled orders show their refund-review status in Order Details. Cookie Fluffs records review updates separately from the original payment.</p></details>
+    <details class="cf-card"><summary>Can I change my saved address after ordering?</summary><p>Yes. Editing a saved address does not rewrite the delivery details already stored with an existing order.</p></details>
+    <details class="cf-card"><summary>How do I change app readability?</summary><p>Open App Settings from your profile to reduce nonessential motion or use larger text. Your device's reduced-motion request is always respected.</p></details>
+  </div>
+  <section class="more-help"><h2>Still need help?</h2><p>Send your question through the Contact Us form.</p><ion-button routerLink="/contact" fill="outline">Contact Us</ion-button></section>
+</main></ion-content>

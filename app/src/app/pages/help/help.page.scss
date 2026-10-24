@@ -1,0 +1,16 @@
+/** @file help.page.scss @description Compact help-center navigation. */
+.help-page { padding-top: 14px; }
+.help-hero { display: flex; align-items: center; gap: 15px; margin-bottom: 18px; }
+.help-hero > div { min-width: 0; }
+.help-hero > ion-icon { flex: none; font-size: 36px; color: var(--cf-pink-border); }
+.help-hero h1 { margin: 0 0 5px; font-size: 1.45rem; }
+.help-hero p { margin: 0; color: rgba(255, 245, 247, .82); font-size: .78rem; line-height: 1.45; }
+.help-links { display: grid; gap: 10px; }
+.help-links > a { display: grid; grid-template-columns: 44px minmax(0, 1fr) 20px; align-items: center; gap: 11px; min-height: 68px; padding: 11px 13px; color: var(--cf-choco); text-decoration: none; }
+.help-links > a > span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 15px; background: var(--cf-pink-soft); color: var(--cf-pink-deep); font-size: 20px; }
+.help-links div { display: grid; gap: 3px; min-width: 0; }
+.help-links strong { font-size: .86rem; }
+.help-links small { color: var(--cf-choco-light); font-size: .69rem; line-height: 1.4; }
+.help-links > a > ion-icon { color: var(--cf-choco-light); }
+.help-links a:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, .16); }
+@media (max-width: 340px) { .help-hero { gap: 11px; padding: 18px; } .help-hero h1 { font-size: 1.3rem; } .help-hero p { overflow-wrap: anywhere; } }

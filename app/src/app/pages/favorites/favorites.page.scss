@@ -1,0 +1,9 @@
+/** @file favorites.page.scss @description Mobile layout for the saved-cookie collection. */
+.favorites-page { padding-top: 14px; }
+.page-intro { display: flex; align-items: center; gap: 13px; margin-bottom: 22px; }
+.page-intro h1 { margin: 0 0 3px; font-size: 1.55rem; }
+.page-intro p { margin: 0; color: var(--cf-choco-light); font-size: 0.82rem; line-height: 1.45; }
+.heart-mark { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border: 1px solid var(--cf-pink-border); border-radius: 18px; background: var(--cf-pink-soft); color: var(--cf-pink-deep); font-size: 25px; }
+.inline-error { margin: 0 0 14px; padding: 10px 12px; border-radius: 14px; background: var(--cf-pink-soft); color: var(--ion-color-danger); font-size: .78rem; font-weight: 700; }
+.state h2 { margin: 9px 0 5px; font-size: 1.2rem; }
+@media (max-width: 340px) { .grid { gap: 10px; } }

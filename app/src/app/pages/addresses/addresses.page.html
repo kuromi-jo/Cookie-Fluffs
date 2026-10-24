@@ -1,0 +1,39 @@
+<!-- @file addresses.page.html @description Saved delivery-address list and management actions. -->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/profile" text="" icon="arrow-back"></ion-back-button></ion-buttons>
+    <ion-title class="cf-title">My Addresses</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page addresses-page">
+    <header class="page-heading"><h1>Saved addresses</h1><p>Keep delivery details ready for a quicker checkout.</p></header>
+
+    @if (loading()) {
+      <div class="state" role="status"><ion-spinner name="crescent"></ion-spinner><p>Loading your addresses…</p></div>
+    } @else if (error() && !addressBook.addresses().length) {
+      <div class="state" role="alert"><ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon><h2>Addresses could not load</h2><p>{{ error() }}</p><ion-button expand="block" class="cf-btn-lg" (click)="load()">Try again</ion-button></div>
+    } @else {
+      @if (error()) { <aside class="page-error" role="alert"><span>{{ error() }}</span><ion-button fill="clear" (click)="load()">Try again</ion-button></aside> }
+      @if (addressBook.addresses().length) {
+        <div class="address-list" aria-label="Saved addresses">
+          @for (address of addressBook.addresses(); track address.id) {
+            <article class="cf-card address-card" [class.default-address]="address.isDefault">
+              <header><div><span class="address-label">{{ address.label }}</span>@if (address.isDefault) { <span class="cf-chip">Default</span> }</div><a [routerLink]="['/profile/addresses', address.id, 'edit']" aria-label="Edit {{ address.label }} address">Edit</a></header>
+              <p class="recipient"><strong>{{ address.recipientName }}</strong><span>{{ address.recipientPhone }}</span></p>
+              <p class="address-copy">{{ address.addressLine1 }}@if (address.addressLine2) {, {{ address.addressLine2 }}}<br />{{ address.barangay }}, {{ address.city }}<br />{{ address.province }} {{ address.postalCode }}</p>
+              <footer>
+                @if (!address.isDefault) { <ion-button fill="outline" size="small" (click)="makeDefault(address)" [disabled]="!!changingId()">@if (changingId() === address.id) { <ion-spinner name="crescent"></ion-spinner> } @else { Set as default }</ion-button> }
+                <ion-button fill="clear" color="danger" size="small" (click)="confirmDelete(address)" [disabled]="!!changingId()">Delete</ion-button>
+              </footer>
+            </article>
+          }
+        </div>
+      } @else {
+        <div class="state empty-state"><ion-icon name="location-outline" aria-hidden="true"></ion-icon><h2>No saved addresses yet</h2><p>Add a delivery address so it is ready at checkout.</p></div>
+      }
+      <ion-button expand="block" class="cf-btn-lg add-address" routerLink="/profile/addresses/new"><ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>Add address</ion-button>
+    }
+  </main>
+</ion-content>

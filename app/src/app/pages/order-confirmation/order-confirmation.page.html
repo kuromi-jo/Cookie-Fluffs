@@ -1,0 +1,178 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    @if (isOrderDetail()) { <ion-buttons slot="start"><ion-back-button defaultHref="/orders" text=""></ion-back-button></ion-buttons> }
+    <ion-title class="cf-title">{{ isOrderDetail() ? 'Order details' : 'Order confirmation' }}</ion-title>
+    @if (!isOrderDetail()) { <ion-buttons slot="end"><ion-button routerLink="/home" routerDirection="root">Done</ion-button></ion-buttons> }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="cf-page confirmation-page">
+    @if (loading()) {
+      <div class="state" role="status"><ion-spinner name="crescent"></ion-spinner><p>Loading your order…</p></div>
+    } @else if (error()) {
+      <div class="state">
+        <ion-icon [name]="needsLogin() ? 'lock-closed-outline' : 'cloud-offline-outline'" aria-hidden="true"></ion-icon>
+        <h1>{{ needsLogin() ? 'Log in to continue' : 'Order unavailable' }}</h1>
+        <p>{{ error() }}</p>
+        @if (needsLogin()) {
+          <ion-button class="cf-btn-lg" expand="block" (click)="login()">Log in</ion-button>
+        } @else {
+          <ion-button class="cf-btn-lg" expand="block" (click)="load()">Try again</ion-button>
+          <ion-button fill="clear" routerLink="/home" routerDirection="root">Back to shopping</ion-button>
+        }
+      </div>
+    } @else if (order(); as placed) {
+      <header class="print-heading">
+        <p>Cookie Fluffs</p>
+        <h1>{{ documentTitle(placed) }}</h1>
+        <strong>#{{ shortReference(placed.id) }}</strong>
+      </header>
+      <header class="success-header">
+        <span class="success-mark" [class.declined]="placed.paymentIsDemo && (placed.demoPayment?.status === 'demo_declined' || placed.walletDemoPayment?.status === 'demo_cancelled')"><ion-icon [name]="placed.paymentIsDemo && (placed.demoPayment?.status === 'demo_declined' || placed.walletDemoPayment?.status === 'demo_cancelled') ? (isWalletDemo(placed) ? 'wallet-outline' : 'card-outline') : 'checkmark'" aria-hidden="true"></ion-icon></span>
+        <p class="cf-eyebrow">{{ isWalletDemo(placed) ? 'Test wallet payment' : placed.paymentIsDemo ? 'Class-project card demo' : placed.paymentStatus === 'paid' ? 'Payment confirmed' : 'Order placed' }}</p>
+        <h1>{{ placed.orderStatus === 'cancelled' ? 'Your order is cancelled' : placed.walletDemoPayment?.status === 'demo_approved' ? 'Test Wallet Payment Successful' : placed.walletDemoPayment?.status === 'demo_cancelled' ? 'Test Wallet Payment Cancelled' : placed.paymentIsDemo && placed.demoPayment?.status === 'demo_approved' ? 'Demo Payment Successful' : placed.paymentIsDemo && placed.demoPayment?.status === 'demo_declined' ? 'Demo Payment Declined' : placed.paymentStatus === 'paid' ? 'Your order is paid' : 'Your cookies are booked' }}</h1>
+        <p>{{ placed.walletDemoPayment?.status === 'demo_approved' ? 'This was a simulated wallet payment. No real money was transferred.' : placed.walletDemoPayment?.status === 'demo_cancelled' ? 'No payment was processed.' : placed.paymentIsDemo && placed.demoPayment?.status === 'demo_approved' ? 'This was a simulated payment. No real money was charged.' : placed.paymentIsDemo && placed.demoPayment?.status === 'demo_declined' ? 'No payment was processed. You can try another synthetic test card.' : 'Keep this reference for your records.' }}</p>
+        <strong class="reference">#{{ shortReference(placed.id) }}</strong>
+      </header>
+
+      <section class="status-card">
+        <div><span>Fulfillment</span><strong>{{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }}</strong></div>
+        <div><span>Payment</span><strong [class.pending]="!placed.paymentIsDemo && placed.paymentStatus !== 'paid'" [class.demo-approved]="placed.demoPayment?.status === 'demo_approved' || placed.walletDemoPayment?.status === 'demo_approved'">{{ paymentStatusLabel(placed) }}</strong></div>
+        <p>{{ paymentLabel(placed) }}.@if (placed.paymentIsDemo) { This result is a class-project simulation and is not a financial settlement. } @else if (!isOnline(placed)) { No online payment was collected. } @else if (placed.paymentStatus !== 'paid') { A browser return does not confirm payment. }</p>
+      </section>
+
+      <section class="confirmation-section tracking-section" aria-labelledby="tracking-heading">
+        <div class="section-heading"><div><p class="cf-eyebrow">Fulfillment tracking</p><h2 id="tracking-heading">Order progress</h2></div><strong>{{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }}</strong></div>
+        @if (placed.historyAvailable) {
+          <ol class="status-timeline">
+            @for (event of placed.events; track event.id; let last = $last) {
+              <li [class.current]="last"><span class="timeline-marker"><ion-icon name="checkmark" aria-hidden="true"></ion-icon></span><div><strong>{{ orderStatusLabel(event.toStatus, placed.fulfillmentMethod) }}</strong><small>{{ eventSource(event) }} · <time [attr.datetime]="event.createdAt">{{ event.createdAt | date: 'medium' }}</time></small></div></li>
+            }
+          </ol>
+        } @else {
+          <div class="limited-history"><ion-icon name="checkmark" aria-hidden="true"></ion-icon><p><strong>Current status:</strong> {{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }}</p></div>
+        }
+      </section>
+
+      @if (placed.cancellation; as cancellation) {
+        <section class="confirmation-section cancellation-state" [class.pending-review]="cancellation.status === 'pending'">
+          <h2>{{ cancellation.status === 'pending' ? 'Cancellation requested' : cancellation.status === 'approved' ? 'Order cancellation' : 'Cancellation request declined' }}</h2>
+          <p>@if (cancellation.status === 'pending') { Cookie Fluffs must review this request. Your order remains {{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }} until a bakery operator approves it. } @else if (cancellation.status === 'approved') { This order has been cancelled. } @else { Cookie Fluffs did not approve the earlier request. Check the current fulfillment status before trying again. }</p>
+          @if (cancellation.refundReviewStatus === 'review_required') { <p class="refund-warning"><strong>Refund review required.</strong> Payment remains {{ paymentStatusLabel(placed) }}. No refund has been issued automatically.</p> }
+          <small>Requested {{ cancellation.requestedAt | date: 'medium' }}@if (cancellation.resolvedAt) { · Updated {{ cancellation.resolvedAt | date: 'medium' }}}</small>
+        </section>
+      }
+
+      @if (placed.refund; as refund) {
+        <section class="confirmation-section refund-details" aria-labelledby="refund-heading">
+          <div class="section-heading">
+            <div><p class="cf-eyebrow">Payment follow-up</p><h2 id="refund-heading">Refund details</h2></div>
+            <strong>{{ refundStatusLabel(refund.status) }}</strong>
+          </div>
+          <dl class="refund-summary">
+            <div><dt>Payment method</dt><dd>{{ paymentLabel(placed) }}</dd></div>
+            <div><dt>Original paid amount</dt><dd>₱{{ refund.originalPaidAmount | number: '1.2-2' }}</dd></div>
+            @if (refund.approvedAmount !== null) {
+              <div><dt>Approved refund</dt><dd>₱{{ refund.approvedAmount | number: '1.2-2' }}</dd></div>
+            }
+          </dl>
+          <p class="refund-copy">{{ refundStatusMessage(refund.status) }}</p>
+          <ol class="refund-timeline" aria-label="Refund updates">
+            @for (event of refund.events; track event.id; let last = $last) {
+              <li [class.current]="last"><span aria-hidden="true"></span><div><strong>{{ refundStatusLabel(event.toStatus) }}</strong><time [attr.datetime]="event.createdAt">{{ event.createdAt | date: 'medium' }}</time></div></li>
+            }
+          </ol>
+          <ion-button fill="outline" expand="block" routerLink="/contact">Contact support</ion-button>
+        </section>
+      }
+
+      @if (placed.cancellationAction) {
+        <section class="confirmation-section cancellation-action">
+          <h2>{{ placed.cancellationAction === 'request' ? 'Need to stop this order?' : 'Plans changed?' }}</h2>
+          <p>{{ placed.cancellationAction === 'request' ? 'Preparation has started, so Cookie Fluffs must review a cancellation request.' : 'You can cancel while preparation has not begun.' }}@if (placed.paymentStatus === 'paid') { Your payment will stay Paid until a separate refund review is completed. }</p>
+          @if (cancellationError()) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ cancellationError() }}</p> }
+          <ion-button fill="outline" color="danger" expand="block" (click)="confirmCancellation()" [disabled]="cancellationAction()">@if (cancellationAction()) { <ion-spinner name="crescent"></ion-spinner> } @else { {{ cancellationActionLabel(placed) }} }</ion-button>
+        </section>
+      }
+
+      @if (paymentMessage()) { <div class="payment-message" role="status"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><p>{{ paymentMessage() }}</p></div> }
+      @if (isWalletDemo(placed) && placed.walletDemoPayment?.status !== 'demo_approved') {
+        <section class="payment-recovery">
+          <h2>{{ placed.walletDemoPayment?.status === 'demo_cancelled' ? 'Try test wallet payment again' : 'Complete test wallet payment' }}</h2>
+          <p>Your order #{{ shortReference(placed.id) }} stays the same. No wallet credentials or real payment are involved.</p>
+          <ion-button class="cf-btn-lg" expand="block" (click)="continuePayment()" [disabled]="paymentAction()">@if (paymentAction()) { <ion-spinner name="crescent"></ion-spinner> } @else { Confirm test payment }</ion-button>
+        </section>
+      } @else if (placed.paymentIsDemo && !isWalletDemo(placed) && placed.demoPayment?.status !== 'demo_approved') {
+        <section class="payment-recovery">
+          <h2>{{ placed.demoPayment?.status === 'demo_declined' ? 'Try card payment again' : 'Complete test card payment' }}</h2>
+          <p>Your order #{{ shortReference(placed.id) }} stays the same while you try another synthetic card. No real card payment is made.</p>
+          <app-demo-card-form (flowChange)="demoFlow.set($event)"></app-demo-card-form>
+          <ion-button class="cf-btn-lg" expand="block" (click)="continuePayment()" [disabled]="paymentAction()">@if (paymentAction()) { <ion-spinner name="crescent"></ion-spinner> } @else { Continue card payment }</ion-button>
+        </section>
+      } @else if (isOnline(placed) && placed.paymentStatus !== 'paid' && !placed.paymentIsDemo) {
+        <section class="payment-recovery">
+          <h2>{{ paymentPolling() ? 'Payment authorization in progress' : placed.paymentStatus === 'failed' ? 'Retry secure payment' : 'Complete secure payment' }}</h2>
+          <p>@if (placed.paymentStatus === 'failed') { This starts one new payment attempt for reference #{{ shortReference(placed.id) }}. It does not place another order. } @else { This continues payment for reference #{{ shortReference(placed.id) }}. It does not place another order. }</p>
+          <ion-button class="cf-btn-lg" expand="block" (click)="continuePayment()" [disabled]="paymentAction() || paymentPolling()">@if (paymentAction() || paymentPolling()) { <ion-spinner name="crescent"></ion-spinner><span>{{ paymentPolling() ? 'Checking payment…' : 'Opening payment…' }}</span> } @else { {{ placed.paymentStatus === 'failed' ? 'Try payment again' : 'Proceed to secure payment' }} }</ion-button>
+          @if (popupBlocked()) {
+            <ion-button fill="outline" expand="block" (click)="continuePaymentInTab()" [disabled]="paymentAction()">Continue in this tab</ion-button>
+          }
+          <ion-button fill="clear" expand="block" (click)="load()" [disabled]="paymentAction()">Refresh payment status</ion-button>
+        </section>
+      }
+
+      <section class="confirmation-section">
+        <h2>Order details</h2>
+        @for (item of placed.items; track item.linePosition) {
+          <article class="order-line">
+            <span class="line-icon"><ion-icon [name]="item.lineType === 'box' ? 'cube-outline' : 'cf-cookie'" aria-hidden="true"></ion-icon>@if (itemImage(item); as image) { <img [src]="image" [alt]="item.displayName" (error)="hideBrokenImage($event)" /> }</span>
+            <div>
+              <strong>{{ item.displayName }}</strong>
+              <small>Qty {{ item.quantity }} · ₱{{ item.unitPrice | number: '1.2-2' }} each</small>
+              @if (item.boxItems.length) {
+                <small>{{ boxItemsSummary(item) }}</small>
+                <span class="box-thumbnails" aria-label="Cookies in this box">
+                  @for (component of item.boxItems.slice(0, 4); track component.slot) {
+                    <span><ion-icon name="cf-cookie" aria-hidden="true"></ion-icon>@if (component.imageUrl) { <img [src]="component.imageUrl" [alt]="component.productName" (error)="hideBrokenImage($event)" /> }</span>
+                  }
+                </span>
+              }
+            </div>
+            <span>₱{{ item.lineTotal | number: '1.2-2' }}</span>
+          </article>
+        }
+      </section>
+
+      <section class="confirmation-section fulfillment">
+        <h2>{{ placed.fulfillmentMethod === 'pickup' ? 'Store pickup' : 'Delivery' }}</h2>
+        <p><strong>{{ placed.contactName }}</strong><br />{{ placed.contactPhone }}</p>
+        @if (placed.deliveryAddress; as address) {
+          <p>{{ address.addressLine1 }}@if (address.addressLine2) {, {{ address.addressLine2 }}}<br />{{ address.barangay }}, {{ address.city }}<br />{{ address.province }} {{ address.postalCode }}@if (address.region) {<br />{{ address.region }}}</p>
+        } @else {
+          <p>Pickup details will be provided after the store information is configured.</p>
+        }
+        @if (placed.notes) { <p><strong>Notes:</strong> {{ placed.notes }}</p> }
+      </section>
+
+      <section class="persisted-total" aria-label="Final order total">
+        <div><span>Merchandise subtotal</span><span>₱{{ placed.merchandiseSubtotal | number: '1.2-2' }}</span></div>
+        @if (placed.discountTotal > 0) { <div><span>Total savings</span><span>₱{{ placed.discountTotal | number: '1.2-2' }}</span></div> }
+        <div><span>Delivery fee</span><span>{{ placed.deliveryFee ? ('₱' + (placed.deliveryFee | number: '1.2-2')) : 'FREE' }}</span></div>
+        <div class="final"><span>Final total</span><strong>₱{{ placed.total | number: '1.2-2' }}</strong></div>
+      </section>
+
+      <p class="placed-at">Placed {{ placed.createdAt | date: 'medium' }}</p>
+      <section class="order-actions" aria-label="Order actions">
+        @if (!isOrderDetail()) { <ion-button class="cf-btn-lg" expand="block" [routerLink]="['/orders', placed.id]">View My Order</ion-button> }
+        <ion-button fill="outline" expand="block" (click)="printReceipt()"><ion-icon slot="start" name="receipt-outline" aria-hidden="true"></ion-icon>Print Receipt</ion-button>
+        @if (isOrderDetail()) {
+          <ion-button fill="clear" expand="block" routerLink="/orders">Back to My Orders</ion-button>
+          <ion-button fill="clear" expand="block" routerLink="/contact">Help &amp; Support</ion-button>
+        } @else {
+          <ion-button fill="clear" expand="block" routerLink="/home" routerDirection="root">Shop again</ion-button>
+        }
+      </section>
+    }
+  </div>
+</ion-content>

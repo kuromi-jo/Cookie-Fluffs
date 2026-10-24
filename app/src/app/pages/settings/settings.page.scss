@@ -1,0 +1,18 @@
+/** @file settings.page.scss @description Accessible settings layout using Cookie Fluffs tokens. */
+.settings-page { padding-top: 14px; }
+header h1 { margin: 0 0 5px; font-size: 1.55rem; }
+header p { margin: 0; color: var(--cf-choco-light); font-size: .84rem; line-height: 1.5; }
+.loading { display: flex; align-items: center; gap: 9px; min-height: 48px; color: var(--cf-choco-light); font-size: .8rem; }
+.loading ion-spinner { width: 19px; height: 19px; }
+.setting-list { display: grid; gap: 12px; margin: 20px 0; }
+.setting-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 78px; padding: 13px; }
+.setting-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 15px; background: var(--cf-pink-soft); color: var(--cf-pink-deep); font-size: 21px; }
+.setting-copy { display: grid; gap: 3px; min-width: 0; }
+.setting-copy strong { font-size: .9rem; }
+.setting-copy small { color: var(--cf-choco-light); font-size: .71rem; line-height: 1.42; }
+ion-toggle { min-width: 48px; min-height: 44px; --track-background-checked: var(--cf-choco-btn); --handle-background-checked: var(--cf-canvas); }
+.system-note, .settings-error { margin: -4px 4px 2px; font-size: .72rem; line-height: 1.45; }
+.system-note { display: flex; gap: 7px; color: var(--cf-choco-medium); }
+.system-note ion-icon { flex: none; margin-top: 2px; color: var(--cf-pink-deep); }
+.settings-error { color: var(--ion-color-danger); font-weight: 700; }
+@media (max-width: 340px) { .setting-row { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 8px; padding: 11px; } .setting-icon { width: 40px; height: 40px; } }

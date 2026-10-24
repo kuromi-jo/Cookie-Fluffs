@@ -4,7 +4,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { orderRequestFingerprint, validateOrderRequest } from './order-validation.js';
+import { ORDER_AGREEMENT_VERSION, orderRequestFingerprint, validateOrderRequest } from './order-validation.js';
 
 const key = '123e4567-e89b-42d3-a456-426614174000';
 const delivery = {
@@ -17,12 +17,18 @@ const delivery = {
   deliveryAddress: {
     addressLine1: 'House 12, Example Street',
     addressLine2: '',
-    barangay: 'Sample Barangay',
+    regionCode: '1300000000',
+    region: 'National Capital Region (NCR)',
+    barangayCode: '1381300001',
+    barangay: 'Alicia',
+    cityCode: '1381300000',
     city: 'Quezon City',
     province: 'Metro Manila',
     postalCode: '1100',
   },
   notes: '',
+  agreementAccepted: true,
+  agreementVersion: ORDER_AGREEMENT_VERSION,
 };
 
 test('accepts and normalizes delivery checkout details', () => {
@@ -42,12 +48,24 @@ test('accepts pickup without an address', () => {
   assert.equal(result.value.deliveryAddress, null);
 });
 
+test('accepts configured online methods for either fulfillment method', () => {
+  for (const paymentMethod of ['gcash', 'maya', 'card']) {
+    assert.deepEqual(validateOrderRequest({ ...delivery, paymentMethod }).errors, {});
+    assert.deepEqual(validateOrderRequest({
+      ...delivery,
+      fulfillmentMethod: 'pickup',
+      paymentMethod,
+      deliveryAddress: undefined,
+    }).errors, {});
+  }
+});
+
 test('rejects invalid fulfillment, payment, scheduling, phone, address, key, and notes', () => {
   const result = validateOrderRequest({
     ...delivery,
     idempotencyKey: 'bad-key',
     fulfillmentMethod: 'courier',
-    paymentMethod: 'card',
+    paymentMethod: 'bitcoin',
     schedulingMode: 'tomorrow',
     contactPhone: '123',
     deliveryAddress: null,
@@ -75,6 +93,18 @@ test('rejects unknown top-level, nested, and security-sensitive fields', () => {
     ...delivery,
     deliveryAddress: { ...delivery.deliveryAddress, deliveryFee: 0 },
   }).errors.deliveryAddress);
+});
+
+test('requires the current draft agreement in development and rejects stale versions', () => {
+  assert.ok(validateOrderRequest({ ...delivery, agreementAccepted: false }).errors.agreementAccepted);
+  assert.ok(validateOrderRequest({ ...delivery, agreementVersion: 'draft-old' }).errors.agreementVersion);
+});
+
+test('disables draft agreement fields in production', () => {
+  const result = validateOrderRequest(delivery, { agreementRequired: false });
+  assert.ok(result.errors.agreementAccepted);
+  const { agreementAccepted: _accepted, agreementVersion: _version, ...withoutAgreement } = delivery;
+  assert.deepEqual(validateOrderRequest(withoutAgreement, { agreementRequired: false }).errors, {});
 });
 
 test('fingerprints normalized checkout details but not the idempotency key', () => {

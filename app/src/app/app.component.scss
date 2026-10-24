@@ -112,6 +112,34 @@
   cursor: pointer;
 }
 
+.manage-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cf-canvas);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+
+  ion-icon {
+    font-size: 17px;
+  }
+
+  &.active,
+  &:focus-visible {
+    background: var(--cf-pink-soft);
+    color: var(--cf-choco-btn);
+    outline: none;
+  }
+}
+
 /* ---------- Links ---------- */
 .menu-list {
   padding: 4px 12px 12px;

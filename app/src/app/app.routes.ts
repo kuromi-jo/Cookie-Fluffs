@@ -3,7 +3,7 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   { path: '', redirectTo: 'home', pathMatch: 'full' },
   {
-    // Bottom tabs. URLs stay /home, /shop and /cart.
+    // Customer shell. Existing URLs stay unchanged while the five-tab bar remains available.
     path: '',
     loadComponent: () => import('./pages/tabs/tabs.page').then((m) => m.TabsPage),
     children: [
@@ -22,17 +22,91 @@ export const routes: Routes = [
         title: 'My Cart',
         loadComponent: () => import('./pages/cart/cart.page').then((m) => m.CartPage),
       },
+      {
+        path: 'product/:id',
+        title: 'Cookie Details',
+        loadComponent: () => import('./pages/product-detail/product-detail.page').then((m) => m.ProductDetailPage),
+      },
+      {
+        path: 'profile/favorites',
+        title: 'My Favorites',
+        loadComponent: () => import('./pages/favorites/favorites.page').then((m) => m.FavoritesPage),
+      },
+      {
+        path: 'profile/addresses/new',
+        title: 'Add Address',
+        loadComponent: () => import('./pages/address-editor/address-editor.page').then((m) => m.AddressEditorPage),
+      },
+      {
+        path: 'profile/addresses/:id/edit',
+        title: 'Edit Address',
+        loadComponent: () => import('./pages/address-editor/address-editor.page').then((m) => m.AddressEditorPage),
+      },
+      {
+        path: 'profile/addresses',
+        title: 'My Addresses',
+        loadComponent: () => import('./pages/addresses/addresses.page').then((m) => m.AddressesPage),
+      },
+      {
+        path: 'profile/settings',
+        title: 'App Settings',
+        loadComponent: () => import('./pages/settings/settings.page').then((m) => m.SettingsPage),
+      },
+      {
+        path: 'profile',
+        title: 'My Profile',
+        loadComponent: () => import('./pages/profile/profile.page').then((m) => m.ProfilePage),
+      },
+      {
+        path: 'orders/:id',
+        title: 'Order details',
+        loadComponent: () =>
+          import('./pages/order-confirmation/order-confirmation.page').then((m) => m.OrderConfirmationPage),
+      },
+      {
+        path: 'orders',
+        title: 'My Orders',
+        loadComponent: () => import('./pages/orders/orders.page').then((m) => m.OrdersPage),
+      },
+      {
+        path: 'help/faq',
+        title: 'Frequently Asked Questions',
+        loadComponent: () => import('./pages/faq/faq.page').then((m) => m.FaqPage),
+      },
+      {
+        path: 'help',
+        title: 'Help & Support',
+        loadComponent: () => import('./pages/help/help.page').then((m) => m.HelpPage),
+      },
     ],
-  },
-  {
-    path: 'product/:id',
-    title: 'Cookie Details',
-    loadComponent: () => import('./pages/product-detail/product-detail.page').then((m) => m.ProductDetailPage),
   },
   {
     path: 'box',
     title: 'Build your box',
     loadComponent: () => import('./pages/box-builder/box-builder.page').then((m) => m.BoxBuilderPage),
+  },
+  {
+    path: 'checkout',
+    title: 'Checkout',
+    loadComponent: () => import('./pages/checkout/checkout.page').then((m) => m.CheckoutPage),
+  },
+  {
+    path: 'order/:id',
+    title: 'Order confirmation',
+    loadComponent: () =>
+      import('./pages/order-confirmation/order-confirmation.page').then((m) => m.OrderConfirmationPage),
+  },
+  {
+    path: 'payment-authorization',
+    title: 'Secure payment',
+    loadComponent: () =>
+      import('./pages/payment-authorization/payment-authorization.page').then((m) => m.PaymentAuthorizationPage),
+  },
+  {
+    path: 'payment-authorization/:id',
+    title: 'Secure payment',
+    loadComponent: () =>
+      import('./pages/payment-authorization/payment-authorization.page').then((m) => m.PaymentAuthorizationPage),
   },
   {
     path: 'login',

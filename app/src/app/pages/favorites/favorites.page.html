@@ -1,0 +1,48 @@
+<!-- @file favorites.page.html @description Saved-cookie loading, empty, error, and product states. -->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/profile" text="" icon="arrow-back"></ion-back-button></ion-buttons>
+    <ion-title class="cf-title">My Favorites</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page favorites-page">
+    <header class="page-intro">
+      <span class="heart-mark"><ion-icon name="heart" aria-hidden="true"></ion-icon></span>
+      <div><h1>Saved for later</h1><p>Your favorite cookies stay with your account.</p></div>
+    </header>
+
+    @if (favorites.loading() && !favorites.loaded()) {
+      <div class="grid" role="status" aria-label="Loading favorites">
+        @for (item of skeletons; track item) {
+          <div class="skeleton"><ion-skeleton-text [animated]="true" class="sk-img"></ion-skeleton-text><ion-skeleton-text [animated]="true" style="width: 75%"></ion-skeleton-text><ion-skeleton-text [animated]="true" style="width: 48%"></ion-skeleton-text></div>
+        }
+      </div>
+    } @else if (favorites.error() && !favorites.favorites().length) {
+      <section class="state" role="alert">
+        <div class="state-icon"><ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon></div>
+        <h2>Favorites could not load</h2><p>{{ favorites.error() }}</p>
+        <ion-button (click)="retry()"><ion-icon slot="start" name="refresh-outline"></ion-icon>Try again</ion-button>
+      </section>
+    } @else if (!favorites.favorites().length) {
+      <section class="state">
+        <div class="state-icon"><ion-icon name="heart-outline" aria-hidden="true"></ion-icon></div>
+        <h2>No favorites yet</h2><p>Tap the heart on a cookie you would like to find again.</p>
+        <ion-button routerLink="/shop">Browse all cookies</ion-button>
+      </section>
+    } @else {
+      @if (favorites.error()) { <p class="inline-error" role="alert">{{ favorites.error() }}</p> }
+      <div class="grid">
+        @for (product of favorites.favorites(); track product.id) {
+          <app-product-card
+            [product]="product"
+            [inCart]="cart.quantityOf(product.id)"
+            [busy]="cart.busy().has(product.id)"
+            (add)="addToCart($event)"
+          />
+        }
+      </div>
+    }
+  </main>
+</ion-content>

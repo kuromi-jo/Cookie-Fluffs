@@ -3,11 +3,12 @@
  * @description One cookie tile (Home sections and the All Cookies grid):
  * the cookie picture sits half outside a white card, with name, notes, price and a cart button.
  */
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { Product, discountPercent } from '../core/models';
+import { FavoriteService } from '../core/favorite.service';
 
 @Component({
   selector: 'app-product-card',
@@ -15,6 +16,21 @@ import { Product, discountPercent } from '../core/models';
   template: `
     @let p = product();
     <article class="card">
+      <button
+        type="button"
+        class="favorite"
+        [class.saved]="favorites.isFavorite(p.id)"
+        [disabled]="favorites.isBusy(p.id)"
+        [attr.aria-pressed]="favorites.isFavorite(p.id)"
+        [attr.aria-label]="favorites.isFavorite(p.id) ? 'Remove ' + p.name + ' from favorites' : 'Save ' + p.name + ' to favorites'"
+        (click)="saveFavorite(p)"
+      >
+        @if (favorites.isBusy(p.id)) {
+          <ion-spinner name="crescent"></ion-spinner>
+        } @else {
+          <ion-icon [name]="favorites.isFavorite(p.id) ? 'heart' : 'heart-outline'" aria-hidden="true"></ion-icon>
+        }
+      </button>
       <a class="media" [routerLink]="['/product', p.id]" [attr.aria-label]="'View ' + p.name">
         <img [src]="p.imageUrl" [alt]="p.name" loading="lazy" />
       </a>
@@ -40,11 +56,13 @@ import { Product, discountPercent } from '../core/models';
             type="button"
             class="add"
             [class.in-cart]="inCart() > 0"
-            [disabled]="busy()"
+            [disabled]="busy() || !p.isAvailable"
             (click)="add.emit(p)"
-            [attr.aria-label]="inCart() > 0 ? 'Add more ' + p.name + ' (' + inCart() + ' in cart)' : 'Add ' + p.name + ' to cart'"
+            [attr.aria-label]="!p.isAvailable ? p.name + ' is unavailable' : inCart() > 0 ? 'Add more ' + p.name + ' (' + inCart() + ' in cart)' : 'Add ' + p.name + ' to cart'"
           >
-            @if (busy()) {
+            @if (!p.isAvailable) {
+              <ion-icon name="close" aria-hidden="true"></ion-icon>
+            } @else if (busy()) {
               <ion-spinner name="crescent"></ion-spinner>
             } @else {
               <ion-icon name="cart-outline"></ion-icon>
@@ -60,6 +78,15 @@ import { Product, discountPercent } from '../core/models';
   styles: `
     :host { display: block; }
     .card { position: relative; display: flex; flex-direction: column; height: 100%; }
+    .favorite {
+      position: absolute; z-index: 4; top: 2px; left: 2px; display: grid; place-items: center;
+      width: 44px; height: 44px; padding: 0; border: 1px solid var(--cf-pink-border); border-radius: 50%;
+      background: #fff; color: var(--cf-pink-deep); cursor: pointer;
+    }
+    .favorite.saved { background: var(--cf-pink-soft); }
+    .favorite:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.18); }
+    .favorite ion-icon { font-size: 21px; }
+    .favorite ion-spinner { width: 18px; height: 18px; }
 
     /* Cookie picture, overlapping the top of the white panel */
     .media {
@@ -106,6 +133,7 @@ import { Product, discountPercent } from '../core/models';
     }
     .add:active { transform: scale(.9); }
     .add.in-cart { background: var(--cf-pink-vibrant); }
+    .add:disabled { opacity: .55; cursor: default; }
     .add ion-spinner { width: 18px; height: 18px; color: #fff; }
     .qty {
       position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px;
@@ -115,10 +143,15 @@ import { Product, discountPercent } from '../core/models';
   `,
 })
 export class ProductCardComponent {
+  readonly favorites = inject(FavoriteService);
   readonly product = input.required<Product>();
   readonly inCart = input(0);
   readonly busy = input(false);
   readonly add = output<Product>();
 
   readonly discount = computed(() => discountPercent(this.product()));
+
+  saveFavorite(product: Product): void {
+    void this.favorites.toggle(product);
+  }
 }

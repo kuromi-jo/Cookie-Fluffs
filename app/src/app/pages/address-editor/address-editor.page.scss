@@ -1,0 +1,33 @@
+/** @file address-editor.page.scss @description Accessible mobile form for saved delivery addresses. */
+:host { background: var(--cf-canvas); }
+ion-content { --background: var(--cf-canvas); }
+.editor-page { display: grid; gap: 16px; padding-top: 18px; }
+.editor-page > header h1 { margin: 0 0 5px; font-size: 1.7rem; }
+.editor-page > header p { margin: 0; color: var(--cf-choco-light); font-size: 0.8rem; line-height: 1.5; }
+.address-form { padding: 18px 16px; }
+.address-form h2 { margin: 20px 2px 12px; font-size: 1.08rem; }
+.field-group { margin-bottom: 12px; }
+fieldset { margin: 0 0 12px; padding: 0; border: 0; }
+legend { margin: 0 0 8px 2px; font-size: 0.75rem; font-weight: 800; }
+.label-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.label-choices button { min-height: 44px; border: 1px solid var(--cf-pink-border); border-radius: 999px; background: #fff; color: var(--cf-choco); font: inherit; font-size: 0.78rem; font-weight: 800; }
+.label-choices button.selected { border-color: var(--cf-pink-accent); background: var(--cf-pink-soft); color: var(--cf-pink-deep); }
+.label-choices button:focus-visible, .location-trigger:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15); }
+.fixed-location, .location-trigger { display: grid; gap: 4px; min-height: 58px; margin-bottom: 12px; padding: 9px 16px; border: 1px solid var(--cf-pink-border); border-radius: 999px; background: #fff; color: var(--cf-choco); text-align: left; }
+.fixed-location { background: var(--cf-pink-soft); }
+.fixed-location span, .location-trigger span { color: var(--cf-choco-light); font-size: 0.68rem; }
+.fixed-location strong, .location-trigger strong { min-width: 0; overflow: hidden; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.location-trigger { grid-template-columns: minmax(0, 1fr) 22px; width: 100%; font: inherit; }
+.location-trigger span, .location-trigger strong { grid-column: 1; }
+.location-trigger ion-icon { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--cf-pink-deep); }
+.location-trigger.invalid { border-color: var(--ion-color-danger); }
+.location-trigger:disabled { opacity: 0.58; }
+.postal { max-width: 180px; }
+.default-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 10px; margin: 8px 0 18px; }
+.default-row ion-checkbox { --size: 24px; --border-color: var(--cf-pink-accent); --border-color-checked: var(--cf-choco-btn); --checkbox-background-checked: var(--cf-choco-btn); --checkmark-color: var(--cf-canvas); --border-radius: 8px; display: grid; place-items: center; width: 44px; height: 44px; }
+.default-row span { display: grid; gap: 3px; }
+.default-row strong { font-size: 0.82rem; }
+.default-row small { color: var(--cf-choco-light); font-size: 0.7rem; }
+.save-error { display: flex; gap: 7px; color: var(--ion-color-danger); font-size: 0.78rem; font-weight: 700; }
+.state { display: grid; justify-items: center; gap: 9px; padding: 64px 6px; color: var(--cf-choco-light); }
+@media (max-width: 340px) { .editor-page { padding-inline: 14px; } .address-form { padding-inline: 14px; } }

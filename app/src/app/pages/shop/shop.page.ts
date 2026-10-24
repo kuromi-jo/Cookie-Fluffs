@@ -37,6 +37,7 @@ import {
   inCollection,
 } from '../../core/models';
 import { ProductCardComponent } from '../../components/product-card.component';
+import { prefersReducedMotion } from '../../core/preference.service';
 
 type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
 
@@ -141,6 +142,13 @@ export class ShopPage {
   spin(): void {
     const pool = this.visible().length ? this.visible() : this.products.products();
     if (this.spinning() || !pool.length) return;
+    if (prefersReducedMotion()) {
+      const next = pool[Math.floor(Math.random() * pool.length)];
+      this.rouletteFace.set(next);
+      this.rouletteResult.set(next);
+      this.burst.update((n) => n + 1);
+      return;
+    }
     this.spinning.set(true);
     this.rouletteResult.set(null);
     const steps = 16;

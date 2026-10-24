@@ -10,42 +10,16 @@
 <ion-content>
   <div class="cf-page">
     <section class="cf-hero-band hero cf-rise">
-      <span class="cf-eyebrow light">We'd love to hear from you</span>
-      <h1>Questions, cravings or big orders?</h1>
-      <p>Send us a message and our team will get back to you within a day.</p>
+      <span class="cf-eyebrow light">Help and support</span>
+      <h1>Send Cookie Fluffs a message</h1>
+      <p>Share a question, an order concern, or feedback through this form.</p>
       <img class="hero-art" src="assets/brand/cookie-logo.svg" alt="" />
     </section>
-
-    <div class="quick">
-      <a class="cf-card" [href]="shop.phoneHref"><ion-icon name="call-outline"></ion-icon><span>Call</span></a>
-      <a class="cf-card" [href]="'mailto:' + shop.email"><ion-icon name="mail-outline"></ion-icon><span>Email</span></a>
-      <a class="cf-card" href="https://www.facebook.com/" target="_blank" rel="noopener"><ion-icon name="logo-facebook"></ion-icon><span>Facebook</span></a>
-      <a class="cf-card" href="https://www.instagram.com/" target="_blank" rel="noopener"><ion-icon name="logo-instagram"></ion-icon><span>Instagram</span></a>
-    </div>
-
-    <div class="list-card cf-card">
-      <a class="row" [href]="shop.phoneHref">
-        <ion-icon name="call-outline"></ion-icon>
-        <div><small>Phone / Viber</small><strong>{{ shop.phone }}</strong></div>
-      </a>
-      <a class="row" [href]="'mailto:' + shop.email">
-        <ion-icon name="mail-outline"></ion-icon>
-        <div><small>Email</small><strong>{{ shop.email }}</strong></div>
-      </a>
-      <div class="row">
-        <ion-icon name="location-outline"></ion-icon>
-        <div><small>Kitchen</small><strong>{{ shop.address }}</strong></div>
-      </div>
-      <div class="row">
-        <ion-icon name="time-outline"></ion-icon>
-        <div><small>Baking hours</small><strong>{{ shop.hours }}</strong></div>
-      </div>
-    </div>
 
     <h2 class="cf-section-title">Send us a message</h2>
     <form #f="ngForm" (ngSubmit)="send(f)" novalidate class="cf-card form">
       @if (sent()) {
-        <p class="sent"><ion-icon name="checkmark-circle"></ion-icon>Thanks! Your message is saved and our team will reply soon.</p>
+        <p class="sent"><ion-icon name="checkmark-circle"></ion-icon>Your message was saved.</p>
       }
       <ion-input class="cf-input" label="Your name" labelPlacement="floating" name="name" [(ngModel)]="name" required minlength="2"></ion-input>
       <ion-input class="cf-input" type="email" label="Email" labelPlacement="floating" name="email" [(ngModel)]="email" required email></ion-input>

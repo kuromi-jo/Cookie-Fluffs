@@ -1,0 +1,28 @@
+/** @file addresses.page.scss @description Mobile address-book layout in the Cookie Fluffs design system. */
+:host { background: var(--cf-canvas); }
+ion-content { --background: var(--cf-canvas); }
+.addresses-page { display: grid; gap: 16px; padding-top: 18px; }
+.page-heading h1 { margin: 0 0 5px; font-size: 1.8rem; }
+.page-heading p { margin: 0; color: var(--cf-choco-light); font-size: 0.82rem; line-height: 1.5; }
+.address-list { display: grid; gap: 12px; }
+.address-card { padding: 16px; }
+.address-card.default-address { border-color: var(--cf-pink-accent); }
+.address-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.address-card header > div { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
+.address-card header a { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; color: var(--cf-pink-deep); font-size: 0.78rem; font-weight: 800; }
+.address-card header a:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15); }
+.address-label { font-family: var(--cf-font-display); font-size: 1.12rem; font-weight: 700; }
+.cf-chip { padding: 4px 9px; font-size: 0.64rem; }
+.recipient { display: grid; gap: 2px; margin: 12px 0 0; font-size: 0.8rem; }
+.recipient span, .address-copy { color: var(--cf-choco-light); }
+.address-copy { margin: 10px 0 0; font-size: 0.76rem; line-height: 1.55; }
+.address-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--cf-pink-soft); }
+.address-card ion-button { min-height: 44px; margin: 0; --border-radius: 999px; }
+.address-card ion-spinner { width: 18px; height: 18px; }
+.add-address { margin: 0 0 calc(4px + env(safe-area-inset-bottom)); }
+.state { display: grid; justify-items: center; gap: 9px; padding: 54px 6px; text-align: center; }
+.state ion-icon { color: var(--cf-pink-deep); font-size: 46px; }
+.state h2, .state p { margin: 0; }
+.state p { color: var(--cf-choco-light); font-size: 0.8rem; line-height: 1.5; }
+.page-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 13px; border: 1px solid var(--ion-color-danger); border-radius: var(--cf-radius-sm); background: #fff; color: var(--ion-color-danger); font-size: 0.76rem; }
+@media (max-width: 340px) { .addresses-page { padding-inline: 14px; } .address-card { padding: 14px; } }

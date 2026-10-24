@@ -1,0 +1,35 @@
+<!-- @file settings.page.html @description Two persisted accessibility controls. -->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/profile" text="" icon="arrow-back"></ion-back-button></ion-buttons>
+    <ion-title class="cf-title">App Settings</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page settings-page">
+    <header><h1>Make the app comfortable</h1><p>These choices are saved to your Cookie Fluffs account.</p></header>
+    @if (preferences.loading()) {
+      <div class="loading" role="status"><ion-spinner name="crescent"></ion-spinner><span>Loading your settings…</span></div>
+    }
+    <section class="setting-list" aria-label="Accessibility settings">
+      <label class="setting-row cf-card">
+        <span class="setting-icon"><ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon></span>
+        <span class="setting-copy"><strong>Reduce motion</strong><small>Limits decorative movement and uses instant scrolling.</small></span>
+        <ion-toggle [checked]="reduceMotion()" (ionChange)="reduceMotion.set($event.detail.checked)" aria-label="Reduce motion"></ion-toggle>
+      </label>
+      @if (preferences.systemReduceMotion()) {
+        <p class="system-note"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>Your device already requests reduced motion, so Cookie Fluffs will keep motion limited.</p>
+      }
+      <label class="setting-row cf-card">
+        <span class="setting-icon"><ion-icon name="resize-outline" aria-hidden="true"></ion-icon></span>
+        <span class="setting-copy"><strong>Larger text</strong><small>Increases supported app text to 112.5%.</small></span>
+        <ion-toggle [checked]="largerText()" (ionChange)="largerText.set($event.detail.checked)" aria-label="Larger text"></ion-toggle>
+      </label>
+    </section>
+    @if (preferences.error()) { <p class="settings-error" role="alert">{{ preferences.error() }}</p> }
+    <ion-button expand="block" class="cf-btn-lg" (click)="save()" [disabled]="preferences.saving() || preferences.loading()">
+      @if (preferences.saving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Save changes }
+    </ion-button>
+  </main>
+</ion-content>

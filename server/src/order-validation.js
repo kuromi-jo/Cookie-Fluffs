@@ -3,10 +3,13 @@
  * @description Strict checkout request validation and canonical idempotency fingerprints.
  */
 import crypto from 'node:crypto';
+import { validateNcrLocation } from './geography.js';
 import { normalizePhone } from './validation.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const POSTAL_CODE_RE = /^\d{4}$/;
+const ONLINE_PAYMENT_METHODS = new Set(['gcash', 'maya', 'card']);
+export const ORDER_AGREEMENT_VERSION = 'draft-2026-10-24-v1';
 const TOP_LEVEL_FIELDS = new Set([
   'idempotencyKey',
   'fulfillmentMethod',
@@ -16,8 +19,21 @@ const TOP_LEVEL_FIELDS = new Set([
   'contactPhone',
   'deliveryAddress',
   'notes',
+  'agreementAccepted',
+  'agreementVersion',
 ]);
-const ADDRESS_FIELDS = new Set(['addressLine1', 'addressLine2', 'barangay', 'city', 'province', 'postalCode']);
+const ADDRESS_FIELDS = new Set([
+  'addressLine1',
+  'addressLine2',
+  'regionCode',
+  'region',
+  'barangayCode',
+  'barangay',
+  'cityCode',
+  'city',
+  'province',
+  'postalCode',
+]);
 
 function cleanText(value) {
   return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -31,7 +47,7 @@ function validateBoundedText(value, label, min, max) {
   return { value: text, error: null };
 }
 
-export function validateOrderRequest(body) {
+export function validateOrderRequest(body, { agreementRequired = process.env.NODE_ENV !== 'production' } = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { value: null, errors: { request: 'Send checkout details as a JSON object.' } };
   }
@@ -50,10 +66,8 @@ export function validateOrderRequest(body) {
 
   const expectedPayment = fulfillmentMethod === 'pickup' ? 'cash_on_pickup' : 'cash_on_delivery';
   const paymentMethod = body.paymentMethod;
-  if (paymentMethod !== expectedPayment) {
-    errors.paymentMethod = fulfillmentMethod === 'pickup'
-      ? 'Pickup orders use cash on pickup.'
-      : 'Delivery orders use cash on delivery.';
+  if (paymentMethod !== expectedPayment && !ONLINE_PAYMENT_METHODS.has(paymentMethod)) {
+    errors.paymentMethod = 'Choose an available payment method for this order.';
   }
 
   const schedulingMode = body.schedulingMode;
@@ -66,6 +80,19 @@ export function validateOrderRequest(body) {
 
   const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
   if (notes.length > 500) errors.notes = 'Keep order notes to 500 characters or fewer.';
+
+  let agreementAccepted = false;
+  let agreementVersion = null;
+  if (agreementRequired) {
+    if (body.agreementAccepted !== true) errors.agreementAccepted = 'Review and accept the order agreement.';
+    if (body.agreementVersion !== ORDER_AGREEMENT_VERSION) {
+      errors.agreementVersion = 'The order agreement changed. Review it again before placing your order.';
+    }
+    agreementAccepted = body.agreementAccepted === true;
+    agreementVersion = body.agreementVersion === ORDER_AGREEMENT_VERSION ? body.agreementVersion : null;
+  } else if ('agreementAccepted' in body || 'agreementVersion' in body) {
+    errors.agreementAccepted = 'The draft order agreement is unavailable in production.';
+  }
 
   let deliveryAddress = null;
   if (fulfillmentMethod === 'delivery') {
@@ -81,18 +108,24 @@ export function validateOrderRequest(body) {
       const city = validateBoundedText(address.city, 'City or municipality', 2, 80);
       const province = validateBoundedText(address.province, 'Province or region', 2, 80);
       const postalCode = cleanText(address.postalCode);
+      const location = validateNcrLocation(address);
       if (line1.error) errors.addressLine1 = line1.error;
       if (line2.error) errors.addressLine2 = line2.error;
       if (barangay.error) errors.barangay = barangay.error;
       if (city.error) errors.city = city.error;
       if (province.error) errors.province = province.error;
       if (!POSTAL_CODE_RE.test(postalCode)) errors.postalCode = 'Enter a 4-digit Philippine postal code.';
+      Object.assign(errors, location.errors);
       deliveryAddress = {
         addressLine1: line1.value,
         addressLine2: line2.value,
-        barangay: barangay.value,
-        city: city.value,
-        province: province.value,
+        regionCode: location.value?.regionCode ?? '',
+        region: location.value?.region ?? '',
+        barangayCode: location.value?.barangayCode ?? '',
+        barangay: location.value?.barangay ?? barangay.value,
+        cityCode: location.value?.cityCode ?? '',
+        city: location.value?.city ?? city.value,
+        province: location.value?.province ?? province.value,
         postalCode,
       };
     }
@@ -109,6 +142,8 @@ export function validateOrderRequest(body) {
     contactPhone,
     deliveryAddress,
     notes,
+    agreementAccepted,
+    agreementVersion,
   };
   return { value, errors };
 }

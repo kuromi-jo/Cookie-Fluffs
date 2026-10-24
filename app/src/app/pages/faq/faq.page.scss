@@ -1,0 +1,11 @@
+/** @file faq.page.scss @description Readable expandable FAQ layout. */
+.faq-page { padding-top: 14px; }
+.faq-page > h1 { margin: 0 0 4px; font-size: 1.55rem; }
+.questions { display: grid; gap: 10px; }
+details { padding: 0 15px; }
+summary { min-height: 54px; padding: 15px 28px 15px 0; cursor: pointer; color: var(--cf-choco); font-size: .86rem; font-weight: 800; line-height: 1.45; }
+details p { margin: -4px 0 16px; color: var(--cf-choco-medium); font-size: .79rem; line-height: 1.65; }
+details:focus-within { box-shadow: 0 0 0 4px rgba(244, 114, 182, .15); }
+.more-help { margin-top: 20px; padding: 18px; border-top: 1px solid var(--cf-pink-border); text-align: center; }
+.more-help h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.more-help p { margin: 0 0 10px; color: var(--cf-choco-light); font-size: .8rem; }

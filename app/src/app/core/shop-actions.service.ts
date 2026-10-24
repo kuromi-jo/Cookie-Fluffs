@@ -16,7 +16,12 @@ import { BoxBuilderService } from './box-builder.service';
 import { UiService } from './ui.service';
 import { apiErrorMessage } from './api-error';
 import { BoxSize, Product } from './models';
-import { PackChoice, PackPickerModal } from '../components/pack-picker.modal';
+import {
+  PACK_PICKER_BREAKPOINTS,
+  PACK_PICKER_INITIAL_BREAKPOINT,
+  PackChoice,
+  PackPickerModal,
+} from '../components/pack-picker.modal';
 
 @Injectable({ providedIn: 'root' })
 export class ShopActionsService {
@@ -30,16 +35,17 @@ export class ShopActionsService {
 
   /** The cart button on a cookie: ask how many, then add or start a box. */
   async choosePack(product: Product): Promise<void> {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const sheet = await this.modals.create({
       component: PackPickerModal,
       componentProps: { product },
-      breakpoints: [0, 0.72, 0.92],
-      initialBreakpoint: 0.72,
-      handleBehavior: 'cycle',
-      cssClass: 'cf-sheet',
+      breakpoints: PACK_PICKER_BREAKPOINTS,
+      initialBreakpoint: PACK_PICKER_INITIAL_BREAKPOINT,
+      cssClass: ['cf-sheet', 'pack-picker'],
     });
     await sheet.present();
-    const { data, role } = await sheet.onWillDismiss<PackChoice>();
+    const { data, role } = await sheet.onDidDismiss<PackChoice>();
+    trigger?.focus({ preventScroll: true });
     if (role !== 'confirm' || !data) return;
     if (data.size === 1) await this.addSingle(product, data.quantity);
     else this.startBox(data.size, product);

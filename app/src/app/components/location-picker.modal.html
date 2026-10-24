@@ -1,0 +1,51 @@
+<ion-modal
+  class="cf-sheet location-picker"
+  [isOpen]="isOpen"
+  [breakpoints]="breakpoints"
+  [initialBreakpoint]="initialBreakpoint"
+  [backdropBreakpoint]="0"
+  [handle]="true"
+  (didDismiss)="dismiss()"
+>
+  <ng-template>
+    <ion-header class="cf-header">
+      <ion-toolbar>
+        <ion-title class="cf-title">{{ title }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button aria-label="Close location picker" (click)="dismiss()">
+            <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content [scrollY]="false">
+      <div class="picker-content">
+        <ion-searchbar
+          [placeholder]="searchPlaceholder"
+          [value]="query()"
+          (ionInput)="query.set($any($event.detail.value) ?? '')"
+          debounce="0"
+          aria-label="Search location options"
+        ></ion-searchbar>
+        <div class="option-list" role="listbox" [attr.aria-label]="title">
+          @for (option of filtered(); track option.code) {
+            <button
+              type="button"
+              role="option"
+              [attr.aria-selected]="selectedCode === option.code"
+              [class.selected]="selectedCode === option.code"
+              (click)="choose(option)"
+            >
+              <span>{{ option.name }}</span>
+              @if (selectedCode === option.code) {
+                <ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>
+              }
+            </button>
+          } @empty {
+            <p class="empty-option">No matching locations. Try a different search.</p>
+          }
+        </div>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

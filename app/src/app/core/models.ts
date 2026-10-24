@@ -27,6 +27,16 @@ export interface Product {
   salePrice: number | null;
 }
 
+export interface FavoriteProduct extends Product {
+  favoritedAt: string;
+}
+
+export interface UserPreferences {
+  reduceMotion: boolean;
+  largerText: boolean;
+  updatedAt: string | null;
+}
+
 /** Home-screen collections, also used as the Shop tab's ?show= filter. */
 export type Collection = 'best' | 'new' | 'promo';
 
@@ -65,6 +75,30 @@ export interface AuthResponse {
   token: string;
   user: User;
 }
+
+export interface SavedAddress {
+  id: string;
+  label: string;
+  recipientName: string;
+  recipientPhone: string;
+  addressLine1: string;
+  addressLine2: string;
+  regionCode: string;
+  region: string;
+  province: string;
+  cityCode: string;
+  city: string;
+  barangayCode: string;
+  barangay: string;
+  postalCode: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SavedAddressInput = Pick<SavedAddress,
+  'label' | 'recipientName' | 'recipientPhone' | 'addressLine1' | 'addressLine2'
+  | 'cityCode' | 'barangayCode' | 'postalCode'>;
 
 export interface CartItem {
   productId: number;
@@ -120,6 +154,235 @@ export const EMPTY_CART: Cart = {
   freeDeliveryMin: 500,
   total: 0,
 };
+
+/* --------------------------------------------------------------- orders */
+
+export type FulfillmentMethod = 'delivery' | 'pickup';
+export type CashPaymentMethod = 'cash_on_delivery' | 'cash_on_pickup';
+export type OnlinePaymentMethod = 'gcash' | 'maya' | 'card';
+export type PaymentMethod = CashPaymentMethod | OnlinePaymentMethod;
+export type PaymentState = 'pending' | 'pending_cash' | 'awaiting_payment' | 'processing' | 'paid' | 'failed' | 'expired' | 'cancelled' | 'refunded';
+export type OrderStatus = 'placed' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'completed' | 'cancelled';
+export type CancellationStatus = 'pending' | 'approved' | 'declined';
+export type RefundStatus = 'review_required' | 'approved' | 'processing' | 'refunded' | 'rejected' | 'failed';
+
+export interface OrderStatusEvent {
+  id: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  actorType: 'customer' | 'operator' | 'system';
+  createdAt: string;
+}
+
+export interface OrderCancellation {
+  id: string;
+  status: CancellationStatus;
+  refundReviewStatus: 'not_required' | 'review_required';
+  requestedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface RefundEvent {
+  id: string;
+  fromStatus: RefundStatus | null;
+  toStatus: RefundStatus;
+  createdAt: string;
+}
+
+export interface OrderRefund {
+  id: string;
+  paymentMethod: 'gcash' | 'maya';
+  originalPaidAmount: number;
+  approvedAmount: number | null;
+  currency: 'PHP';
+  status: RefundStatus;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt: string | null;
+  events: RefundEvent[];
+}
+
+export interface DeliveryAddress {
+  addressLine1: string;
+  addressLine2: string;
+  regionCode: string;
+  region: string;
+  barangayCode: string;
+  barangay: string;
+  cityCode: string;
+  city: string;
+  province: string;
+  postalCode: string;
+}
+
+/** Customer-controlled checkout fields. Prices and identity are intentionally absent. */
+export interface OrderDetails {
+  fulfillmentMethod: FulfillmentMethod;
+  paymentMethod: PaymentMethod;
+  schedulingMode: 'asap';
+  contactName: string;
+  contactPhone: string;
+  deliveryAddress: DeliveryAddress | null;
+  notes: string;
+  agreementAccepted?: true;
+  agreementVersion?: string;
+}
+
+export interface OrderRequest extends OrderDetails {
+  idempotencyKey: string;
+}
+
+export interface PaymentCapability {
+  id: OnlinePaymentMethod;
+  label: string;
+  available: boolean;
+  unavailableMessage: string;
+  demo?: boolean;
+  demoKind?: 'card' | 'wallet';
+}
+
+export interface PaymentConfig {
+  onlineEnabled: boolean;
+  mode: 'test' | 'disabled';
+  publicKey: string;
+  methods: PaymentCapability[];
+  unavailableMessage: string;
+  cardDemoEnabled?: boolean;
+  cardDemoNotice?: string;
+  walletDemoEnabled?: boolean;
+  walletDemoNotice?: string;
+}
+
+export type DemoCardScenario = 'visa_approved' | 'mastercard_declined';
+export type DemoPaymentStatus = 'demo_approved' | 'demo_declined';
+
+export interface DemoPaymentResult {
+  attemptId: string;
+  scenario: DemoCardScenario;
+  status: DemoPaymentStatus;
+  isDemo: true;
+}
+
+export interface DemoPaymentSnapshot {
+  scenario: DemoCardScenario;
+  status: DemoPaymentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WalletDemoAction = 'confirm' | 'cancel';
+export type WalletDemoStatus = 'demo_approved' | 'demo_cancelled';
+
+export interface WalletDemoResult {
+  attemptId: string;
+  walletMethod: 'gcash' | 'maya';
+  status: WalletDemoStatus;
+  isDemo: true;
+}
+
+export interface WalletDemoPaymentSnapshot {
+  walletMethod: 'gcash' | 'maya';
+  status: WalletDemoStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentIntentSetup {
+  flow: 'payment_intent' | 'hosted_checkout';
+  attemptId: string;
+  paymentIntentId?: string;
+  clientKey?: string;
+  authorizationUrl?: string;
+  checkoutUrl?: string;
+  status: string;
+}
+
+export interface PaymentSession {
+  attemptId: string;
+  checkoutUrl: string;
+  status: 'creating' | 'active' | 'processing' | 'paid' | 'expired' | 'failed' | 'cancelled';
+}
+
+export interface OrderBoxItem {
+  slot: number;
+  productId: number | null;
+  productName: string;
+  imageUrl: string | null;
+  regularPrice: number;
+  unitPrice: number;
+}
+
+export interface OrderItem {
+  linePosition: number;
+  lineType: 'single' | 'box';
+  productId: number | null;
+  displayName: string;
+  imageUrl: string | null;
+  quantity: number;
+  packSize: BoxSize | null;
+  regularUnitPrice: number;
+  unitPrice: number;
+  promotionDiscount: number;
+  packDiscount: number;
+  lineTotal: number;
+  boxItems: OrderBoxItem[];
+}
+
+export interface Order {
+  id: string;
+  fulfillmentMethod: FulfillmentMethod;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentState;
+  paymentIsDemo?: boolean;
+  demoPaymentStatus?: DemoPaymentStatus | WalletDemoStatus | null;
+  demoPayment?: DemoPaymentSnapshot | null;
+  walletDemoPayment?: WalletDemoPaymentSnapshot | null;
+  orderStatus: OrderStatus;
+  events: OrderStatusEvent[];
+  historyAvailable: boolean;
+  cancellation: OrderCancellation | null;
+  cancellationAction: 'cancel' | 'request' | null;
+  refund: OrderRefund | null;
+  schedulingMode: 'asap';
+  contactName: string;
+  contactPhone: string;
+  deliveryAddress: DeliveryAddress | null;
+  notes: string;
+  merchandiseSubtotal: number;
+  promotionDiscount: number;
+  packDiscount: number;
+  discountTotal: number;
+  deliveryFee: number;
+  total: number;
+  currency: 'PHP';
+  agreementVersion?: string | null;
+  agreementAcceptedAt?: string | null;
+  createdAt: string;
+  items: OrderItem[];
+}
+
+export interface OrderSummary {
+  id: string;
+  fulfillmentMethod: FulfillmentMethod;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentState;
+  paymentIsDemo?: boolean;
+  demoPaymentStatus?: DemoPaymentStatus | WalletDemoStatus | null;
+  orderStatus: OrderStatus;
+  cancellationStatus?: CancellationStatus | null;
+  refundStatus?: RefundStatus | null;
+  itemNames: string[];
+  itemCount: number;
+  thumbnailUrls: string[];
+  total: number;
+  currency: 'PHP';
+  createdAt: string;
+}
+
+export interface OrderHistoryPage {
+  orders: OrderSummary[];
+  nextCursor: string | null;
+}
 
 /* ------------------------------------------------------------------ packs */
 

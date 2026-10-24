@@ -23,6 +23,7 @@ import { ShopActionsService } from '../../core/shop-actions.service';
 import { apiErrorMessage } from '../../core/api-error';
 import { BoxSize, PackSize, Product, discountPercent, effectivePrice, thumbUrl } from '../../core/models';
 import { PackOptionsComponent } from '../../components/pack-options.component';
+import { FavoriteService } from '../../core/favorite.service';
 
 @Component({
   selector: 'app-product-detail',
@@ -50,6 +51,7 @@ export class ProductDetailPage {
   readonly id = input.required<string>();
 
   readonly cart = inject(CartService);
+  readonly favorites = inject(FavoriteService);
   private products = inject(ProductService);
   private shop = inject(ShopActionsService);
 
@@ -113,10 +115,14 @@ export class ProductDetailPage {
 
   async add(): Promise<void> {
     const p = this.product();
-    if (!p) return;
+    if (!p || !p.isAvailable) return;
     this.adding.set(true);
     const ok = await this.shop.addSingle(p, this.qty());
     this.adding.set(false);
     if (ok) this.qty.set(1);
+  }
+
+  saveFavorite(product: Product): void {
+    void this.favorites.toggle(product);
   }
 }

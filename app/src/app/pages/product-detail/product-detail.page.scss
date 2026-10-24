@@ -156,6 +156,26 @@ ion-header.floating {
   line-height: 1.5;
 }
 
+.availability {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--cf-choco-medium);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.unavailable-action {
+  width: 100%;
+  margin: 0;
+  padding: 14px;
+  color: var(--cf-choco-light);
+  text-align: center;
+  font-weight: 800;
+}
+
 .meta {
   display: flex;
   align-items: center;

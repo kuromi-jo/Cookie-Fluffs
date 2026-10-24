@@ -1,0 +1,41 @@
+<!--
+  @file payment-authorization.page.html
+  @description Focused progress and return states for the top-level PayMongo authorization window.
+-->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-title class="cf-title">Secure payment</ion-title>
+    <ion-buttons slot="end">
+      <ion-button aria-label="Close payment window" (click)="close()">
+        <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page authorization-page" [attr.aria-busy]="phase() === 'opening' || phase() === 'checking'">
+    <section class="authorization-state" [class.complete]="phase() === 'paid'" [class.failed]="phase() === 'error'">
+      <span class="state-mark">
+        @if (phase() === 'waiting' || phase() === 'opening' || phase() === 'checking') {
+          <ion-spinner name="crescent"></ion-spinner>
+        } @else {
+          <ion-icon [name]="phase() === 'paid' ? 'checkmark' : 'warning-outline'" aria-hidden="true"></ion-icon>
+        }
+      </span>
+      <p class="cf-eyebrow">PayMongo Test Mode</p>
+      <h1>{{ phase() === 'paid' ? 'Payment confirmed' : phase() === 'error' ? 'Authorization interrupted' : 'Continue secure payment' }}</h1>
+      @if (orderReference()) { <strong class="reference">#{{ orderReference() }}</strong> }
+      <p class="state-message" role="status" aria-live="polite">{{ message() }}</p>
+      @if (phase() === 'paid' || phase() === 'error') {
+        @if (phase() === 'error') {
+          <ion-button class="cf-btn-lg" expand="block" (click)="returnToCheckout()">Return to checkout</ion-button>
+          <ion-button expand="block" fill="clear" (click)="close()">Close this window</ion-button>
+        } @else {
+          <ion-button class="cf-btn-lg" expand="block" (click)="close()">Close this window</ion-button>
+        }
+      }
+      <p class="security-note"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>Cookie Fluffs confirms payment from the provider, not from this browser return.</p>
+    </section>
+  </main>
+</ion-content>

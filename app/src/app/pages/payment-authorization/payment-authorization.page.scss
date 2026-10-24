@@ -1,0 +1,20 @@
+/**
+ * @file payment-authorization.page.scss
+ * @description Compact Cookie Fluffs handoff screen for a desktop payment popup.
+ */
+:host { background: var(--cf-canvas); }
+ion-content { --background: var(--cf-canvas); }
+.authorization-page { display: grid; min-height: 100%; place-items: center; padding-top: 28px; padding-bottom: 28px; }
+.authorization-state { display: grid; justify-items: center; width: 100%; max-width: 390px; padding: 28px 22px; border: 1px solid var(--cf-pink-border); border-radius: var(--cf-radius); background: var(--ion-color-secondary-contrast); text-align: center; }
+.state-mark { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 17px; border: 1px solid var(--cf-pink-border); border-radius: 50%; background: var(--cf-pink-soft); color: var(--cf-pink-deep); font-size: 30px; }
+.state-mark ion-spinner { width: 28px; height: 28px; }
+.complete .state-mark { border-color: var(--ion-color-success); background: var(--ion-color-success); color: var(--ion-color-success-contrast); }
+.failed .state-mark { border-color: var(--ion-color-danger); background: var(--ion-color-danger-contrast); color: var(--ion-color-danger); }
+h1 { margin: 5px 0 10px; font-family: var(--cf-font-display); font-size: 1.65rem; color: var(--cf-choco); }
+.reference { margin-bottom: 14px; color: var(--cf-pink-deep); font-family: var(--cf-font-display); letter-spacing: .06em; }
+.state-message { max-width: 300px; margin: 0 0 20px; color: var(--cf-choco-medium); font-size: .82rem; line-height: 1.55; }
+ion-button { width: 100%; min-height: 44px; margin: 0 0 16px; }
+.security-note { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: var(--cf-choco-light); font-size: .7rem; line-height: 1.45; text-align: left; }
+.security-note ion-icon { flex: none; margin-top: 2px; color: var(--cf-pink-deep); }
+@media (max-width: 340px) { .authorization-page { padding-inline: 14px; } .authorization-state { padding-inline: 17px; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

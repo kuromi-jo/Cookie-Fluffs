@@ -1,0 +1,202 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      @if (step() === 0) {
+        <ion-back-button defaultHref="/cart" text="" icon="arrow-back"></ion-back-button>
+      }
+    </ion-buttons>
+    <ion-title class="cf-title">Checkout</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div id="checkout-top" class="cf-page checkout-page">
+    @if (loading()) {
+      <div class="state" role="status"><ion-spinner name="crescent"></ion-spinner><p>Refreshing your cart…</p></div>
+    } @else if (loadError()) {
+      <div class="state"><ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon><h1>We couldn’t load checkout</h1><p>{{ loadError() }}</p><ion-button class="cf-btn-lg" expand="block" (click)="loadReview()">Try again</ion-button></div>
+    } @else if (!selectedLineCount()) {
+      <div class="state"><ion-icon name="bag-handle-outline" aria-hidden="true"></ion-icon><h1>Choose cookies first</h1><p>Tick at least one cookie or box in your cart before checkout.</p><ion-button class="cf-btn-lg" expand="block" routerLink="/cart">Back to cart</ion-button></div>
+    } @else {
+      <nav class="step-progress" aria-label="Checkout progress">
+        @for (item of steps; track item.id; let index = $index) {
+          <button type="button" [class.current]="step() === index" [class.complete]="step() > index" [disabled]="index >= step()" [attr.aria-current]="step() === index ? 'step' : null" (click)="editStep(index)">
+            <span>@if (step() > index) { <ion-icon name="checkmark" aria-hidden="true"></ion-icon> } @else { {{ index + 1 }} }</span><small>{{ item.label }}</small>
+          </button>
+        }
+      </nav>
+      <p class="step-announcement" aria-live="polite">Step {{ step() + 1 }} of 4: {{ steps[step()].label }}</p>
+
+      @if (config.nonProductionDemo) {
+        <aside class="checkout-notice demo-note"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><p><strong>Class-project demo:</strong> delivery and pickup are enabled for testing. Real service details are not configured.</p></aside>
+      }
+      @if (uncertain()) {
+        <aside class="checkout-notice recovery" aria-live="polite"><ion-icon name="cloud-outline" aria-hidden="true"></ion-icon><div><h2>Check an earlier order</h2><p>An earlier checkout has an unknown result. Retry its exact details before starting another order.</p><ion-button fill="outline" (click)="retryOriginal()" [disabled]="submitting()">@if (submitting()) { <ion-spinner name="crescent"></ion-spinner> } @else { Retry original order }</ion-button></div></aside>
+      }
+
+      <form (ngSubmit)="submit()" novalidate>
+        @if (step() === 0) {
+          <header class="step-heading"><h1>Where should your cookies go?</h1><p>Add contact details and choose delivery or pickup.</p></header>
+          <section class="cf-card checkout-section" aria-labelledby="contact-heading">
+            <h2 id="contact-heading">Contact information</h2>
+            <div class="field-group">
+              <ion-input id="checkout-contactName" class="cf-input" [class.ion-invalid]="!!fieldError('contactName')" [class.ion-touched]="isTouched('contactName')" label="Contact name" labelPlacement="floating" autocomplete="name" autocapitalize="words" name="contactName" [ngModel]="form().contactName" (ngModelChange)="update('contactName', $event)" (ionBlur)="blur('contactName')"><ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon></ion-input>
+              @if (fieldError('contactName'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+            </div>
+            <div class="field-group">
+              <ion-input id="checkout-contactPhone" class="cf-input" [class.ion-invalid]="!!fieldError('contactPhone')" [class.ion-touched]="isTouched('contactPhone')" type="tel" inputmode="tel" autocomplete="tel" label="Philippine mobile number" labelPlacement="floating" placeholder="0917 123 4567" name="contactPhone" [ngModel]="form().contactPhone" (ngModelChange)="update('contactPhone', $event)" (ionBlur)="blur('contactPhone')"><ion-icon slot="start" name="call-outline" aria-hidden="true"></ion-icon></ion-input>
+              @if (fieldError('contactPhone'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+            </div>
+          </section>
+
+          <section class="cf-card checkout-section" aria-labelledby="method-heading">
+            <h2 id="method-heading">Fulfillment method</h2>
+            <div id="checkout-fulfillmentMethod" class="selection-options fulfillment-options" role="radiogroup" aria-label="Fulfillment method">
+              <button type="button" class="choice-card fulfillment-card" [class.selected]="form().fulfillmentMethod === 'delivery'" [disabled]="!config.delivery.enabled" role="radio" [attr.aria-checked]="form().fulfillmentMethod === 'delivery'" (click)="chooseFulfillment('delivery')"><ion-icon name="bicycle-outline" aria-hidden="true"></ion-icon><span><strong>Delivery</strong><small>NCR address required</small></span><ion-icon class="choice" name="checkmark-circle" aria-hidden="true"></ion-icon></button>
+              @if (!config.delivery.enabled) { <p class="availability-note">{{ config.delivery.unavailableMessage }}</p> }
+              <button type="button" class="choice-card fulfillment-card" [class.selected]="form().fulfillmentMethod === 'pickup'" [disabled]="!config.pickup.enabled" role="radio" [attr.aria-checked]="form().fulfillmentMethod === 'pickup'" (click)="chooseFulfillment('pickup')"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon><span><strong>Store pickup</strong><small>Pickup details required</small></span><ion-icon class="choice" name="checkmark-circle" aria-hidden="true"></ion-icon></button>
+              @if (!config.pickup.enabled) { <p class="availability-note">{{ config.pickup.unavailableMessage }}</p> }
+            </div>
+            @if (errors().fulfillment; as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+          </section>
+
+          @if (form().fulfillmentMethod === 'delivery') {
+            <section class="cf-card checkout-section" aria-labelledby="address-heading">
+              <h2 id="address-heading">Delivery address</h2><p class="section-copy">This address is saved with this order only.</p>
+              @if (addressLoading()) {
+                <div class="saved-address-state" role="status"><ion-spinner name="crescent"></ion-spinner><span>Loading saved addresses…</span></div>
+              } @else if (addressBook.addresses().length) {
+                <div class="saved-addresses" role="radiogroup" aria-label="Choose a saved delivery address">
+                  @for (address of addressBook.addresses(); track address.id) {
+                    <button type="button" class="saved-address-option" [class.selected]="selectedAddressId() === address.id" role="radio" [attr.aria-checked]="selectedAddressId() === address.id" (click)="useSavedAddress(address)">
+                      <ion-icon name="location-outline" aria-hidden="true"></ion-icon><span><strong>{{ address.label }}@if (address.isDefault) { <small>Default</small> }</strong><em>{{ address.addressLine1 }}, {{ address.barangay }}, {{ address.city }}</em></span><ion-icon class="selected-mark" name="checkmark-circle" aria-hidden="true"></ion-icon>
+                    </button>
+                  }
+                  <button type="button" class="manual-address" [class.selected]="selectedAddressId() === null" role="radio" [attr.aria-checked]="selectedAddressId() === null" (click)="useManualAddress()">Enter a different address</button>
+                </div>
+              }
+              @if (addressError()) { <p class="saved-address-error" role="status">{{ addressError() }} <button type="button" (click)="loadSavedAddresses()">Try again</button></p> }
+              <a class="manage-addresses" routerLink="/profile/addresses">Manage saved addresses</a>
+              <div class="field-group"><ion-input id="checkout-addressLine1" class="cf-input" [class.ion-invalid]="!!fieldError('addressLine1')" [class.ion-touched]="isTouched('addressLine1')" label="House number and street" labelPlacement="floating" autocomplete="address-line1" name="addressLine1" [ngModel]="form().addressLine1" (ngModelChange)="update('addressLine1', $event)" (ionBlur)="blur('addressLine1')"><ion-icon slot="start" name="location-outline" aria-hidden="true"></ion-icon></ion-input>@if (fieldError('addressLine1'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }</div>
+              <div class="field-group"><ion-input id="checkout-addressLine2" class="cf-input" [class.ion-invalid]="!!fieldError('addressLine2')" [class.ion-touched]="isTouched('addressLine2')" label="Unit, floor, or landmark (optional)" labelPlacement="floating" autocomplete="address-line2" name="addressLine2" [ngModel]="form().addressLine2" (ngModelChange)="update('addressLine2', $event)" (ionBlur)="blur('addressLine2')"></ion-input>@if (fieldError('addressLine2'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }</div>
+              <div class="fixed-location" aria-label="Delivery region"><span>Region</span><strong>National Capital Region (NCR)</strong></div>
+              <div class="fixed-location" aria-label="Province-equivalent"><span>Province-equivalent</span><strong>Metro Manila</strong></div>
+              @if (geography.loading()) {
+                <div class="location-state" role="status"><ion-spinner name="crescent"></ion-spinner><span>Loading NCR locations…</span></div>
+              } @else if (geography.error()) {
+                <div class="location-state location-error" role="alert"><span>{{ geography.error() }}</span><ion-button fill="clear" (click)="geography.load()">Try again</ion-button></div>
+              } @else {
+                <div class="field-group">
+                  <button id="checkout-cityCode" type="button" class="location-trigger" [class.invalid]="!!locationError('city')" [attr.aria-invalid]="!!locationError('city')" aria-haspopup="dialog" (click)="openLocationPicker('city', $event)"><span>City or municipality</span><strong>{{ form().city || 'Choose an NCR city' }}</strong><ion-icon name="chevron-down" aria-hidden="true"></ion-icon></button>
+                  @if (locationError('city'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+                </div>
+                <div class="field-group">
+                  <button id="checkout-barangayCode" type="button" class="location-trigger" [class.invalid]="!!locationError('barangay')" [attr.aria-invalid]="!!locationError('barangay')" [disabled]="!form().cityCode" aria-haspopup="dialog" (click)="openLocationPicker('barangay', $event)"><span>Barangay</span><strong>{{ form().barangay || (form().cityCode ? 'Choose a barangay' : 'Choose a city first') }}</strong><ion-icon name="chevron-down" aria-hidden="true"></ion-icon></button>
+                  @if (locationError('barangay'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+                </div>
+              }
+              <div class="field-group postal-field"><ion-input id="checkout-postalCode" class="cf-input" [class.ion-invalid]="!!fieldError('postalCode')" [class.ion-touched]="isTouched('postalCode')" label="Postal code" labelPlacement="floating" inputmode="numeric" autocomplete="postal-code" maxlength="4" name="postalCode" [ngModel]="form().postalCode" (ngModelChange)="update('postalCode', $event)" (ionBlur)="blur('postalCode')"></ion-input>@if (fieldError('postalCode'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }</div>
+            </section>
+          }
+        }
+
+        @if (step() === 1) {
+          <header class="step-heading"><h1>Confirm fulfillment</h1><p>Check where and how your order will be handed over.</p></header>
+          <section class="cf-card checkout-section fulfillment-confirmation">
+            <div class="section-title-row"><h2>{{ form().fulfillmentMethod === 'delivery' ? 'Delivery' : 'Store pickup' }}</h2><button type="button" (click)="editStep(0)">Edit</button></div>
+            @if (form().fulfillmentMethod === 'delivery') {
+              <div class="summary-detail"><ion-icon name="location-outline" aria-hidden="true"></ion-icon><p><strong>{{ form().addressLine1 }}</strong>@if (form().addressLine2) {, {{ form().addressLine2 }}}<br />{{ form().barangay }}, {{ form().city }}<br />{{ form().province }} {{ form().postalCode }}<br />{{ form().region }}</p></div>
+              <div class="fee-rule"><span>Delivery fee</span><strong>{{ preview().deliveryFee ? ('₱' + (preview().deliveryFee | number: '1.2-2')) : 'FREE' }}</strong></div>
+              <p class="readiness-note">Delivery service-area details are still awaiting approved business configuration.</p>
+            } @else {
+              <div class="summary-detail"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon><p><strong>Store pickup</strong><br />Pickup address and hours are not approved for production yet.</p></div>
+            }
+          </section>
+        }
+
+        @if (step() === 2) {
+          <header class="step-heading"><h1>Choose payment</h1><p>Select how you want to pay for this order.</p></header>
+          <section class="cf-card checkout-section" aria-labelledby="payment-heading">
+            <h2 id="payment-heading">Payment method</h2>
+            <div id="checkout-paymentMethod" class="selection-options payment-options" role="radiogroup" aria-label="Payment method">
+              <button type="button" class="choice-card payment-card" [class.selected]="form().paymentMethod === (form().fulfillmentMethod === 'pickup' ? 'cash_on_pickup' : 'cash_on_delivery')" role="radio" [attr.aria-checked]="form().paymentMethod === (form().fulfillmentMethod === 'pickup' ? 'cash_on_pickup' : 'cash_on_delivery')" (click)="choosePayment(form().fulfillmentMethod === 'pickup' ? 'cash_on_pickup' : 'cash_on_delivery')"><ion-icon name="cash-outline" aria-hidden="true"></ion-icon><span><strong>{{ form().fulfillmentMethod === 'pickup' ? 'Cash on Pickup' : 'Cash on Delivery' }}</strong><small>Payment stays pending until cash is collected.</small></span><ion-icon class="choice" name="checkmark-circle" aria-hidden="true"></ion-icon></button>
+              @if (paymentConfigLoading()) {
+                <div class="payment-loading" role="status"><ion-spinner name="crescent"></ion-spinner><span>Checking secure payment options…</span></div>
+              } @else if (paymentConfig().onlineEnabled) {
+                @for (method of paymentConfig().methods; track method.id) {
+                  <button type="button" class="choice-card payment-card" [class.selected]="form().paymentMethod === method.id" [disabled]="!method.available" role="radio" [attr.aria-checked]="form().paymentMethod === method.id" [attr.aria-disabled]="!method.available" (click)="choosePayment(method.id)"><ion-icon [name]="method.id === 'card' ? 'card-outline' : 'wallet-outline'" aria-hidden="true"></ion-icon><span><strong>{{ method.label }}</strong><small>{{ !method.available ? method.unavailableMessage : method.demoKind === 'wallet' ? 'Confirm inside Cookie Fluffs after reviewing your order.' : method.demo ? 'Enter your card details below.' : 'Authorize securely in your wallet after placing the order.' }}</small></span><ion-icon class="choice" name="checkmark-circle" aria-hidden="true"></ion-icon></button>
+                }
+                @if (form().paymentMethod === 'card' && paymentConfig().cardDemoEnabled) {
+                  <app-demo-card-form (flowChange)="demoCardFlow.set($event)"></app-demo-card-form>
+                } @else if (walletDemoSelected()) {
+                  <p class="secure-payment-note"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>Test wallet payment only. Do not enter wallet credentials. No money will be transferred.</p>
+                } @else {
+                  <p class="secure-payment-note"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>Wallet authorization happens securely with the provider. Cookie Fluffs never receives wallet credentials.</p>
+                }
+              } @else {
+                <p class="availability-note">{{ paymentConfig().unavailableMessage }} Cash payment remains available.</p>
+              }
+            </div>
+            @if (fieldError('paymentMethod'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+          </section>
+        }
+
+        @if (step() < 3) {
+          <details class="cf-card compact-summary">
+            <summary><span>Order summary · {{ cartService.cart().selectedCount }} selected</span><strong>₱{{ preview().total | number: '1.2-2' }}</strong></summary>
+            <div class="compact-lines">
+              @for (item of selected().items; track item.productId) { <p><span>{{ item.quantity }}× {{ item.name }}</span><strong>₱{{ item.lineTotal | number: '1.2-2' }}</strong></p> }
+              @for (box of selected().boxes; track box.id) { <p><span>{{ box.quantity }}× Box of {{ box.size }}</span><strong>₱{{ box.lineTotal | number: '1.2-2' }}</strong></p> }
+              <p><span>Delivery</span><strong>{{ preview().deliveryFee ? ('₱' + (preview().deliveryFee | number: '1.2-2')) : 'FREE' }}</strong></p>
+            </div>
+          </details>
+        }
+
+        @if (step() === 3) {
+          <header class="step-heading"><h1>Review your order</h1><p>Check everything once more before placing it.</p></header>
+          <section class="cf-card checkout-section review-summary"><div class="section-title-row"><h2>Information</h2><button type="button" (click)="editStep(0)">Edit</button></div><p><strong>{{ form().contactName }}</strong><br />{{ form().contactPhone }}</p></section>
+          <section class="cf-card checkout-section review-summary"><div class="section-title-row"><h2>Fulfillment</h2><button type="button" (click)="editStep(0)">Edit</button></div><p><strong>{{ form().fulfillmentMethod === 'delivery' ? 'Delivery' : 'Store pickup' }}</strong></p>@if (form().fulfillmentMethod === 'delivery') { <p>{{ form().addressLine1 }}@if (form().addressLine2) {, {{ form().addressLine2 }}}<br />{{ form().barangay }}, {{ form().city }}<br />{{ form().province }} {{ form().postalCode }}<br />{{ form().region }}</p> }</section>
+          <section class="cf-card checkout-section review-summary"><div class="section-title-row"><h2>Payment</h2><button type="button" (click)="editStep(2)">Edit</button></div><p><strong>{{ paymentLabel() }}</strong>@if (form().paymentMethod !== 'card') {<br /><span class="pending-copy">{{ walletDemoSelected() ? 'Test payment will be confirmed inside Cookie Fluffs.' : onlinePayment() ? 'Payment will be completed on PayMongo.' : 'Payment status: Pending' }}</span>}</p></section>
+
+          <section class="cf-card checkout-section" aria-labelledby="review-heading">
+            <h2 id="review-heading">Selected cookies</h2><div class="review-lines">
+              @for (item of selected().items; track item.productId) { <article class="review-line"><img [src]="thumb(item.imageUrl)" [alt]="item.name" /><div><strong>{{ item.name }}</strong><small>Qty {{ item.quantity }}</small></div><span>₱{{ item.lineTotal | number: '1.2-2' }}</span></article> }
+              @for (box of selected().boxes; track box.id) { <article class="review-line box-line"><span class="box-mark"><ion-icon name="cube-outline" aria-hidden="true"></ion-icon></span><div><strong>Box of {{ box.size }}</strong><small>{{ boxSummary(boxCookieNames(box)) }}</small><small>Qty {{ box.quantity }} · {{ box.discountPercent }}% box discount</small></div><span>₱{{ box.lineTotal | number: '1.2-2' }}</span></article> }
+            </div>
+          </section>
+          <section class="cf-card checkout-section" aria-labelledby="notes-heading"><h2 id="notes-heading">Order notes</h2><div class="field-group"><ion-textarea id="checkout-notes" class="cf-input notes" [class.ion-invalid]="!!fieldError('notes')" [class.ion-touched]="isTouched('notes')" label="Notes (optional)" labelPlacement="floating" maxlength="500" autoGrow="true" name="notes" [ngModel]="form().notes" (ngModelChange)="update('notes', $event)" (ionBlur)="blur('notes')"></ion-textarea>@if (fieldError('notes'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }<p class="character-count">{{ form().notes.length }}/500</p></div></section>
+          <section class="cf-card checkout-section voucher" aria-labelledby="voucher-heading"><h2 id="voucher-heading">Voucher / Promo code</h2><div class="voucher-row"><ion-input class="cf-input" label="Voucher code" labelPlacement="floating" disabled="true"></ion-input><ion-button fill="outline" disabled="true">Apply</ion-button></div><p><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>{{ config.voucher.unavailableMessage }}</p></section>
+          <section class="cf-card receipt" aria-label="Price preview"><div><span>Merchandise subtotal</span><span>₱{{ preview().subtotal | number: '1.2-2' }}</span></div><div><span>Delivery fee</span><span>{{ preview().deliveryFee ? ('₱' + (preview().deliveryFee | number: '1.2-2')) : 'FREE' }}</span></div><div class="receipt-total"><span>Estimated total</span><strong>₱{{ preview().total | number: '1.2-2' }}</strong></div><p>The server confirms prices and availability when you place the order.</p></section>
+          @if (agreementEnabled) {
+            <section class="cf-card checkout-section agreement" aria-labelledby="agreement-heading">
+              <h2 id="agreement-heading">Order agreement</h2>
+              <div class="agreement-row">
+                <ion-checkbox #agreementInput id="checkout-agreement" name="orderAgreement" [checked]="agreementAccepted()" (ionChange)="onAgreementChange($event)" [attr.aria-invalid]="agreementTouched() && !agreementAccepted()" aria-label="Review and accept the Terms of Use and Privacy Policy" aria-describedby="agreement-copy agreement-draft"></ion-checkbox>
+                <p id="agreement-copy">I have reviewed my order and agree to the <button type="button" class="policy-link" (click)="openOrderAgreement(true)">Terms of Use</button>. I acknowledge that I have read the <button type="button" class="policy-link" (click)="openOrderAgreement(true)">Privacy Policy</button>.</p>
+              </div>
+              <p id="agreement-draft" class="agreement-note">Both policies are drafts for this class project.</p>
+              @if (agreementTouched() && !agreementAccepted()) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>Please agree to continue.</p> }
+            </section>
+          }
+        }
+
+        @if (pageMessage()) { <div class="checkout-notice page-error" role="alert"><ion-icon name="warning-outline" aria-hidden="true"></ion-icon><p>{{ pageMessage() }}</p></div> }
+        <button class="hidden-submit" type="submit" tabindex="-1" aria-hidden="true"></button>
+      </form>
+    }
+  </div>
+</ion-content>
+
+@if (!loading() && !loadError() && selectedLineCount()) {
+  <ion-footer class="checkout-actions">
+    <div class="footer-inner">
+      <div class="footer-total"><span>{{ step() === 3 ? 'Estimated total' : 'Current total' }}</span><strong>₱{{ preview().total | number: '1.2-2' }}</strong></div>
+      @if (step() < 3) { <ion-button expand="block" class="cf-btn-lg primary-action" (click)="nextStep()">{{ step() === 0 ? 'Continue to fulfillment' : step() === 1 ? 'Continue to payment' : 'Review order' }}</ion-button> }
+      @else { <ion-button expand="block" class="cf-btn-lg primary-action" (click)="submit()" [disabled]="submitting() || uncertain() || !config[form().fulfillmentMethod].enabled">@if (submitting()) { <ion-spinner name="crescent"></ion-spinner><span aria-live="polite">{{ form().paymentMethod === 'card' || walletDemoSelected() ? 'Processing payment' : 'Placing order' }}</span> } @else if (form().paymentMethod === 'card') { Pay ₱{{ preview().total | number: '1.2-2' }} } @else { {{ walletDemoSelected() ? 'Confirm test payment' : onlinePayment() ? 'Proceed to secure payment' : 'Place order' }} }</ion-button> }
+      @if (step() > 0) { <ion-button fill="clear" expand="block" class="back-action" (click)="previousStep()" [disabled]="submitting()"><ion-icon slot="start" name="arrow-back" aria-hidden="true"></ion-icon>Back to {{ steps[step() - 1].label }}</ion-button> }
+    </div>
+  </ion-footer>
+}
+
+<app-location-picker [isOpen]="locationPicker() === 'city'" title="City or town" searchPlaceholder="Search NCR cities" [options]="geography.data()?.cities ?? []" [selectedCode]="form().cityCode" (selected)="chooseCity($event)" (closed)="closeLocationPicker()"></app-location-picker>
+<app-location-picker [isOpen]="locationPicker() === 'barangay'" title="Choose barangay" searchPlaceholder="Search barangays" [options]="geography.barangays(form().cityCode)" [selectedCode]="form().barangayCode" (selected)="chooseBarangay($event)" (closed)="closeLocationPicker()"></app-location-picker>

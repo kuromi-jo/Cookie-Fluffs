@@ -1,0 +1,89 @@
+<!-- @file profile.page.html @description Customer profile hub and personal-information form. -->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-menu-button aria-label="Open menu"></ion-menu-button></ion-buttons>
+    <ion-title class="cf-title">My Profile</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page profile-page">
+    @if (loading() && !auth.user()) {
+      <div class="state" role="status"><ion-spinner name="crescent"></ion-spinner><p>Loading your profile…</p></div>
+    } @else if (auth.user(); as user) {
+      @if (loading()) {
+        <div class="refresh-status" role="status"><ion-spinner name="crescent"></ion-spinner><span>Refreshing your profile…</span></div>
+      }
+      <section class="identity-card" aria-labelledby="profile-name">
+        <app-avatar [src]="editing() ? draft().avatar : user.avatar" [name]="editing() ? draft().firstName + ' ' + draft().lastName : user.fullName" style="--size: 82px" />
+        <div class="identity-copy">
+          <h1 id="profile-name">{{ user.fullName }}</h1>
+          <p><ion-icon name="mail-outline" aria-hidden="true"></ion-icon>{{ user.email }}</p>
+          <p><ion-icon name="call-outline" aria-hidden="true"></ion-icon>{{ user.phone }}</p>
+        </div>
+        @if (!editing()) {
+          <ion-button fill="outline" class="edit-profile" (click)="startEditing()">
+            <ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon>Edit personal information
+          </ion-button>
+        }
+      </section>
+
+      @if (loadError()) {
+        <aside class="page-notice" role="alert"><p>{{ loadError() }}</p><ion-button fill="clear" (click)="loadProfile()">Try again</ion-button></aside>
+      }
+
+      @if (editing()) {
+        <section class="cf-card edit-card" aria-labelledby="personal-heading">
+          <header><h2 id="personal-heading">Personal information</h2><p>Keep your delivery contact details up to date.</p></header>
+
+          <label class="photo-action">
+            <app-avatar [src]="draft().avatar" [name]="draft().firstName + ' ' + draft().lastName" style="--size: 64px" />
+            <span><strong>Change profile photo</strong><small>JPG or PNG works best.</small></span>
+            <input type="file" accept="image/*" (change)="onPhotoPicked($event)" [disabled]="saving()" />
+          </label>
+
+          <div class="name-fields">
+            <div class="field-group">
+              <ion-input id="profile-firstName" class="cf-input" [class.ion-invalid]="!!fieldError('firstName')" [class.ion-touched]="isTouched('firstName')" label="First name" labelPlacement="floating" autocomplete="given-name" autocapitalize="words" name="firstName" [ngModel]="draft().firstName" (ngModelChange)="update('firstName', $event)" (ionBlur)="blur('firstName')"></ion-input>
+              @if (fieldError('firstName'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+            </div>
+            <div class="field-group">
+              <ion-input id="profile-lastName" class="cf-input" [class.ion-invalid]="!!fieldError('lastName')" [class.ion-touched]="isTouched('lastName')" label="Last name" labelPlacement="floating" autocomplete="family-name" autocapitalize="words" name="lastName" [ngModel]="draft().lastName" (ngModelChange)="update('lastName', $event)" (ionBlur)="blur('lastName')"></ion-input>
+              @if (fieldError('lastName'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+            </div>
+          </div>
+
+          <div class="field-group">
+            <ion-input id="profile-phone" class="cf-input" [class.ion-invalid]="!!fieldError('phone')" [class.ion-touched]="isTouched('phone')" type="tel" inputmode="tel" autocomplete="tel" label="Mobile number" labelPlacement="floating" name="phone" [ngModel]="draft().phone" (ngModelChange)="update('phone', $event)" (ionBlur)="blur('phone')"></ion-input>
+            @if (fieldError('phone'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+          </div>
+
+          <div class="email-readonly"><ion-icon name="mail-outline" aria-hidden="true"></ion-icon><span><small>Email address</small><strong>{{ user.email }}</strong><em>Email changes are not available yet.</em></span></div>
+          @if (pageError()) { <p class="save-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ pageError() }}</p> }
+
+          <div class="form-actions">
+            <ion-button expand="block" class="cf-btn-lg" (click)="save()" [disabled]="saving()">@if (saving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Save changes }</ion-button>
+            <ion-button expand="block" fill="clear" (click)="cancelEditing()" [disabled]="saving()">Cancel</ion-button>
+          </div>
+        </section>
+      } @else {
+        <section class="account-section" aria-labelledby="account-heading">
+          <h2 id="account-heading">Your account</h2>
+          <a class="account-row cf-card" routerLink="/profile/addresses"><span class="row-icon"><ion-icon name="location-outline" aria-hidden="true"></ion-icon></span><span><strong>My Addresses</strong><small>Save delivery details for checkout</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/orders"><span class="row-icon"><ion-icon name="receipt-outline" aria-hidden="true"></ion-icon></span><span><strong>My Orders</strong><small>Review orders, payments, and receipts</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/profile/favorites"><span class="row-icon"><ion-icon name="heart-outline" aria-hidden="true"></ion-icon></span><span><strong>My Favorites</strong><small>Keep your favorite cookies close</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/profile/settings"><span class="row-icon"><ion-icon name="settings-outline" aria-hidden="true"></ion-icon></span><span><strong>App Settings</strong><small>Adjust motion and text size</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+        </section>
+
+        <section class="account-section" aria-labelledby="help-heading">
+          <h2 id="help-heading">Help and policies</h2>
+          <a class="account-row cf-card" routerLink="/help"><span class="row-icon"><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon></span><span><strong>Help &amp; Support</strong><small>Find answers or send us a message</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/terms"><span class="row-icon"><ion-icon name="book-outline" aria-hidden="true"></ion-icon></span><span><strong>Terms of Use</strong><small>Draft for our class project</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/privacy"><span class="row-icon"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span><span><strong>Privacy Policy</strong><small>Draft for our class project</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+        </section>
+
+        <ion-button class="logout-action" fill="outline" expand="block" (click)="confirmLogout()"><ion-icon slot="start" name="log-out-outline" aria-hidden="true"></ion-icon>Log out</ion-button>
+      }
+    }
+  </main>
+</ion-content>

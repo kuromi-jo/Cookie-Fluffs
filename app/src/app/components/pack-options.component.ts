@@ -48,7 +48,8 @@ import { PACK_OPTIONS, PackSize, Product, effectivePrice } from '../core/models'
   styles: `
     .options { display: grid; gap: 8px; }
     .option {
-      display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px 10px 10px;
+      display: flex; align-items: center; gap: 12px; box-sizing: border-box; width: 100%; min-width: 0;
+      padding: 10px 14px 10px 10px;
       border: 1.5px solid var(--cf-pink-border); border-radius: 18px; background: #fff;
       color: var(--cf-choco); font: inherit; text-align: left; cursor: pointer;
       transition: border-color .15s ease, background .15s ease;
@@ -68,9 +69,18 @@ import { PACK_OPTIONS, PackSize, Product, effectivePrice } from '../core/models'
     .text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .text strong { font-size: .95rem; font-weight: 800; }
     .text small { font-size: .74rem; font-weight: 600; color: var(--cf-choco-light); }
-    .price { display: flex; flex-direction: column; align-items: flex-end; font-weight: 800; font-size: .95rem; line-height: 1.15; }
+    .price {
+      display: flex; flex: none; flex-direction: column; align-items: flex-end; max-width: 36%;
+      font-weight: 800; font-size: .95rem; line-height: 1.15; text-align: right;
+    }
     .price em { font-style: normal; font-size: .64rem; font-weight: 800; color: #fff; background: var(--cf-pink-deep); padding: 2px 7px; border-radius: 999px; margin-bottom: 2px; }
     .price small { font-size: .62rem; font-weight: 600; color: var(--cf-choco-light); }
+    @media (max-width: 340px) {
+      .option { gap: 9px; padding-right: 10px; }
+      .art { width: 40px; height: 40px; }
+      .text strong, .price { font-size: .86rem; }
+      .text small { font-size: .68rem; }
+    }
   `,
 })
 export class PackOptionsComponent {

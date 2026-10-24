@@ -2,7 +2,7 @@
  * @file consent-modal.component.ts
  * @description Full-height Terms and Privacy consent window for signup.
  */
-import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, Input, inject, signal, viewChild } from '@angular/core';
 import {
   IonButton,
   IonButtons,
@@ -40,7 +40,7 @@ export function hasReachedScrollEnd(
   template: `
     <ion-header class="cf-header">
       <ion-toolbar>
-        <ion-title class="cf-title">Terms and Privacy</ion-title>
+        <ion-title class="cf-title">{{ title }}</ion-title>
         <ion-buttons slot="end">
           <ion-button class="close" fill="clear" aria-label="Close" (click)="cancel()">
             <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
@@ -51,6 +51,9 @@ export function hasReachedScrollEnd(
 
     <ion-content #scrollArea>
       <div class="cf-page policy-body">
+        @if (agreementVersion) {
+          <p class="version-note"><span class="cf-chip">Draft for our class project</span><span>Agreement version {{ agreementVersion }}</span></p>
+        }
         <section aria-labelledby="modal-terms-title">
           <h2 id="modal-terms-title" class="cf-section-title">Terms of Use</h2>
           <app-terms-content />
@@ -68,7 +71,8 @@ export function hasReachedScrollEnd(
     <ion-footer>
       <div class="modal-footer">
         <p aria-live="polite">{{ canAgree() ? 'Thanks for reading.' : 'Scroll to the bottom to continue.' }}</p>
-        <ion-button expand="block" class="cf-btn-lg" [disabled]="!canAgree()" (click)="agree()">I agree</ion-button>
+        <ion-button expand="block" class="cf-btn-lg" [disabled]="!canAgree()" (click)="agree()">{{ confirmLabel }}</ion-button>
+        <ion-button expand="block" fill="clear" class="cancel" (click)="cancel()">{{ cancelLabel }}</ion-button>
       </div>
     </ion-footer>
   `,
@@ -79,15 +83,22 @@ export function hasReachedScrollEnd(
     ion-footer { background: var(--cf-canvas); box-shadow: none; }
     .close { width: 44px; height: 44px; --padding-start: 0; --padding-end: 0; }
     .policy-body { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; padding-top: 20px; overflow-wrap: anywhere; }
+    .version-note { display: grid; justify-items: start; gap: 8px; margin: 0 0 22px; color: var(--cf-choco-light); font-size: .72rem; line-height: 1.45; }
+    .version-note .cf-chip { margin: 0; }
     .policy-body section, .policy-body .cf-card { min-width: 0; max-width: 100%; }
     .policy-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--cf-pink-border); }
     .end-sentinel { height: 1px; }
     .modal-footer { padding: 10px 20px calc(14px + var(--ion-safe-area-bottom)); border-top: 1px solid var(--cf-pink-border); }
     .modal-footer p { min-height: 18px; margin: 0 0 8px; color: var(--cf-choco-light); font-size: .75rem; font-weight: 700; text-align: center; }
     .modal-footer ion-button { margin: 0; }
+    .modal-footer .cancel { min-height: 44px; margin-top: 4px; }
   `,
 })
 export class ConsentModalComponent implements AfterViewInit {
+  @Input() title = 'Terms and Privacy';
+  @Input() confirmLabel = 'I agree';
+  @Input() cancelLabel = 'Close without agreeing';
+  @Input() agreementVersion = '';
   private readonly modal = inject(ModalController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly scrollArea = viewChild.required<IonContent>('scrollArea');

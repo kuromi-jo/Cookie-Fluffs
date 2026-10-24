@@ -15,12 +15,12 @@ import { IonButton } from '@ionic/angular';
     <div class="value-grid">
       <section class="cf-card value">
         <h3>What we collect</h3>
-        <p>We collect your name, email, mobile number, optional profile photo, cart and orders, and messages you send us.</p>
+        <p>We collect your name, email, mobile number, optional profile photo, cart, orders, saved addresses, favorites, accessibility preferences, and messages you send us.</p>
       </section>
 
       <section class="cf-card value">
         <h3>How we use it</h3>
-        <p>We use this information to run your account, handle orders and delivery, and reply when you contact us.</p>
+        <p>We use this information to run your account, remember your choices, handle orders and delivery, and receive your support messages.</p>
       </section>
 
       <section class="cf-card value">

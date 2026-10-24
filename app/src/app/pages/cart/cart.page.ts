@@ -29,6 +29,7 @@ import { UiService } from '../../core/ui.service';
 import { apiErrorMessage } from '../../core/api-error';
 import { CartBox, CartItem, thumbUrl } from '../../core/models';
 import { ShopActionsService } from '../../core/shop-actions.service';
+import { checkoutAccess } from '../../core/checkout-rules';
 
 @Component({
   selector: 'app-cart',
@@ -191,14 +192,16 @@ export class CartPage {
   }
 
   async checkout(): Promise<void> {
-    const alert = await this.alerts.create({
-      header: 'Almost there!',
-      subHeader: `${this.cart().selectedCount} selected ${this.cart().selectedCount === 1 ? 'item' : 'items'} · ₱${this.cart().total.toLocaleString('en-PH')}`,
-      message:
-        'Checkout with delivery or pickup, time slots and payment (GCash, Maya, card, COD) is coming in the next build. Your cart is saved to your account until then.',
-      buttons: ['Got it'],
-    });
-    await alert.present();
+    const access = checkoutAccess(this.auth.isLoggedIn(), this.cart().selectedCount);
+    if (access === 'login') {
+      await this.router.navigate(['/login'], { queryParams: { returnUrl: '/checkout' } });
+      return;
+    }
+    if (access === 'cart') {
+      await this.ui.toast('Select at least one cart item before checkout.', { error: true });
+      return;
+    }
+    await this.router.navigate(['/checkout']);
   }
 
   private fail(err: unknown): Promise<void> {

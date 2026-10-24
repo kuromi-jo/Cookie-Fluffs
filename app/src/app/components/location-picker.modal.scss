@@ -1,0 +1,39 @@
+/**
+ * @file location-picker.modal.scss
+ * @description Mobile location picker using the Cookie Fluffs flat design system.
+ */
+.picker-content { box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100%; max-width: 100%; min-width: 0; height: 100%; padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); }
+ion-searchbar {
+  --background: #fff;
+  --border-radius: 999px;
+  --box-shadow: none;
+  --color: var(--cf-choco);
+  --placeholder-color: var(--cf-choco-light);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 0 12px;
+}
+.option-list { box-sizing: border-box; display: grid; align-content: start; gap: 7px; width: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1px 4px 8px; }
+.option-list button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: var(--cf-radius-sm);
+  background: #fff;
+  color: var(--cf-choco);
+  font: inherit;
+  text-align: left;
+}
+.option-list button span { min-width: 0; overflow-wrap: anywhere; }
+.option-list button.selected { border-color: var(--cf-pink-accent); background: var(--cf-pink-soft); }
+.option-list button:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15); }
+.option-list ion-icon { flex: none; color: var(--cf-pink-deep); font-size: 22px; }
+.empty-option { margin: 24px 8px; color: var(--cf-choco-light); font-size: 0.82rem; text-align: center; }

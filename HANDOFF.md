@@ -60,38 +60,138 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] Signup consent validation message uses the shared field-error alignment and styling
 - [x] P2a-1 backend: immutable cash orders, exact server pricing, idempotent checkout, and owned confirmation reads
 - [x] P2a-1.1: PostgreSQL 17 migration, transaction, API, and deterministic concurrency verification
+- [x] P2a-2 checkout UI: guided Information → Fulfillment → Payment → Review flow, cash order submission, retry-safe idempotency, and refreshable confirmation
+- [x] P2a-2.3/P2b-1: NCR PSGC selectors and strict parent validation, test-only PayMongo Hosted Checkout, signed webhook reconciliation, and payment recovery
+- [x] P2b-1.1: disposable-PostgreSQL payment security, concurrency, rollback, expiry recovery, and responsive checkout verification
+- [x] P2b-1.2 preflight: sandbox configuration audited and safely blocked before external testing because approved test credentials and HTTPS callbacks were unavailable
+- [x] P2b-1.4: integrated test-mode GCash/Maya Payment Intents with additive legacy compatibility; card entry remains gated pending PCI review
+- [x] P2b-1.5 preflight: single-origin HTTPS routing confirmed feasible; provider acceptance safely blocked because test variables and an approved tunnel were unavailable
+- [x] P2b-1.8: payment-level webhook idempotency for distinct success events, with locked identity checks and timestamp preservation
+- [x] P2b-1.12: interrupted Payment Intent recovery restores the validated provider redirect and shows specific safe recovery errors
+- [x] P2b-1.16: confirmed failed-payment reconciliation, explicit retry-key rotation, and concurrency-safe replacement attempts
+- [x] P2b sandbox closeout: GCash/Maya success and interrupted recovery verified end to end; failed retry verified by automated tests only
+- [x] P2d-2: financially isolated in-app card demo with allowlisted synthetic Visa/Mastercard outcomes and no PAN/CVC transmission or storage
+- [x] P2d-3: card demo enabled only in the private loopback sandbox; manual approval and decline passed, while same-order decline-to-approval retry remains to be recorded
+- [x] P2d-4: card checkout redesigned as a natural manual-entry form with one concise test-payment disclosure and no outcome hints or autofill controls
+- [x] P2d-6: four allowlisted synthetic card flows, flexible safe validation, and in-app simulated 3DS approval/failure without genuine settlement
+- [x] P2e: nonproduction-only in-app GCash/Maya demonstrations with server-priced, idempotent approval/cancellation records and no genuine settlement
+- [x] P2f: sandbox-only desktop popup handoff for genuine PayMongo wallets, with bounded authenticated polling and an explicit same-tab fallback
+- [x] P2f-4: centered 480×720 desktop popup presentation hint while preserving browser-controlled fallback behavior
+- [x] P2f-6: sandbox agreement-contract restart and coalesced focus/visibility payment-status refresh
+- [x] P2f-8: isolated PostgreSQL integration database and explicit checkout-popup failure recovery
+- [x] P3: footer-safe checkout, native address sheets, development-only versioned order agreement, owned order history, and state-accurate printable summaries
+- [x] P3-UX-1: responsive city/barangay sheets and signup-style scroll-gated checkout policy review
+- [x] P3-UX-2: location-sheet host sizing moved to global overlay CSS and verified against rendered phone-frame bounds
+- [x] P4A: authenticated profile hub with persisted name, phone and photo editing, working account links, and preserved navigation
+- [x] P4B: owner-scoped saved NCR addresses with transactional defaults, profile management, and snapshot-only checkout reuse
+- [x] P4B-UX: sandbox address routes restored; new orders snapshot safe cookie images, and owned order history/details show compact product visuals with legacy fallback
+- [x] P4B checkout fix: switching from a saved address to manual entry clears the copied delivery address while retaining account contact defaults
+- [x] P5: server-authoritative delivery/pickup timelines, transactional customer cancellation, and an individually authenticated backend operations CLI
+- [x] P5-UX-1: backend cancellation eligibility visible on confirmation/details, concise real-event tracking, and order-specific cancellation confirmation
+- [x] P5R-A: internal full-refund review for verified cancelled GCash/Maya orders, operator audit controls, and customer-visible refund status without provider execution
+- [x] P4C: persisted owner-scoped favorites, account accessibility settings, and accurate Help/FAQ support pages
+- [x] P4C-RUNTIME-1: restarted the stale sandbox API, applied the P4C schema, and verified favorites, settings, proxying, and the valid web manifest in-browser
+- [x] P4C-UX-2: five-tab customer navigation, grouped side menu, and phone-frame-safe Add-to-Cart pack sheet
+- [x] Pre-Capacitor backup: completed milestones security-reviewed and prepared for the existing GitHub `main` branch without private environment files
 
 ### Next milestones (not started)
-- [ ] **Checkout UI (P2a-2)**: delivery or pickup, contact/address form, order review, and confirmation (Checkout button currently shows a "coming next" alert in `pages/cart/cart.page.ts`)
-- [ ] **Payment**: GCash, Maya, card, payment verification, promo codes
-- [ ] **Orders**: order tracking, order history, "reorder", digital receipt
+- [ ] **Build stability**: isolate the intermittent Angular production-build abort in LMDB's macOS ARM64 native binding without masking it or raising budgets
+- [ ] **Checkout confirmation polish (P2a-3)**: approved fulfillment business details and the final dedicated confirmation experience
+- [ ] **Payment follow-up (deferred)**: manual Maya failure/retry acceptance, approved production configuration, provider refund execution (P5R-B), and promo codes
+- [ ] **Orders follow-up**: "reorder"; owned order tracking, cancellation requests, history and printable summaries are complete
 - [ ] **Custom Cookie Builder**: dough, mix-ins, toppings, live preview (the core feature from the project plan)
+- [ ] **Capacitor Android preparation**: add the Android platform after build stability, configure a deployed HTTPS API and mobile return/deep-link handling, then validate native plugins
+- [ ] **APK readiness**: Android toolchain, signing strategy, permissions, icons/splash, device testing, and a release build
+- [ ] Replace placeholder content: shop contact info (`pages/contact/contact.page.ts`), company story (`pages/company-history/`), cookie descriptions and prices (`server/src/seed-data.js`)
+
+### Optional future features
 - [ ] **Community gallery**: share creations, likes, leaderboard
 - [ ] **Loyalty**: Fluff Points, rewards, taste profile
 - [ ] **Reviews & ratings** from real users
 - [ ] **Admin panel**: manage products and inventory, sales dashboard
-- [ ] Replace placeholder content: shop contact info (`pages/contact/contact.page.ts`), company story (`pages/company-history/`), cookie descriptions and prices (`server/src/seed-data.js`)
-- [ ] Optional: Android build with Capacitor
 
 ### P2a-1 backend contract
 
 - `POST /api/orders` creates an order only from the authenticated user's selected persisted cart rows. It accepts a UUID `idempotencyKey`, `delivery` + `cash_on_delivery` or `pickup` + `cash_on_pickup`, `asap`, contact details, an optional note, and a required address snapshot for delivery.
-- `GET /api/orders/:id` reloads one confirmation by public UUID and authenticated owner. Order history remains deferred to P2c.
+- `GET /api/orders/:id` reloads one confirmation by public UUID and authenticated owner. `GET /api/orders?limit&cursor` returns only that owner's orders with bounded, stable keyset pagination.
 - Prices use integer centavos at the server integrity boundary. Existing promo prices and 5 / 10 / 15% box discounts apply first; delivery is ₱49 below a ₱500 merchandise subtotal, free at ₱500, and always free for pickup.
-- New cash orders use order status `placed` and payment status `pending`. P2b owns future verified payment transitions; P2c owns fulfillment transitions and history.
+- New cash orders use order status `placed` and payment state `pending_cash`; online orders remain `awaiting_payment` until a verified webhook marks them paid. P2c owns fulfillment transitions and history.
 - A user-scoped database uniqueness constraint plus a canonical request fingerprint makes retries safe. The same key and details return the original order; different details return a conflict.
 - Checkout uses one transaction, a per-user advisory lock, selected cart row locks, and product availability locks. It snapshots items and boxes, removes only purchased selected rows, and rolls back every change on failure.
 - Schema additions: `orders`, `order_items`, and `order_box_items`. They were applied twice to a disposable local PostgreSQL 17 database; Neon was not used or changed.
 - P2a-1.1 added loopback database support and one shared per-user advisory lock for every cart write and checkout. This prevents stale checkout snapshots while allowing different customers to proceed independently.
 - Automated verification: 36 server unit/route tests, 10 real PostgreSQL integration tests, and 16 app tests pass; app lint and the production build also pass.
 
+### P2a-2 frontend contract
+
+- `/checkout` reloads the authenticated server cart and uses four mobile steps: Information, Fulfillment, Payment and Review. Completed steps can be edited, form values survive navigation, and a compact selected-item summary remains available before the full Review receipt.
+- Information collects contact details, fulfillment choice and a canonical NCR address; Fulfillment confirms the address or pickup state and fee rule; Payment always keeps the matching cash method and shows only server-enabled test Hosted Checkout methods; Review shows contact, fulfillment, products, box contents, notes, fees and total before the only primary action.
+- Voucher/promo code controls are visible but disabled with an explicit future-update message because no voucher API or authoritative discount model exists. No local discount is applied.
+- The page shows selected singles and boxes only, prefills contact details once, preserves edits and hidden delivery fields, and reconciles the cart again immediately before submission.
+- `OrderService` posts only allowed customer-controlled fields plus one UUID idempotency key. It stores the minimum replay data in local storage: the exact non-secret payload, hashed fingerprint, reviewed-cart signature, key, and timestamp. It never stores tokens, passwords, or payment credentials.
+- Ambiguous network or server failures keep the original key and payload for an explicit retry. A changed payload or non-empty changed cart is blocked; an emptied cart may safely probe the original key because the server either returns the existing order or rejects the empty cart.
+- `/order/:id` uses the ownership-protected GET endpoint, so refresh reloads the persisted order without another POST. It displays immutable items, authoritative totals, fulfillment, and persisted payment state, and can recover the same unpaid online order without another order POST.
+- Client validation mirrors the backend name, Philippine phone, address, postal-code, and notes limits. Inline errors use the shared `.field-error` layout, and invalid submit focuses and scrolls to the first field.
+- Production builds disable delivery and pickup until an approved delivery service area, pickup address, and operating details are configured. Development enables both for testing and displays an explicit class-project demo notice; it does not invent customer-facing business facts.
+- P3 stores a nullable draft-agreement version and server timestamp for new development checkouts. Production omits and rejects the draft workflow; historical orders remain valid without agreement fields.
+- My Orders links to the existing owned detail view. Printable documents use persisted snapshots and distinguish genuine paid, pending, cash-due, demo-approved, and demo-unpaid states.
+- P3 verification: 103 server tests passed with the opt-in database test skipped, all 20 isolated PostgreSQL tests passed, and all 89 Angular tests passed. Lint, syntax, and `git diff --check` pass; the production build still aborts in the known LMDB native allocator path with exit 134.
+- Known limitations: PayMongo remains test-only; manual failed-payment retry acceptance is deferred, and there is no scheduling, live rider tracking, reorder, refund policy, voucher backend, or production fulfillment configuration.
+- Manual checks still required at 320, 360, 390 and 430px plus the 412px desktop phone frame: all four steps, keyboard focus, footer visibility, voucher state, retry flow and confirmation refresh.
+- Automated verification: 56 app tests pass; app lint and production build pass. Server tests pass with the extended real-PostgreSQL suite opt-in when a disposable loopback database is configured.
+
+### P2a-2.3 / P2b-1 contracts
+
+- The versioned `2026-09-30` NCR snapshot contains 17 LGUs and 1,715 barangays. Checkout submits stable PSGC codes plus readable labels; the server validates region, city, barangay, and parent relationships, then stores canonical immutable labels and codes.
+- Online payment is disabled unless an explicit `sk_test_` key, webhook secret, public app URL, and allowlisted methods are configured. Provider IDs are `gcash`, `paymaya`, and `card`; cash checkout does not depend on this configuration.
+- One durable payment attempt links an owned immutable order to one Hosted Checkout session and exact PHP centavo amount. Browser redirects never mark payment paid; only a signed, test-mode `checkout_session.payment.paid` webhook can do so.
+- Webhook processing verifies the timestamped HMAC against raw bytes, rejects live events, deduplicates event IDs durably, locks the related records, and reconciles the session, payment, order reference, method, amount, and currency before an idempotent paid transition.
+- P2b-1.1 passed 70 server tests, including 13 tests against a disposable local PostgreSQL 17 database, plus 57 app tests. Provider behavior remains mocked because no PayMongo sandbox credentials or public callback URL were used; no shared database was touched.
+- The checkout was visually checked at 320, 360, 390, 412, and 430px plus the desktop phone frame with no horizontal overflow or covered footer actions. The checkout style warning remains 8.89 kB against the existing 8.00 kB budget.
+- P2b-1.4 creates wallet Payment Methods directly from the browser with the test public key, while Express creates/retrieves immutable-order Payment Intents. Signed `payment.paid`/`payment.failed` events and trusted intent retrieval reconcile state; legacy Hosted Checkout attempts remain supported.
+- Distinct signed success events for the same provider payment are recorded as processed but do not rewrite settled payment or order rows. Conflicting payment identities roll back, and concurrent events serialize on the existing attempt/order row locks.
+- Signed failures retain their provider identity; matching repeats are audit-only no-ops. Explicit retry creates one fresh attempt only after the failed intent is confirmed non-settling by PayMongo.
+- Verified end to end in PayMongo Test Mode: GCash success, Maya success, signed webhook settlement, refresh-safe confirmation, and interrupted GCash authorization recovery using the original order and intent.
+- Automated-test-only: signed failure transition, duplicate/late failure safety, provider reconciliation, retry-key rotation, concurrent replacement, and rollback. Manual Maya failure and confirmed-failure retry acceptance are deferred and are not marked passed.
+- Real card processing remains disabled until its PCI responsibility and provider-supported handling are approved. P2d-2 adds a nonproduction-only academic demo: raw synthetic card fields stay in the transient Angular component, Express receives only an allowlisted scenario and UUID key, and `demo_payment_attempts` remains separate from genuine payment state.
+- Demo Visa approval and Mastercard decline are refresh-safe, ownership-protected, server-priced, transactionally idempotent, and clearly labelled as simulations. Demo approval never changes an order to genuine `paid` or creates PayMongo references; production rejects the endpoint even if the demo switch is set.
+- P2e adds `wallet_demo_attempts` and `POST /api/orders/:id/demo-wallet`. With `WALLET_DEMO_ENABLED=true` outside production, GCash/Maya use an in-app confirmation sheet; when disabled, the existing PayMongo Payment Intents flow remains unchanged.
+- Wallet demo requests contain only an action and UUID key. The server locks the owned order, derives method and exact PHP amount, records approval or cancellation idempotently, and leaves genuine payment state `awaiting_payment`; provider APIs and genuine payment records are never used.
+- P2f opens a same-origin handoff window directly from a desktop customer click, then uses the existing validated PayMongo authorization URL. The main order page polls only its authenticated GET endpoint and never treats popup closure or return navigation as settlement.
+- Blocked popups expose an explicit same-tab continuation without creating another order or payment attempt. Mobile web retains same-tab authorization, wallet demos stay in-app, and real desktop browser compatibility still requires manual GCash/Maya sandbox verification.
+- P2d-2 verification: 84 backend unit/route tests passed with one opt-in test skipped, all 16 isolated PostgreSQL tests passed, and all 71 Angular tests passed. Lint, syntax, `git diff --check`, and the production build passed; the build required running outside the filesystem sandbox because the known LMDB allocator abort reproduced inside it.
+- Native GCash deep-link interception remains future Android/iOS work.
+- Known build issue: production builds intermittently abort with exit 134 while loading `@lmdb/lmdb-darwin-arm64` through Angular's build cache; TypeScript, tests, and lint still pass. Do not raise budgets or reinstall dependencies without a focused diagnosis.
+
+### P5 order lifecycle contract
+
+- Delivery follows `placed → confirmed → preparing → ready → out_for_delivery → completed`; pickup follows `placed → confirmed → preparing → ready → completed`. Payment settlement never advances fulfillment.
+- New orders receive one server-timestamped `placed` event. Historical orders without events show only their actual current status; no event history or timestamp is backfilled or invented.
+- `POST /api/orders/:id/cancellation-requests` accepts only `{ "idempotencyKey": "<uuid>" }` for the authenticated owner. Placed/confirmed orders cancel immediately; preparing orders create a review request; later stages reject cancellation.
+- Paid cancellations keep payment state `paid` and record `refund_review_status = review_required`. No refund API call or automatic refund exists.
+- Bakery transitions are available only through `server/src/order-operations-cli.js`; there is no customer or public staff route. Operator credentials use salted scrypt hashes, are individually issued, and support authenticated rotation and revocation.
+- Keep operator values out of command arguments and shell history: load `DATABASE_URL` from a private environment file, enter current/new credentials with a hidden shell prompt into `ORDER_OPERATOR_CREDENTIAL` / `ORDER_OPERATOR_NEW_CREDENTIAL`, export them temporarily, run `npm --prefix server run order-operations -- <command>`, then unset them.
+- CLI commands: `operator:create "Name"`, `operator:rotate <operator-uuid>`, `operator:revoke <operator-uuid>`, `status <order-uuid> <next-status> [idempotency-uuid]`, and `cancellation <request-uuid> <approve|decline> [idempotency-uuid]`. Status and cancellation commands also require `ORDER_OPERATOR_ID`.
+- Tracking intentionally excludes maps, geocoding, rider GPS and ETAs. Order detail polls bounded authenticated reads, refreshes on focus, and stops at completed/cancelled or component teardown.
+
+### P5R-A internal refund-review contract
+
+- `order_refunds` links one cancelled order and approved cancellation to one verified paid PayMongo attempt. It stores exact PHP centavos and one internal state: `review_required`, `approved`, `processing`, `refunded`, `rejected`, or `failed`. `refund_attempts` is reserved for a separately approved provider-execution stage; P5R-A never writes it.
+- Eligibility is limited to cancelled, genuine `paid` GCash/Maya orders with a matching provider payment identity and immutable order amount. Unpaid, cash, demo, active, rejected-cancellation, and unverified payments do not receive refund records.
+- `refund_events` records server timestamps and operator-attributed review transitions. Refund-capable operators require `can_manage_refunds`; shared row locks, UUID idempotency keys, and uniqueness constraints prevent duplicate or concurrent decisions. Payment remains `paid` throughout internal review.
+- CLI review uses `refund:review <refund-uuid> <approve|reject> [idempotency-uuid]`, `ORDER_OPERATOR_ID`, a hidden `ORDER_OPERATOR_CREDENTIAL`, and `ORDER_REFUND_REASON`. Create a refund-capable operator only in a private shell with `ORDER_OPERATOR_CAN_MANAGE_REFUNDS=true` and a hidden `ORDER_OPERATOR_NEW_CREDENTIAL`; raw credentials are never arguments, logs, or database values.
+- The customer Order Details view exposes only method, original/approved amount, status, and actual event dates. My Orders shows a concise status. Provider IDs, internal reasons, operator identity, and credentials are never returned.
+- The isolated sandbox backfill reviewed 1 cancelled order, found 1 eligible verified payment, created 1 review, and skipped 0. The original order remains `paid`; no provider refund attempt or API call was made.
+- Current official PayMongo documentation requires server-side secret-key authentication for `POST /v1/refunds`, permits refunds only for `paid` live transactions, lists GCash within 180 days and Maya within 365 days, and says PayMaya partial refunds are unavailable. It documents `payment.refunded` and `payment.refund.updated` webhooks for monitoring.
+- P5R-B remains blocked pending explicit live-financial approval, merchant refund capability, payout-balance policy, exact webhook payload verification, and a reviewed reconciliation/idempotency design. Test Mode cannot verify provider refunds because PayMongo documents refunds as live-transaction-only.
+
 ---
 
 ## Last session (where work stopped)
 
-**Date:** 2026-10-22
-**State:** P2a-1 passed its PostgreSQL migration, rollback, concurrency, API, ownership, and idempotency gate; Neon remains untouched.
-**Next:** checkpoint the mixed P0/P1/P2 work safely, then begin P2a-2 checkout UI.
+**Date:** 2026-10-24
+**State:** Completed milestones passed the pre-Capacitor source, test, and secret review for the existing GitHub `main` branch.
+**Next:** stabilize the Node 24 LMDB production build, then begin the approved Capacitor Android preparation.
 
 ## Key files map
 
