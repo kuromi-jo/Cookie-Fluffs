@@ -103,6 +103,7 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] **Capacitor Android preparation**: Capacitor 8 Android platform, local Angular assets, API 36/min SDK 24, and the existing native plugins are configured
 - [x] **APK readiness (debug submission)**: a debug-signed APK uses the isolated HTTPS sandbox API; physical-device installation and native payment deep links remain pending
 - [x] **Android launcher branding**: standard, round, and adaptive launcher assets use the centered Cookie Fluffs splash-screen logo on the existing bakery pink
+- [x] **Android sandbox connectivity**: API requests to the configured ngrok development endpoint bypass its browser interstitial without affecting other hosts
 - [ ] Replace placeholder content: shop contact info (`pages/contact/contact.page.ts`), company story (`pages/company-history/`), cookie descriptions and prices (`server/src/seed-data.js`)
 
 ### Optional future features
@@ -191,8 +192,8 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 ## Last session (where work stopped)
 
 **Date:** 2026-10-24
-**State:** The debug submission APK now includes verified standard, round, and adaptive Cookie Fluffs launcher icons.
-**Next:** install-test the updated APK on an Android device; native payment return links remain future work.
+**State:** The debug APK includes branded launcher icons and the scoped ngrok API transport fix required by Android WebView.
+**Next:** install-test product loading from the updated GitHub release; native payment return links remain future work.
 
 ## Key files map
 
