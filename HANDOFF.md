@@ -100,8 +100,8 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [ ] **Payment follow-up (deferred)**: manual Maya failure/retry acceptance, approved production configuration, provider refund execution (P5R-B), and promo codes
 - [ ] **Orders follow-up**: "reorder"; owned order tracking, cancellation requests, history and printable summaries are complete
 - [ ] **Custom Cookie Builder**: dough, mix-ins, toppings, live preview (the core feature from the project plan)
-- [ ] **Capacitor Android preparation**: add the Android platform after build stability, configure a deployed HTTPS API and mobile return/deep-link handling, then validate native plugins
-- [ ] **APK readiness**: Android toolchain, signing strategy, permissions, icons/splash, device testing, and a release build
+- [x] **Capacitor Android preparation**: Capacitor 8 Android platform, local Angular assets, API 36/min SDK 24, and the existing native plugins are configured
+- [x] **APK readiness (debug submission)**: a debug-signed APK uses the isolated HTTPS sandbox API; physical-device installation and native payment deep links remain pending
 - [ ] Replace placeholder content: shop contact info (`pages/contact/contact.page.ts`), company story (`pages/company-history/`), cookie descriptions and prices (`server/src/seed-data.js`)
 
 ### Optional future features
@@ -190,8 +190,8 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 ## Last session (where work stopped)
 
 **Date:** 2026-10-24
-**State:** Completed milestones passed the pre-Capacitor source, test, and secret review for the existing GitHub `main` branch.
-**Next:** stabilize the Node 24 LMDB production build, then begin the approved Capacitor Android preparation.
+**State:** Capacitor Android builds a debug-signed submission APK with packaged Angular assets and direct isolated HTTPS API access.
+**Next:** install-test on an Android device, then add reviewed native payment return links before any production payment use.
 
 ## Key files map
 

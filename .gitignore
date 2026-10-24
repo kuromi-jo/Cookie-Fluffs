@@ -2,7 +2,9 @@ node_modules
 server/.env
 app/www
 app/.angular
+app/src/environments/environment.android.ts
 .DS_Store
+*.apk
 
 # original source images (the app uses the optimized copies in app/src/assets)
 /*.png

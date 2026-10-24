@@ -49,6 +49,21 @@ Extras: mix-and-match boxes with 5 / 10 / 15% off, "Surprise me" box filler, fla
    npm run setup
    ```
 
+### Android debug build
+
+The Android project requires JDK 21 and Android SDK API 36. Keep the real HTTPS API origin local:
+
+```bash
+cp app/src/environments/environment.android.example.ts app/src/environments/environment.android.ts
+# Edit environment.android.ts and replace the example URL with the approved HTTPS API origin.
+npm --prefix app run build:android
+(cd app && npx cap sync android)
+(cd app/android && ./gradlew assembleDebug)
+```
+
+The APK is generated at `app/android/app/build/outputs/apk/debug/app-debug.apk`. The local Android environment,
+SDK paths, copied web assets, build outputs, signing files and APK binaries are intentionally not committed.
+
 ### Every time
 
 In the `Cookie-Fluffs` folder:
