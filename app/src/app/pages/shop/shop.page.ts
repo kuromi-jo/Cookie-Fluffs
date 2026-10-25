@@ -37,6 +37,7 @@ import {
   inCollection,
 } from '../../core/models';
 import { ProductCardComponent } from '../../components/product-card.component';
+import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-indicator.component';
 import { prefersReducedMotion } from '../../core/preference.service';
 
 type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
@@ -66,6 +67,7 @@ const isCollection = (v: unknown): v is Collection => typeof v === 'string' && O
     RouterLink,
     DecimalPipe,
     ProductCardComponent,
+    OfflineMenuIndicatorComponent,
   ],
 })
 export class ShopPage {

@@ -17,6 +17,8 @@
   </ion-refresher>
 
   <div class="cf-page">
+    <app-offline-menu-indicator />
+
     <!-- Greeting -->
     <section class="hello">
       <p class="cf-muted"><ion-icon [name]="greetingIcon" aria-hidden="true"></ion-icon>{{ greeting }}{{ auth.firstName() ? ', ' + auth.firstName() : '' }}</p>

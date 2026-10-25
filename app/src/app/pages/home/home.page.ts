@@ -24,6 +24,7 @@ import { ProductService } from '../../core/product.service';
 import { ShopActionsService } from '../../core/shop-actions.service';
 import { CATEGORIES, COLLECTIONS, Collection, Product, inCollection } from '../../core/models';
 import { ProductCardComponent } from '../../components/product-card.component';
+import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-indicator.component';
 
 @Component({
   selector: 'app-home',
@@ -42,6 +43,7 @@ import { ProductCardComponent } from '../../components/product-card.component';
     IonRefresherContent,
     IonSkeletonText,
     ProductCardComponent,
+    OfflineMenuIndicatorComponent,
   ],
 })
 export class HomePage {

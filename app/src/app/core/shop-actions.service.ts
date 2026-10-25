@@ -16,6 +16,7 @@ import { BoxBuilderService } from './box-builder.service';
 import { UiService } from './ui.service';
 import { apiErrorMessage } from './api-error';
 import { BoxSize, Product } from './models';
+import { ProductService } from './product.service';
 import {
   PACK_PICKER_BREAKPOINTS,
   PACK_PICKER_INITIAL_BREAKPOINT,
@@ -27,6 +28,7 @@ import {
 export class ShopActionsService {
   private auth = inject(AuthService);
   private cart = inject(CartService);
+  private products = inject(ProductService);
   private builder = inject(BoxBuilderService);
   private ui = inject(UiService);
   private router = inject(Router);
@@ -35,10 +37,12 @@ export class ShopActionsService {
 
   /** The cart button on a cookie: ask how many, then add or start a box. */
   async choosePack(product: Product): Promise<void> {
+    const current = await this.currentProduct(product);
+    if (!current) return;
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const sheet = await this.modals.create({
       component: PackPickerModal,
-      componentProps: { product },
+      componentProps: { product: current },
       breakpoints: PACK_PICKER_BREAKPOINTS,
       initialBreakpoint: PACK_PICKER_INITIAL_BREAKPOINT,
       cssClass: ['cf-sheet', 'pack-picker'],
@@ -47,18 +51,20 @@ export class ShopActionsService {
     const { data, role } = await sheet.onDidDismiss<PackChoice>();
     trigger?.focus({ preventScroll: true });
     if (role !== 'confirm' || !data) return;
-    if (data.size === 1) await this.addSingle(product, data.quantity);
-    else this.startBox(data.size, product);
+    if (data.size === 1) await this.addSingle(current, data.quantity, true);
+    else this.startBox(data.size, current, true);
   }
 
-  async addSingle(product: Product, quantity = 1): Promise<boolean> {
+  async addSingle(product: Product, quantity = 1, liveValidated = false): Promise<boolean> {
     if (!this.auth.isLoggedIn()) {
       await this.askToLogin();
       return false;
     }
+    const current = liveValidated ? product : await this.currentProduct(product);
+    if (!current) return false;
     try {
-      await this.cart.add(product.id, quantity);
-      void this.ui.toast(`${quantity > 1 ? quantity + ' × ' : ''}${product.name} added to your cart`, {
+      await this.cart.add(current.id, quantity);
+      void this.ui.toast(`${quantity > 1 ? quantity + ' × ' : ''}${current.name} added to your cart`, {
         icon: 'cart-outline',
         buttons: [{ text: 'View', handler: () => void this.router.navigateByUrl('/cart') }],
       });
@@ -70,9 +76,15 @@ export class ShopActionsService {
   }
 
   /** Opens the box builder with a fresh box. Building works for guests; saving asks them to log in. */
-  startBox(size: BoxSize, first?: Product): void {
-    this.builder.start(size, first);
-    void this.router.navigate(['/box']);
+  startBox(size: BoxSize, first?: Product, liveValidated = false): void {
+    if (liveValidated) {
+      this.openBoxBuilder(size, first);
+      return;
+    }
+    void this.products.refreshForCommerce().then(async (ready) => {
+      if (ready) this.openBoxBuilder(size, first);
+      else await this.ui.toast('Connect to the internet to check current prices and availability before building a box.', { error: true });
+    });
   }
 
   /** Saves the finished box to the cart. */
@@ -94,6 +106,22 @@ export class ShopActionsService {
       await this.ui.toast(apiErrorMessage(err), { error: true });
       return false;
     }
+  }
+
+  private async currentProduct(product: Product): Promise<Product | null> {
+    try {
+      const current = await this.products.getLiveById(product.id);
+      if (current.isAvailable) return current;
+      await this.ui.toast('This cookie is not currently available. Refresh the menu and choose another treat.', { error: true });
+    } catch {
+      await this.ui.toast('Connect to the internet to check current prices and availability before ordering.', { error: true });
+    }
+    return null;
+  }
+
+  private openBoxBuilder(size: BoxSize, first?: Product): void {
+    this.builder.start(size, first);
+    void this.router.navigate(['/box']);
   }
 
   private async askToLogin(returnTo?: string): Promise<void> {

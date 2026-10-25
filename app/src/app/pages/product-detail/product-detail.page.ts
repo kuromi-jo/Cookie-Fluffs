@@ -2,7 +2,7 @@
  * @file product-detail.page.ts
  * @description Full details for one cookie, with quantity picker and Add to cart.
  */
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
@@ -24,6 +24,7 @@ import { apiErrorMessage } from '../../core/api-error';
 import { BoxSize, PackSize, Product, discountPercent, effectivePrice, thumbUrl } from '../../core/models';
 import { PackOptionsComponent } from '../../components/pack-options.component';
 import { FavoriteService } from '../../core/favorite.service';
+import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-indicator.component';
 
 @Component({
   selector: 'app-product-detail',
@@ -44,6 +45,7 @@ import { FavoriteService } from '../../core/favorite.service';
     IonFooter,
     IonSpinner,
     PackOptionsComponent,
+    OfflineMenuIndicatorComponent,
   ],
 })
 export class ProductDetailPage {
@@ -52,11 +54,17 @@ export class ProductDetailPage {
 
   readonly cart = inject(CartService);
   readonly favorites = inject(FavoriteService);
-  private products = inject(ProductService);
+  readonly products = inject(ProductService);
   private shop = inject(ShopActionsService);
 
-  readonly product = signal<Product | null>(null);
+  private readonly directProduct = signal<Product | null>(null);
+  readonly product = computed(() => {
+    const id = Number(this.id());
+    return this.products.products().find((product) => product.id === id) ?? this.directProduct();
+  });
   readonly error = signal<string | null>(null);
+  readonly displayError = computed(() => this.error()
+    ?? (this.products.source() === 'fresh' && !this.product() ? 'This cookie is no longer on the menu.' : null));
   readonly qty = signal(1);
   readonly pack = signal<PackSize>(1);
   readonly thumb = thumbUrl;
@@ -88,14 +96,21 @@ export class ProductDetailPage {
   constructor() {
     effect(() => {
       const id = Number(this.id());
-      this.product.set(null);
+      this.directProduct.set(null);
       this.error.set(null);
       this.qty.set(1);
       this.pack.set(1);
-      this.products
-        .getById(id)
-        .then((p) => this.product.set(p))
-        .catch((err) => this.error.set(apiErrorMessage(err)));
+      const available = untracked(() => this.products.products().some((product) => product.id === id));
+      if (!available) {
+        void this.products
+          .getLiveById(id)
+          .then((product) => {
+            if (Number(this.id()) === id) this.directProduct.set(product);
+          })
+          .catch((err) => {
+            if (Number(this.id()) === id) this.error.set(apiErrorMessage(err));
+          });
+      }
     });
     void this.products.load();
   }

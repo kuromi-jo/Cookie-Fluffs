@@ -23,6 +23,8 @@
   </ion-refresher>
 
   <div class="cf-page">
+    <app-offline-menu-indicator />
+
     <nav class="chips" aria-label="Cookie categories">
       @for (c of categories; track c.id) {
         <button type="button" class="chip" [class.on]="category() === c.id" (click)="pickCategory(c.id)" [attr.aria-pressed]="category() === c.id">
