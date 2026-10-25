@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import pg from 'pg';
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
-process.env.JWT_SECRET = 'test-only-cookie-fluffs-secret';
+process.env.JWT_SECRET = 'test-only-cookie-fluffs-secret-9482';
 
 const legacyPassword = 'legacy1';
 const legacyHash = await bcrypt.hash(legacyPassword, 4);

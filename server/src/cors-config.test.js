@@ -6,8 +6,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { allowedCorsOrigins, corsOptions } from './cors-config.js';
 
-test('allows only built-in and explicitly configured origins', () => {
-  const allowed = allowedCorsOrigins({ CORS_ALLOWED_ORIGINS: 'https://cookies.example.test' });
+test('allows only explicitly configured origins', () => {
+  const allowed = allowedCorsOrigins({
+    CORS_ALLOWED_ORIGINS: 'http://localhost:4200,https://localhost,https://cookies.example.test',
+  });
   assert.equal(allowed.has('http://localhost:4200'), true);
   assert.equal(allowed.has('https://localhost'), true);
   assert.equal(allowed.has('https://cookies.example.test'), true);
@@ -15,7 +17,7 @@ test('allows only built-in and explicitly configured origins', () => {
 });
 
 test('permits non-browser requests and withholds CORS from untrusted origins', () => {
-  const options = corsOptions({});
+  const options = corsOptions({ CORS_ALLOWED_ORIGINS: 'https://localhost' });
   const check = (origin) => new Promise((resolve) => options.origin(origin, (_error, result) => resolve(result)));
 
   return Promise.all([

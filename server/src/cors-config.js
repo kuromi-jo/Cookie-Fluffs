@@ -3,18 +3,13 @@
  * @description Explicit browser-origin allowlist for the Cookie Fluffs API.
  */
 
-const BUILT_IN_ORIGINS = [
-  'http://localhost:4200',
-  'https://localhost',
-];
-
 export function allowedCorsOrigins(env = process.env) {
   const configured = (env.CORS_ALLOWED_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  return new Set([...BUILT_IN_ORIGINS, ...configured]);
+  return new Set(configured);
 }
 
 export function corsOptions(env = process.env) {

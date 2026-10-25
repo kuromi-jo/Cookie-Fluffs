@@ -3,9 +3,10 @@
  * @description Explicit nonproduction switch and public capabilities for wallet demonstrations.
  */
 export function walletDemoConfig(env = process.env) {
-  const production = env.NODE_ENV?.trim().toLowerCase() === 'production';
+  const appEnv = env.APP_ENV?.trim().toLowerCase();
+  const production = appEnv === 'production';
   return {
-    enabled: env.WALLET_DEMO_ENABLED?.trim().toLowerCase() === 'true' && !production,
+    enabled: env.WALLET_DEMO_ENABLED?.trim().toLowerCase() === 'true' && ['demo', 'test'].includes(appEnv),
     production,
   };
 }

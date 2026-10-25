@@ -15,12 +15,12 @@ const base = {
 };
 
 test('enables the card demo only through an explicit nonproduction switch', () => {
-  assert.deepEqual(demoPaymentConfig({ CARD_DEMO_ENABLED: 'true', NODE_ENV: 'development' }), {
+  assert.deepEqual(demoPaymentConfig({ CARD_DEMO_ENABLED: 'true', APP_ENV: 'demo' }), {
     enabled: true,
     production: false,
   });
-  assert.equal(demoPaymentConfig({ CARD_DEMO_ENABLED: 'true', NODE_ENV: 'production' }).enabled, false);
-  assert.equal(demoPaymentConfig({ NODE_ENV: 'test' }).enabled, false);
+  assert.equal(demoPaymentConfig({ CARD_DEMO_ENABLED: 'true', APP_ENV: 'production' }).enabled, false);
+  assert.equal(demoPaymentConfig({ APP_ENV: 'test' }).enabled, false);
 });
 
 test('publishes only a labeled demo capability and no secret configuration', () => {

@@ -3,9 +3,10 @@
  * @description Explicit nonproduction switch for the financially isolated card demo.
  */
 export function demoPaymentConfig(env = process.env) {
-  const production = env.NODE_ENV?.trim().toLowerCase() === 'production';
+  const appEnv = env.APP_ENV?.trim().toLowerCase();
+  const production = appEnv === 'production';
   return {
-    enabled: env.CARD_DEMO_ENABLED?.trim().toLowerCase() === 'true' && !production,
+    enabled: env.CARD_DEMO_ENABLED?.trim().toLowerCase() === 'true' && ['demo', 'test'].includes(appEnv),
     production,
   };
 }

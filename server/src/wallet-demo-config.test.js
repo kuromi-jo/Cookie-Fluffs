@@ -7,12 +7,12 @@ import test from 'node:test';
 import { addWalletDemoCapabilities, walletDemoConfig } from './wallet-demo-config.js';
 
 test('enables wallet demonstrations only when explicitly nonproduction', () => {
-  assert.deepEqual(walletDemoConfig({ WALLET_DEMO_ENABLED: 'true', NODE_ENV: 'development' }), {
+  assert.deepEqual(walletDemoConfig({ WALLET_DEMO_ENABLED: 'true', APP_ENV: 'demo' }), {
     enabled: true,
     production: false,
   });
-  assert.equal(walletDemoConfig({ WALLET_DEMO_ENABLED: 'true', NODE_ENV: 'production' }).enabled, false);
-  assert.equal(walletDemoConfig({ NODE_ENV: 'test' }).enabled, false);
+  assert.equal(walletDemoConfig({ WALLET_DEMO_ENABLED: 'true', APP_ENV: 'production' }).enabled, false);
+  assert.equal(walletDemoConfig({ APP_ENV: 'test' }).enabled, false);
 });
 
 test('publishes demo wallets without exposing configuration secrets', () => {

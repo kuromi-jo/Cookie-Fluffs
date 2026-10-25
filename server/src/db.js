@@ -45,6 +45,82 @@ export function query(text, params = []) {
   return pool.query(text, params);
 }
 
+const REQUIRED_SCHEMA_TABLES = Object.freeze([
+  'users',
+  'products',
+  'cart_items',
+  'orders',
+  'payment_attempts',
+  'customer_addresses',
+  'user_favorites',
+  'order_status_events',
+  'order_refunds',
+]);
+
+const REQUIRED_MIGRATION_KEYS = Object.freeze([
+  'orders_v1',
+  'checkout_upgrade_v1',
+  'card_demo_v1',
+  'wallet_demo_v1',
+  'order_agreement_v1',
+  'address_book_v1',
+  'favorites_preferences_v1',
+  'order_image_snapshot_v1',
+  'order_lifecycle_v1',
+  'refund_management_v1',
+  'names_v1',
+  'menu_v2',
+  'collections_v1',
+]);
+
+const MIGRATION_ADVISORY_LOCK = 1_126_663_214;
+
+/** Returns only a safe readiness result; database errors never leave this boundary. */
+export async function inspectSchemaReadiness(queryFn = query) {
+  try {
+    const tables = await queryFn(
+      `SELECT item.name
+       FROM unnest($1::text[]) AS item(name)
+       WHERE to_regclass('public.' || item.name) IS NOT NULL`,
+      [REQUIRED_SCHEMA_TABLES],
+    );
+    const migrations = await queryFn(
+      `SELECT key FROM app_meta
+       WHERE key = ANY($1::text[]) AND value <> 'pending'`,
+      [REQUIRED_MIGRATION_KEYS],
+    );
+    return {
+      ready: tables.rows.length === REQUIRED_SCHEMA_TABLES.length
+        && migrations.rows.length === REQUIRED_MIGRATION_KEYS.length,
+    };
+  } catch {
+    return { ready: false };
+  }
+}
+
+/** Fails startup with a sanitized instruction when the expected schema is unavailable. */
+export async function assertSchemaReady(queryFn = query) {
+  const state = await inspectSchemaReadiness(queryFn);
+  if (!state.ready) throw new Error('Database schema is not ready. Run npm run migrate before starting the API.');
+  return state;
+}
+
+/** Runs additive migrations under a session advisory lock to prevent concurrent migration processes. */
+export async function migrateWithLock(databasePool = pool, migrate = initDb) {
+  if (!databasePool) throw new Error('Database is not configured.');
+  const client = await databasePool.connect();
+  let locked = false;
+  try {
+    const result = await client.query('SELECT pg_try_advisory_lock($1) AS locked', [MIGRATION_ADVISORY_LOCK]);
+    locked = result.rows[0]?.locked === true;
+    if (!locked) throw new Error('Another database migration is already running.');
+    return await migrate();
+  } finally {
+    if (locked) await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_ADVISORY_LOCK]).catch(() => undefined);
+    client.release();
+  }
+}
+
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS users (
     id            SERIAL PRIMARY KEY,

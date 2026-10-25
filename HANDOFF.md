@@ -95,7 +95,7 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] Pre-Capacitor backup: completed milestones security-reviewed and prepared for the existing GitHub `main` branch without private environment files
 
 ### Next milestones (not started)
-- [ ] **Build stability**: isolate the intermittent Angular production-build abort in LMDB's macOS ARM64 native binding without masking it or raising budgets
+- [x] **Build stability correction**: Angular persistent caching is disabled after native LMDB allocator aborts reproduced on Node 22/24; production builds pass without dependency or budget changes
 - [ ] **Checkout confirmation polish (P2a-3)**: approved fulfillment business details and the final dedicated confirmation experience
 - [ ] **Payment follow-up (deferred)**: manual Maya failure/retry acceptance, approved production configuration, provider refund execution (P5R-B), and promo codes
 - [ ] **Orders follow-up**: "reorder"; owned order tracking, cancellation requests, history and printable summaries are complete
@@ -104,6 +104,10 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] **APK readiness (debug submission)**: a debug-signed APK uses the isolated HTTPS sandbox API; physical-device installation and native payment deep links remain pending
 - [x] **Android launcher branding**: standard, round, and adaptive launcher assets use the centered Cookie Fluffs splash-screen logo on the existing bakery pink
 - [x] **Android sandbox connectivity**: API requests to the configured ngrok development endpoint bypass its browser interstitial without affecting other hosts
+- [x] **P6A Android resilient catalog**: Home, All Cookies and Product Details share a reactive versioned cache or bundled 18-product snapshot, update immediately for connectivity changes, and still require live API validation for cart actions
+- [x] **P6B-1 Android fulfillment readiness**: authenticated server capabilities independently gate configured delivery/pickup, approved PSGC coverage, public pickup details, and the current agreement contract
+- [x] **P6B-2A backend deployment hardening**: explicit runtime validation, migration-only schema mutation, readiness/liveness health checks, and deployment/rollback guidance
+- [ ] **P6A device acceptance**: verify fresh install, airplane-mode relaunch, responsive browsing and reconnection refresh on a physical Android device
 - [ ] Replace placeholder content: shop contact info (`pages/contact/contact.page.ts`), company story (`pages/company-history/`), cookie descriptions and prices (`server/src/seed-data.js`)
 
 ### Optional future features
@@ -134,7 +138,7 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - Ambiguous network or server failures keep the original key and payload for an explicit retry. A changed payload or non-empty changed cart is blocked; an emptied cart may safely probe the original key because the server either returns the existing order or rejects the empty cart.
 - `/order/:id` uses the ownership-protected GET endpoint, so refresh reloads the persisted order without another POST. It displays immutable items, authoritative totals, fulfillment, and persisted payment state, and can recover the same unpaid online order without another order POST.
 - Client validation mirrors the backend name, Philippine phone, address, postal-code, and notes limits. Inline errors use the shared `.field-error` layout, and invalid submit focuses and scrolls to the first field.
-- Production builds disable delivery and pickup until an approved delivery service area, pickup address, and operating details are configured. Development enables both for testing and displays an explicit class-project demo notice; it does not invent customer-facing business facts.
+- Every build starts checkout fail-closed and loads authenticated server capabilities. Delivery requires configured approved PSGC city codes; pickup requires configured public location and hours. Build optimization never enables or disables a method by itself.
 - P3 stores a nullable draft-agreement version and server timestamp for new development checkouts. Production omits and rejects the draft workflow; historical orders remain valid without agreement fields.
 - My Orders links to the existing owned detail view. Printable documents use persisted snapshots and distinguish genuine paid, pending, cash-due, demo-approved, and demo-unpaid states.
 - P3 verification: 103 server tests passed with the opt-in database test skipped, all 20 isolated PostgreSQL tests passed, and all 89 Angular tests passed. Lint, syntax, and `git diff --check` pass; the production build still aborts in the known LMDB native allocator path with exit 134.
@@ -163,7 +167,7 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - Blocked popups expose an explicit same-tab continuation without creating another order or payment attempt. Mobile web retains same-tab authorization, wallet demos stay in-app, and real desktop browser compatibility still requires manual GCash/Maya sandbox verification.
 - P2d-2 verification: 84 backend unit/route tests passed with one opt-in test skipped, all 16 isolated PostgreSQL tests passed, and all 71 Angular tests passed. Lint, syntax, `git diff --check`, and the production build passed; the build required running outside the filesystem sandbox because the known LMDB allocator abort reproduced inside it.
 - Native GCash deep-link interception remains future Android/iOS work.
-- Known build issue: production builds intermittently abort with exit 134 while loading `@lmdb/lmdb-darwin-arm64` through Angular's build cache; TypeScript, tests, and lint still pass. Do not raise budgets or reinstall dependencies without a focused diagnosis.
+- Build reliability: the native LMDB allocator abort reproduced on Node 22 and 24. Disabling Angular's persistent build cache avoids that native path; production builds now pass with the existing checkout style-budget warning and no dependency upgrade.
 
 ### P5 order lifecycle contract
 
@@ -191,9 +195,9 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 
 ## Last session (where work stopped)
 
-**Date:** 2026-10-24
-**State:** The debug APK includes branded launcher icons and the scoped ngrok API transport fix required by Android WebView.
-**Next:** install-test product loading from the updated GitHub release; native payment return links remain future work.
+**Date:** 2026-10-25
+**State:** P6B-2A separates validated API startup from advisory-locked migrations and adds sanitized liveness/readiness checks; no migration was run.
+**Next:** adapt the private sandbox environment to the explicit APP_ENV/agreement/CORS flags, run the approved migration command there, then restart and verify readiness.
 
 ## Key files map
 
