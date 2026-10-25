@@ -27,7 +27,7 @@ import {
 import { AuthService } from '../../core/auth.service';
 import { AddressService } from '../../core/address.service';
 import { CartService } from '../../core/cart.service';
-import { CHECKOUT_CONFIG } from '../../core/checkout-config';
+import { CheckoutConfig, CLOSED_CHECKOUT_CONFIG, normalizeCheckoutConfig } from '../../core/checkout-config';
 import { LocationPickerModalComponent } from '../../components/location-picker.modal';
 import { DemoCardFormComponent } from '../../components/demo-card-form.component';
 import { presentSimulatedCardVerification } from '../../components/simulated-card-verification.modal';
@@ -59,10 +59,7 @@ import { apiErrorMessage, apiFieldErrors } from '../../core/api-error';
 import { prefersReducedMotion } from '../../core/preference.service';
 import { FulfillmentMethod, PaymentConfig, PaymentMethod, SavedAddress, thumbUrl } from '../../core/models';
 import { isAmbiguousOrderError, OrderService, PendingCheckoutError } from '../../core/order.service';
-import { environment } from '../../../environments/environment';
 import { ConsentModalComponent } from '../../components/consent-modal.component';
-
-export const ORDER_AGREEMENT_VERSION = 'draft-2026-10-24-v1';
 
 const EMPTY_FORM: CheckoutFormValue = {
   fulfillmentMethod: 'delivery',
@@ -164,6 +161,18 @@ export function shouldClearSavedAddressDraft(selectedAddressId: string | null, a
   return selectedAddressId !== null || !addressDraftChanged;
 }
 
+export function fulfillmentCapabilityError(
+  config: CheckoutConfig,
+  form: Pick<CheckoutFormValue, 'fulfillmentMethod' | 'cityCode'>,
+): string | null {
+  const method = form.fulfillmentMethod;
+  if (!config[method].enabled) return config[method].unavailableMessage;
+  if (method === 'delivery' && form.cityCode && !config.delivery.allowedCityCodes.includes(form.cityCode)) {
+    return 'Delivery is unavailable for the selected city. Choose an approved delivery address.';
+  }
+  return null;
+}
+
 @Component({
   selector: 'app-checkout',
   templateUrl: 'checkout.page.html',
@@ -196,7 +205,7 @@ export class CheckoutPage {
   readonly auth = inject(AuthService);
   readonly cartService = inject(CartService);
   readonly addressBook = inject(AddressService);
-  readonly config = inject(CHECKOUT_CONFIG);
+  readonly config = signal<CheckoutConfig>(CLOSED_CHECKOUT_CONFIG);
   readonly geography = inject(GeographyService);
   private orders = inject(OrderService);
   private router = inject(Router);
@@ -213,7 +222,7 @@ export class CheckoutPage {
   readonly pageMessage = signal('');
   readonly uncertain = signal(false);
   readonly completed = signal(false);
-  readonly agreementEnabled = !environment.production;
+  readonly agreementEnabled = computed(() => this.config().agreement.required);
   readonly agreementAccepted = signal(false);
   readonly agreementTouched = signal(false);
   readonly locationPicker = signal<'city' | 'barangay' | null>(null);
@@ -228,6 +237,7 @@ export class CheckoutPage {
     unavailableMessage: 'Online payment is not configured for this class-project environment.',
   });
   readonly paymentConfigLoading = signal(true);
+  readonly checkoutConfigLoading = signal(true);
   readonly demoCardFlow = signal<DemoCardFlow | null>(null);
   readonly selected = computed(() => selectedCartLines(this.cartService.cart()));
   readonly selectedLineCount = computed(() => this.selected().items.length + this.selected().boxes.length);
@@ -242,6 +252,10 @@ export class CheckoutPage {
     this.paymentConfig(),
     this.form().paymentMethod,
   ));
+  readonly deliveryCities = computed(() => {
+    const allowed = new Set(this.config().delivery.allowedCityCodes);
+    return (this.geography.data()?.cities ?? []).filter((city) => allowed.has(city.code));
+  });
 
   private profileFilled = false;
   private reviewedSignature = '';
@@ -269,6 +283,7 @@ export class CheckoutPage {
     void this.geography.load();
     void this.loadSavedAddresses();
     void this.loadPaymentConfig();
+    void this.loadCheckoutConfig();
     await this.loadReview();
   }
 
@@ -344,7 +359,7 @@ export class CheckoutPage {
   }
 
   chooseFulfillment(method: FulfillmentMethod): void {
-    if (!this.config[method].enabled || this.submitting()) return;
+    if (!this.config()[method].enabled || this.submitting()) return;
     this.form.update((value) => ({
       ...value,
       fulfillmentMethod: method,
@@ -381,6 +396,28 @@ export class CheckoutPage {
       this.paymentConfig.update((current) => ({ ...current, onlineEnabled: false }));
     } finally {
       this.paymentConfigLoading.set(false);
+    }
+  }
+
+  private async loadCheckoutConfig(): Promise<void> {
+    this.checkoutConfigLoading.set(true);
+    try {
+      const previousVersion = this.config().agreement.version;
+      const config = normalizeCheckoutConfig(await this.orders.checkoutConfig());
+      this.config.set(config);
+      if (previousVersion && previousVersion !== config.agreement.version) {
+        this.agreementAccepted.set(false);
+        this.agreementTouched.set(false);
+      }
+      const selectedMethod = this.form().fulfillmentMethod;
+      if (!config[selectedMethod].enabled) {
+        const replacement = config.delivery.enabled ? 'delivery' : config.pickup.enabled ? 'pickup' : null;
+        if (replacement) this.chooseFulfillment(replacement);
+      }
+    } catch {
+      this.config.set(CLOSED_CHECKOUT_CONFIG);
+    } finally {
+      this.checkoutConfigLoading.set(false);
     }
   }
 
@@ -479,7 +516,7 @@ export class CheckoutPage {
           title: 'Review order policies',
           confirmLabel: 'Agree and Continue',
           cancelLabel: acceptedBeforeReview ? 'Close policy review' : 'Decline and close',
-          agreementVersion: ORDER_AGREEMENT_VERSION,
+          agreementVersion: this.config().agreement.version ?? '',
         },
         cssClass: 'cf-consent-modal',
         breakpoints: [0, 1],
@@ -516,8 +553,8 @@ export class CheckoutPage {
     if (this.step() === 0) {
       const errors = validateCheckout(this.form());
       delete errors.notes;
-      const method = this.form().fulfillmentMethod;
-      if (!this.config[method].enabled) errors.fulfillment = this.config[method].unavailableMessage;
+      const capabilityError = fulfillmentCapabilityError(this.config(), this.form());
+      if (capabilityError) errors.fulfillment = capabilityError;
       if (Object.keys(errors).length) {
         this.errors.set(errors);
         this.touched.set(new Set(FIELD_ORDER));
@@ -559,7 +596,7 @@ export class CheckoutPage {
   async submit(): Promise<void> {
     if (!canStartOrderSubmission(this.step(), this.submitting(), this.completed())) return;
     this.pageMessage.set('');
-    if (this.agreementEnabled && !this.agreementAccepted()) {
+    if (this.agreementEnabled() && !this.agreementAccepted()) {
       this.agreementTouched.set(true);
       await new Promise((resolve) => setTimeout(resolve));
       const agreement = document.getElementById('checkout-agreement');
@@ -576,8 +613,8 @@ export class CheckoutPage {
       return;
     }
     const errors = validateCheckout(this.form());
-    const method = this.form().fulfillmentMethod;
-    if (!this.config[method].enabled) errors.fulfillment = this.config[method].unavailableMessage;
+    const capabilityError = fulfillmentCapabilityError(this.config(), this.form());
+    if (capabilityError) errors.fulfillment = capabilityError;
     if (Object.keys(errors).length) {
       this.errors.set(errors);
       this.touched.set(new Set(FIELD_ORDER));
@@ -601,8 +638,9 @@ export class CheckoutPage {
         return;
       }
 
-      const agreement = this.agreementEnabled
-        ? { accepted: true as const, version: ORDER_AGREEMENT_VERSION }
+      const agreementVersion = this.config().agreement.version;
+      const agreement = this.agreementEnabled() && agreementVersion
+        ? { accepted: true as const, version: agreementVersion }
         : undefined;
       const order = await this.orders.place(buildOrderDetails(this.form(), agreement), freshSignature);
       this.completed.set(true);

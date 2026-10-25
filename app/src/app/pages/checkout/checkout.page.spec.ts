@@ -8,10 +8,12 @@ import {
   agreementAcceptedAfterReview,
   checkoutRefreshFailure,
   clearSavedAddressDraft,
+  fulfillmentCapabilityError,
   isGenuineWalletMethod,
   shouldApplyDefaultAddress,
   shouldClearSavedAddressDraft,
 } from './checkout.page';
+import { CheckoutConfig } from '../../core/checkout-config';
 import { CheckoutFormValue, buildOrderDetails } from '../../core/checkout-rules';
 
 const config = (demo: boolean): PaymentConfig => ({
@@ -51,6 +53,29 @@ describe('checkout agreement review', () => {
 
   it('does not carry an unchecked agreement through a dismissed policy review', () => {
     expect(agreementAcceptedAfterReview(false, undefined, true)).toBe(false);
+  });
+});
+
+describe('server-owned fulfillment capabilities', () => {
+  const checkoutConfig: CheckoutConfig = {
+    nonProductionDemo: false,
+    delivery: { enabled: true, unavailableMessage: '', allowedCityCodes: ['1381300000'] },
+    pickup: { enabled: false, unavailableMessage: 'Pickup is not configured.', location: '', hours: '' },
+    voucher: { enabled: false, unavailableMessage: '' },
+    agreement: { required: true, version: 'configured-version' },
+    pricing: { currency: 'PHP', deliveryFee: 49, freeDeliveryMinimum: 500 },
+  };
+
+  it('allows only backend-enabled methods and covered cities', () => {
+    expect(fulfillmentCapabilityError(checkoutConfig, {
+      fulfillmentMethod: 'delivery', cityCode: '1381300000',
+    })).toBeNull();
+    expect(fulfillmentCapabilityError(checkoutConfig, {
+      fulfillmentMethod: 'delivery', cityCode: '1374040000',
+    })).toMatch(/selected city/i);
+    expect(fulfillmentCapabilityError(checkoutConfig, {
+      fulfillmentMethod: 'pickup', cityCode: '',
+    })).toMatch(/not configured/i);
   });
 });
 

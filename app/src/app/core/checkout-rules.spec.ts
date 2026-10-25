@@ -3,7 +3,7 @@
  * @description Checkout access, validation, cart review, and payload boundary tests.
  */
 import { describe, expect, it } from 'vitest';
-import { checkoutConfigFor } from './checkout-config';
+import { CLOSED_CHECKOUT_CONFIG, normalizeCheckoutConfig } from './checkout-config';
 import {
   applySavedAddress,
   canAutofillSavedAddress,
@@ -213,21 +213,24 @@ describe('saved-address checkout reuse', () => {
 });
 
 describe('fulfillment release safeguards', () => {
-  it('disables delivery and pickup in production until business configuration is approved', () => {
-    const production = checkoutConfigFor(true);
-    expect(production.delivery.enabled).toBe(false);
-    expect(production.pickup.enabled).toBe(false);
-    expect(production.pickup.unavailableMessage).toMatch(/address and hours/i);
+  it('starts with delivery and pickup disabled regardless of build optimization', () => {
+    expect(CLOSED_CHECKOUT_CONFIG.delivery.enabled).toBe(false);
+    expect(CLOSED_CHECKOUT_CONFIG.pickup.enabled).toBe(false);
   });
 
-  it('enables both paths only in explicit nonproduction configuration', () => {
-    const development = checkoutConfigFor(false);
-    expect(development).toMatchObject({ nonProductionDemo: true, delivery: { enabled: true }, pickup: { enabled: true } });
+  it('enables paths only through valid server capabilities', () => {
+    const configured = normalizeCheckoutConfig({
+      nonProductionDemo: true,
+      delivery: { enabled: true, unavailableMessage: '', allowedCityCodes: ['1381300000'] },
+      pickup: { enabled: true, unavailableMessage: '', location: 'Configured location', hours: 'Configured hours' },
+      agreement: { required: false, version: null },
+      pricing: { currency: 'PHP', deliveryFee: 49, freeDeliveryMinimum: 500 },
+    });
+    expect(configured).toMatchObject({ delivery: { enabled: true }, pickup: { enabled: true } });
   });
 
   it('keeps vouchers visibly unavailable without backend support', () => {
-    const development = checkoutConfigFor(false);
-    expect(development.voucher.enabled).toBe(false);
-    expect(development.voucher.unavailableMessage).toMatch(/future update/i);
+    expect(CLOSED_CHECKOUT_CONFIG.voucher.enabled).toBe(false);
+    expect(CLOSED_CHECKOUT_CONFIG.voucher.unavailableMessage).toMatch(/future update/i);
   });
 });

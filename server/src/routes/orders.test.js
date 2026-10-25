@@ -6,6 +6,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 process.env.JWT_SECRET = 'test-only-cookie-fluffs-orders-secret';
+process.env.APP_ENV = 'test';
+process.env.ORDER_AGREEMENT_REQUIRED = 'true';
+process.env.ORDER_AGREEMENT_VERSION = 'draft-2026-10-24-v1';
+process.env.FULFILLMENT_DELIVERY_ENABLED = 'true';
+process.env.FULFILLMENT_DELIVERY_CITY_CODES = '1381300000';
+process.env.FULFILLMENT_PICKUP_ENABLED = 'true';
+process.env.FULFILLMENT_PICKUP_LOCATION = 'Configured public test location';
+process.env.FULFILLMENT_PICKUP_HOURS = 'Configured test hours';
 
 const { signToken } = await import('../auth.js');
 const { createOrdersRouter } = await import('./orders.js');
@@ -26,11 +34,16 @@ function responseRecorder() {
 }
 
 function layers() {
-  const router = createOrdersRouter({ connect: async () => { throw new Error('Database should not be reached.'); } });
+  const router = createOrdersRouter(
+    { connect: async () => { throw new Error('Database should not be reached.'); } },
+    undefined,
+    { config: { enabled: false, methods: [] } },
+  );
   const auth = router.stack.find((layer) => !layer.route).handle;
   const post = router.stack.find((layer) => layer.route?.path === '/' && layer.route.methods.post).route.stack[0].handle;
   const get = router.stack.find((layer) => layer.route?.path === '/:id' && layer.route.methods.get).route.stack[0].handle;
-  return { auth, post, get };
+  const config = router.stack.find((layer) => layer.route?.path === '/config' && layer.route.methods.get).route.stack[0].handle;
+  return { auth, post, get, config };
 }
 
 const validCheckout = {
@@ -55,6 +68,54 @@ test('rejects missing and invalid JWTs before order placement', () => {
     assert.equal(continued, false);
     assert.equal(res.statusCode, 401);
   }
+});
+
+test('returns authenticated public checkout capabilities without database access', () => {
+  const { auth, config } = layers();
+  const req = { headers: { authorization: `Bearer ${signToken(42)}` } };
+  const res = responseRecorder();
+  auth(req, res, () => undefined);
+  config(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.delivery.enabled, true);
+  assert.deepEqual(res.body.delivery.allowedCityCodes, ['1381300000']);
+  assert.equal(res.body.pickup.location, 'Configured public test location');
+  assert.equal(res.body.pricing.currency, 'PHP');
+  assert.equal('secret' in res.body, false);
+});
+
+test('protects checkout capabilities with customer authentication', () => {
+  const { auth } = layers();
+  const res = responseRecorder();
+  let continued = false;
+  auth({ headers: {} }, res, () => { continued = true; });
+  assert.equal(continued, false);
+  assert.equal(res.statusCode, 401);
+});
+
+test('rejects disabled fulfillment before database work', async () => {
+  let connected = false;
+  const closedConfig = {
+    delivery: { enabled: false, unavailableMessage: 'Delivery is not configured.', allowedCityCodes: [] },
+    pickup: { enabled: false, unavailableMessage: 'Pickup is not configured.', location: '', hours: '' },
+    agreement: { required: true, version: 'draft-2026-10-24-v1' },
+  };
+  const router = createOrdersRouter(
+    { connect: async () => { connected = true; } },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    closedConfig,
+  );
+  const auth = router.stack.find((layer) => !layer.route).handle;
+  const post = router.stack.find((layer) => layer.route?.path === '/' && layer.route.methods.post).route.stack[0].handle;
+  const req = { headers: { authorization: `Bearer ${signToken(42)}` }, body: validCheckout };
+  const res = responseRecorder();
+  auth(req, res, () => undefined);
+  await post(req, res, (error) => { throw error; });
+  assert.equal(res.statusCode, 409);
+  assert.equal(connected, false);
 });
 
 test('uses the authenticated JWT subject and rejects client user ID injection', async () => {

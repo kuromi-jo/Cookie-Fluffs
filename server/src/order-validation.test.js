@@ -4,7 +4,11 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ORDER_AGREEMENT_VERSION, orderRequestFingerprint, validateOrderRequest } from './order-validation.js';
+import { orderRequestFingerprint, validateOrderRequest } from './order-validation.js';
+
+const ORDER_AGREEMENT_VERSION = 'draft-2026-10-24-v1';
+process.env.ORDER_AGREEMENT_REQUIRED = 'true';
+process.env.ORDER_AGREEMENT_VERSION = ORDER_AGREEMENT_VERSION;
 
 const key = '123e4567-e89b-42d3-a456-426614174000';
 const delivery = {
@@ -98,6 +102,20 @@ test('rejects unknown top-level, nested, and security-sensitive fields', () => {
 test('requires the current draft agreement in development and rejects stale versions', () => {
   assert.ok(validateOrderRequest({ ...delivery, agreementAccepted: false }).errors.agreementAccepted);
   assert.ok(validateOrderRequest({ ...delivery, agreementVersion: 'draft-old' }).errors.agreementVersion);
+});
+
+test('validates the agreement version negotiated from server capabilities', () => {
+  const negotiated = 'configured-test-agreement';
+  const accepted = validateOrderRequest(
+    { ...delivery, agreementVersion: negotiated },
+    { agreementRequired: true, agreementVersion: negotiated },
+  );
+  assert.deepEqual(accepted.errors, {});
+  assert.equal(accepted.value.agreementVersion, negotiated);
+  assert.ok(validateOrderRequest(delivery, {
+    agreementRequired: true,
+    agreementVersion: negotiated,
+  }).errors.agreementVersion);
 });
 
 test('disables draft agreement fields in production', () => {

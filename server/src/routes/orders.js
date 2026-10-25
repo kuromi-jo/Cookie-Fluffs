@@ -15,6 +15,7 @@ import { processDemoCard } from '../demo-payment-service.js';
 import { walletDemoConfig } from '../wallet-demo-config.js';
 import { processDemoWallet } from '../wallet-demo-service.js';
 import { requestOrderCancellation } from '../order-lifecycle.js';
+import { fulfillmentConfig, fulfillmentError } from '../fulfillment-config.js';
 
 const PUBLIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_RE = PUBLIC_ID_RE;
@@ -34,16 +35,22 @@ export function createOrdersRouter(
   paymentAdapter = new PaymongoAdapter(paymongoConfig()),
   cardDemoConfig = demoPaymentConfig(),
   walletConfig = walletDemoConfig(),
+  checkoutConfig = fulfillmentConfig(),
 ) {
   const router = Router();
   router.use(requireAuth);
 
   router.post('/', async (req, res, next) => {
-    const validation = validateOrderRequest(req.body);
+    const validation = validateOrderRequest(req.body, {
+      agreementRequired: checkoutConfig.agreement.required,
+      agreementVersion: checkoutConfig.agreement.version,
+    });
     if (Object.keys(validation.errors).length) {
       const message = Object.values(validation.errors)[0];
       return res.status(400).json({ message, errors: validation.errors });
     }
+    const readinessError = fulfillmentError(checkoutConfig, validation.value);
+    if (readinessError) return res.status(409).json({ message: readinessError });
     const walletMethod = ['gcash', 'maya'].includes(validation.value.paymentMethod);
     const cardUnavailable = validation.value.paymentMethod === 'card' && !cardDemoConfig.enabled;
     if (cardUnavailable || (walletMethod && !walletConfig.enabled && (!paymentAdapter.config?.enabled
@@ -73,6 +80,8 @@ export function createOrdersRouter(
       client.release();
     }
   });
+
+  router.get('/config', (_req, res) => res.json(checkoutConfig));
 
   router.get('/', async (req, res, next) => {
     const limitText = req.query?.limit;

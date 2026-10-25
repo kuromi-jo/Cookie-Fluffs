@@ -177,6 +177,20 @@ describe('order confirmation API', () => {
     await expect(result).resolves.toMatchObject({ onlineEnabled: false });
   });
 
+  it('loads authenticated server-owned checkout capabilities', async () => {
+    const result = service.checkoutConfig();
+    const request = http.expectOne('/api/orders/config');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      nonProductionDemo: false,
+      delivery: { enabled: false, unavailableMessage: 'Not configured.', allowedCityCodes: [] },
+      pickup: { enabled: false, unavailableMessage: 'Not configured.', location: '', hours: '' },
+      agreement: { required: false, version: null },
+      pricing: { currency: 'PHP', deliveryFee: 49, freeDeliveryMinimum: 500 },
+    });
+    await expect(result).resolves.toMatchObject({ delivery: { enabled: false } });
+  });
+
   it('sends only a scenario and durable idempotency key for the card demo', async () => {
     const orderId = '123e4567-e89b-42d3-a456-426614174000';
     const first = service.submitDemoCard(orderId, 'visa_approved');

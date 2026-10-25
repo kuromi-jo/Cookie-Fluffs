@@ -20,6 +20,7 @@ import {
   WalletDemoResult,
 } from './models';
 import { canonicalOrderDetails } from './checkout-rules';
+import { CheckoutConfig } from './checkout-config';
 
 const ATTEMPT_KEY = 'cf.checkout-attempt';
 const PAYMENT_ATTEMPT_KEY = 'cf.payment-attempt';
@@ -217,6 +218,10 @@ export class OrderService {
 
   paymentConfig(): Promise<PaymentConfig> {
     return firstValueFrom(this.http.get<PaymentConfig>(`${environment.apiUrl}/payments/config`));
+  }
+
+  checkoutConfig(): Promise<CheckoutConfig> {
+    return firstValueFrom(this.http.get<CheckoutConfig>(`${this.base}/config`));
   }
 
   submitDemoCard(orderId: string, scenario: DemoCardScenario): Promise<DemoPaymentResult> {

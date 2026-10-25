@@ -9,7 +9,6 @@ import { normalizePhone } from './validation.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const POSTAL_CODE_RE = /^\d{4}$/;
 const ONLINE_PAYMENT_METHODS = new Set(['gcash', 'maya', 'card']);
-export const ORDER_AGREEMENT_VERSION = 'draft-2026-10-24-v1';
 const TOP_LEVEL_FIELDS = new Set([
   'idempotencyKey',
   'fulfillmentMethod',
@@ -47,7 +46,10 @@ function validateBoundedText(value, label, min, max) {
   return { value: text, error: null };
 }
 
-export function validateOrderRequest(body, { agreementRequired = process.env.NODE_ENV !== 'production' } = {}) {
+export function validateOrderRequest(body, {
+  agreementRequired = process.env.ORDER_AGREEMENT_REQUIRED?.trim().toLowerCase() === 'true',
+  agreementVersion: acceptedAgreementVersion = agreementRequired ? process.env.ORDER_AGREEMENT_VERSION?.trim() : null,
+} = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { value: null, errors: { request: 'Send checkout details as a JSON object.' } };
   }
@@ -85,11 +87,11 @@ export function validateOrderRequest(body, { agreementRequired = process.env.NOD
   let agreementVersion = null;
   if (agreementRequired) {
     if (body.agreementAccepted !== true) errors.agreementAccepted = 'Review and accept the order agreement.';
-    if (body.agreementVersion !== ORDER_AGREEMENT_VERSION) {
+    if (!acceptedAgreementVersion || body.agreementVersion !== acceptedAgreementVersion) {
       errors.agreementVersion = 'The order agreement changed. Review it again before placing your order.';
     }
     agreementAccepted = body.agreementAccepted === true;
-    agreementVersion = body.agreementVersion === ORDER_AGREEMENT_VERSION ? body.agreementVersion : null;
+    agreementVersion = body.agreementVersion === acceptedAgreementVersion ? body.agreementVersion : null;
   } else if ('agreementAccepted' in body || 'agreementVersion' in body) {
     errors.agreementAccepted = 'The draft order agreement is unavailable in production.';
   }
