@@ -5,17 +5,11 @@
  * Only ticked (selected) lines count toward the totals and checkout.
  */
 import { Router } from 'express';
-import { query, pool } from '../db.js';
+import { pool } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { lockUserCart } from '../cart-lock.js';
-import {
-  BOX_DISCOUNTS,
-  FREE_DELIVERY_MIN_CENTAVOS,
-  centavosToPesos,
-  deliveryFeeCentavos,
-  priceBox,
-  priceSingle,
-} from '../pricing.js';
+import { loadCart } from '../cart-service.js';
+import { BOX_DISCOUNTS } from '../pricing.js';
 
 export { BOX_DISCOUNTS } from '../pricing.js';
 
@@ -25,93 +19,6 @@ router.use(requireAuth);
 const MAX_QTY = 99;
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
-
-/** Loads the cart with product details and totals. Promo prices apply automatically. */
-async function loadCart(userId, execute = query) {
-  const singles = await execute(
-    `SELECT c.product_id AS "productId", c.quantity, c.selected, p.name, p.tagline,
-            p.image_url AS "imageUrl", p.category,
-            p.price::text AS "regularPriceRaw", p.sale_price::text AS "salePriceRaw"
-     FROM cart_items c
-     JOIN products p ON p.id = c.product_id
-     WHERE c.user_id = $1
-     ORDER BY c.added_at`,
-    [userId],
-  );
-  const items = singles.rows.map(({ regularPriceRaw, salePriceRaw, ...item }) => {
-    const priced = priceSingle({ price: regularPriceRaw, salePrice: salePriceRaw, quantity: item.quantity });
-    return {
-      ...item,
-      price: centavosToPesos(priced.unitCentavos),
-      regularPrice: centavosToPesos(priced.regularUnitCentavos),
-      lineTotal: centavosToPesos(priced.lineTotalCentavos),
-      lineTotalCentavos: priced.lineTotalCentavos,
-    };
-  });
-
-  const boxRows = await execute(
-    `SELECT b.id, b.size, b.quantity, b.selected, b.added_at,
-            bi.slot, p.id AS "productId", p.name, p.image_url AS "imageUrl",
-            p.price::text AS "regularPriceRaw", p.sale_price::text AS "salePriceRaw"
-     FROM cart_boxes b
-     JOIN cart_box_items bi ON bi.box_id = b.id
-     JOIN products p ON p.id = bi.product_id
-     WHERE b.user_id = $1
-     ORDER BY b.added_at, b.id, bi.slot`,
-    [userId],
-  );
-
-  const boxMap = new Map();
-  for (const r of boxRows.rows) {
-    if (!boxMap.has(r.id)) {
-      boxMap.set(r.id, { id: r.id, size: r.size, quantity: r.quantity, selected: r.selected, cookies: [] });
-    }
-    boxMap.get(r.id).cookies.push({
-      productId: r.productId,
-      name: r.name,
-      imageUrl: r.imageUrl,
-      regularPriceRaw: r.regularPriceRaw,
-      salePriceRaw: r.salePriceRaw,
-    });
-  }
-  const boxes = [...boxMap.values()].map((b) => {
-    const priced = priceBox({
-      components: b.cookies.map((cookie) => ({ price: cookie.regularPriceRaw, salePrice: cookie.salePriceRaw })),
-      size: b.size,
-      quantity: b.quantity,
-    });
-    const cookies = b.cookies.map(({ regularPriceRaw: _regular, salePriceRaw: _sale, ...cookie }, index) => ({
-      ...cookie,
-      price: centavosToPesos(priced.componentPrices[index].unitCentavos),
-    }));
-    return {
-      ...b,
-      cookies,
-      regularPrice: centavosToPesos(priced.effectiveUnitBeforePackCentavos),
-      discountPercent: priced.discountPercent,
-      price: centavosToPesos(priced.unitCentavos),
-      lineTotal: centavosToPesos(priced.lineTotalCentavos),
-      lineTotalCentavos: priced.lineTotalCentavos,
-    };
-  });
-
-  const lines = [...items, ...boxes];
-  const picked = lines.filter((l) => l.selected);
-  const subtotalCentavos = picked.reduce((sum, line) => sum + line.lineTotalCentavos, 0);
-  const feeCentavos = deliveryFeeCentavos(subtotalCentavos, 'delivery');
-  return {
-    items: items.map(({ lineTotalCentavos: _centavos, ...item }) => item),
-    boxes: boxes.map(({ lineTotalCentavos: _centavos, ...box }) => box),
-    /** every item in the cart (a box counts as one item); used for the cart badge */
-    itemCount: lines.reduce((sum, l) => sum + l.quantity, 0),
-    /** ticked items only; used for checkout */
-    selectedCount: picked.reduce((sum, l) => sum + l.quantity, 0),
-    subtotal: centavosToPesos(subtotalCentavos),
-    deliveryFee: centavosToPesos(feeCentavos),
-    freeDeliveryMin: centavosToPesos(FREE_DELIVERY_MIN_CENTAVOS),
-    total: centavosToPesos(subtotalCentavos + feeCentavos),
-  };
-}
 
 /** Runs one cart write and its response snapshot under the same lock as checkout. */
 async function mutateCart(userId, mutate) {

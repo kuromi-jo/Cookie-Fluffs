@@ -27,6 +27,14 @@
         <ion-toggle [checked]="largerText()" (ionChange)="largerText.set($event.detail.checked)" aria-label="Larger text"></ion-toggle>
       </label>
     </section>
+    <section class="setting-list" aria-label="Notification settings">
+      <label class="setting-row cf-card">
+        <span class="setting-icon"><ion-icon name="notifications-outline" aria-hidden="true"></ion-icon></span>
+        <span class="setting-copy"><strong>Order updates</strong><small>In-app notifications as your order is confirmed, prepared, and completed.</small></span>
+        <ion-toggle [checked]="notifyOrderUpdates()" (ionChange)="notifyOrderUpdates.set($event.detail.checked)" aria-label="Order update notifications"></ion-toggle>
+      </label>
+      <p class="system-note"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>Payment and account security alerts are always delivered.</p>
+    </section>
     @if (preferences.error()) { <p class="settings-error" role="alert">{{ preferences.error() }}</p> }
     <ion-button expand="block" class="cf-btn-lg" (click)="save()" [disabled]="preferences.saving() || preferences.loading()">
       @if (preferences.saving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Save changes }

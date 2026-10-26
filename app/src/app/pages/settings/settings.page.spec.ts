@@ -13,9 +13,9 @@ import { SettingsPage } from './settings.page';
 describe('SettingsPage', () => {
   const auth = { isLoggedIn: vi.fn(() => true) };
   const preferences = {
-    load: vi.fn(async () => ({ reduceMotion: true, largerText: false, updatedAt: null })),
+    load: vi.fn(async () => ({ reduceMotion: true, largerText: false, notifyOrderUpdates: true, updatedAt: null })),
     save: vi.fn(async (value) => ({ ...value, updatedAt: 'now' })),
-    preferences: () => ({ reduceMotion: false, largerText: false, updatedAt: null }),
+    preferences: () => ({ reduceMotion: false, largerText: false, notifyOrderUpdates: true, updatedAt: null }),
     loading: () => false, saving: () => false, error: () => '', systemReduceMotion: () => false,
   };
   const router = { navigate: vi.fn(async () => true) };
@@ -38,8 +38,22 @@ describe('SettingsPage', () => {
     expect(component.reduceMotion()).toBe(true);
     component.largerText.set(true);
     await component.save();
-    expect(preferences.save).toHaveBeenCalledWith({ reduceMotion: true, largerText: true });
+    expect(preferences.save).toHaveBeenCalledWith({ reduceMotion: true, largerText: true, notifyOrderUpdates: true });
     expect(ui.toast).toHaveBeenCalledWith('App settings saved.', { icon: 'checkmark-circle' });
+  });
+
+  it('restores and saves the order-update notification preference', async () => {
+    preferences.load.mockResolvedValueOnce({
+      reduceMotion: false, largerText: false, notifyOrderUpdates: false, updatedAt: null,
+    });
+    const component = page();
+    await component.ionViewWillEnter();
+    expect(component.notifyOrderUpdates()).toBe(false);
+    component.notifyOrderUpdates.set(true);
+    await component.save();
+    expect(preferences.save).toHaveBeenCalledWith({
+      reduceMotion: false, largerText: false, notifyOrderUpdates: true,
+    });
   });
 
   it('redirects guests to login with the settings destination', async () => {

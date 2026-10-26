@@ -16,6 +16,7 @@ import { walletDemoConfig } from '../wallet-demo-config.js';
 import { processDemoWallet } from '../wallet-demo-service.js';
 import { requestOrderCancellation } from '../order-lifecycle.js';
 import { fulfillmentConfig, fulfillmentError } from '../fulfillment-config.js';
+import { reorderOrder } from '../reorder-service.js';
 
 const PUBLIC_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_RE = PUBLIC_ID_RE;
@@ -31,14 +32,16 @@ export function createOrdersRouter(
     processDemoCard,
     processDemoWallet,
     requestOrderCancellation,
+    reorderOrder,
   },
   paymentAdapter = new PaymongoAdapter(paymongoConfig()),
   cardDemoConfig = demoPaymentConfig(),
   walletConfig = walletDemoConfig(),
   checkoutConfig = fulfillmentConfig(),
+  authenticate = requireAuth,
 ) {
   const router = Router();
-  router.use(requireAuth);
+  router.use(authenticate);
 
   router.post('/', async (req, res, next) => {
     const validation = validateOrderRequest(req.body, {
@@ -95,6 +98,30 @@ export function createOrdersRouter(
     if (!client) return undefined;
     try {
       const result = await orderActions.listOrders(client, req.userId, { limit, cursor });
+      return res.json(result);
+    } catch (error) {
+      return next(error);
+    } finally {
+      client.release();
+    }
+  });
+
+  router.post('/:id/reorder', async (req, res, next) => {
+    if (!PUBLIC_ID_RE.test(req.params.id)) return res.status(404).json({ message: 'Order not found.' });
+    const idempotencyKey = typeof req.body?.idempotencyKey === 'string' ? req.body.idempotencyKey.toLowerCase() : '';
+    if (!UUID_RE.test(idempotencyKey) || Object.keys(req.body ?? {}).some((field) => field !== 'idempotencyKey')) {
+      return res.status(400).json({ message: 'Send a valid reorder idempotency key.' });
+    }
+    if (!dbPool) return res.status(503).json({ message: 'Reorder is temporarily unavailable.' });
+    const client = await dbPool.connect().catch(next);
+    if (!client) return undefined;
+    try {
+      const result = await orderActions.reorderOrder(
+        client,
+        req.userId,
+        req.params.id.toLowerCase(),
+        idempotencyKey,
+      );
       return res.json(result);
     } catch (error) {
       return next(error);

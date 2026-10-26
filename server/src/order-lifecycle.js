@@ -5,6 +5,45 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { ensureRefundReview } from './refund-service.js';
+import { insertNotification } from './notification-service.js';
+
+// Customer-facing copy per fulfillment status. Delivery and pickup differ at 'ready'
+// and delivery adds 'out_for_delivery'; pickup never does.
+const STATUS_NOTIFICATION = {
+  confirmed: {
+    event: 'order_confirmed',
+    title: 'Order confirmed',
+    body: () => 'Good news! Cookie Fluffs confirmed your order.',
+  },
+  preparing: {
+    event: 'order_preparing',
+    title: 'Baking started',
+    body: () => 'Your cookies are being prepared with care.',
+  },
+  ready: {
+    event: 'order_ready',
+    title: (method) => (method === 'pickup' ? 'Ready for pickup' : 'Ready to go'),
+    body: (method) => (method === 'pickup'
+      ? 'Your order is ready. Come pick it up when you can.'
+      : 'Your order is packed and ready for delivery.'),
+  },
+  out_for_delivery: {
+    event: 'order_out_for_delivery',
+    title: 'Out for delivery',
+    body: () => 'Your cookies are on the way.',
+  },
+  completed: {
+    event: 'order_completed',
+    title: (method) => (method === 'pickup' ? 'Picked up' : 'Delivered'),
+    body: (method) => (method === 'pickup'
+      ? 'Enjoy your Cookie Fluffs! Thanks for picking up.'
+      : 'Your order was delivered. Enjoy your Cookie Fluffs!'),
+  },
+};
+
+function statusCopyValue(value, method) {
+  return typeof value === 'function' ? value(method) : value;
+}
 
 const scrypt = promisify(crypto.scrypt);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -168,7 +207,8 @@ export async function loadOrderLifecycle(client, orderId, orderStatus) {
 
 async function lockedOwnedOrder(client, userId, publicId) {
   const result = await client.query(
-    `SELECT id, order_status AS "orderStatus", fulfillment_method AS "fulfillmentMethod",
+    `SELECT id, public_id AS "publicId", user_id AS "userId",
+            order_status AS "orderStatus", fulfillment_method AS "fulfillmentMethod",
             COALESCE(payment_state, payment_status) AS "paymentStatus"
      FROM orders WHERE public_id = $1 AND user_id = $2 FOR UPDATE`,
     [publicId, userId],
@@ -226,6 +266,15 @@ export async function requestOrderCancellation(client, userId, publicId, idempot
          VALUES ($1, $2, $3, 'cancelled', 'customer', $4, $5)`,
         [crypto.randomUUID(), order.id, order.orderStatus, userId, requestKey],
       );
+      // Cancellation is essential: delivered regardless of notify_order_updates.
+      await insertNotification(client, {
+        userId: order.userId,
+        eventType: 'order_cancelled',
+        title: 'Order cancelled',
+        body: 'Your order was cancelled. If this was a mistake, place a new order anytime.',
+        linkPath: `/orders/${order.publicId}`,
+        dedupeKey: `cancelled:${requestKey}`,
+      });
       await ensureRefundReview(client, order.id);
     }
     await client.query('COMMIT');
@@ -238,7 +287,8 @@ export async function requestOrderCancellation(client, userId, publicId, idempot
 
 async function lockedOrder(client, publicId) {
   const result = await client.query(
-    `SELECT id, order_status AS "orderStatus", fulfillment_method AS "fulfillmentMethod",
+    `SELECT id, public_id AS "publicId", user_id AS "userId",
+            order_status AS "orderStatus", fulfillment_method AS "fulfillmentMethod",
             COALESCE(payment_state, payment_status) AS "paymentStatus"
      FROM orders WHERE public_id = $1 FOR UPDATE`,
     [publicId],
@@ -280,6 +330,17 @@ export async function advanceOrderStatus(client, operatorIdentity, orderPublicId
        VALUES ($1, $2, $3, $4, 'operator', $5, $6)`,
       [crypto.randomUUID(), order.id, order.orderStatus, nextStatus, operator.id, eventKey],
     );
+    const copy = STATUS_NOTIFICATION[nextStatus];
+    if (copy) {
+      await insertNotification(client, {
+        userId: order.userId,
+        eventType: copy.event,
+        title: statusCopyValue(copy.title, order.fulfillmentMethod),
+        body: statusCopyValue(copy.body, order.fulfillmentMethod),
+        linkPath: `/orders/${order.publicId}`,
+        dedupeKey: `status:${eventKey}`,
+      });
+    }
     await client.query('UPDATE order_operators SET last_used_at = now() WHERE id = $1', [operator.id]);
     await client.query('COMMIT');
     return { orderId: publicId, orderStatus: nextStatus, replayed: false };
@@ -298,7 +359,8 @@ export async function resolveCancellationRequest(client, operatorIdentity, reque
     const operator = await authenticateOrderOperator(client, operatorIdentity.id, operatorIdentity.credential);
     const requestResult = await client.query(
       `SELECT requests.id, requests.order_id AS "orderId", requests.status,
-              orders.public_id AS "orderPublicId", orders.order_status AS "orderStatus",
+              orders.public_id AS "orderPublicId", orders.user_id AS "orderUserId",
+              orders.order_status AS "orderStatus",
               COALESCE(orders.payment_state, orders.payment_status) AS "paymentStatus"
        FROM order_cancellation_requests requests
        JOIN orders ON orders.id = requests.order_id
@@ -325,6 +387,14 @@ export async function resolveCancellationRequest(client, operatorIdentity, reque
     );
     if (decision === 'approve') {
       await client.query('UPDATE orders SET order_status = $2, updated_at = now() WHERE id = $1', [request.orderId, 'cancelled']);
+      await insertNotification(client, {
+        userId: request.orderUserId,
+        eventType: 'order_cancelled',
+        title: 'Order cancelled',
+        body: 'Your cancellation request was approved and the order is now cancelled.',
+        linkPath: `/orders/${request.orderPublicId}`,
+        dedupeKey: `cancelled:${eventKey}`,
+      });
       await client.query(
         `INSERT INTO order_status_events
            (public_id, order_id, from_status, to_status, actor_type, operator_id, idempotency_key)
@@ -362,8 +432,12 @@ export async function reviewOrderRefund(
     const operator = await authenticateOrderOperator(client, operatorIdentity.id, operatorIdentity.credential);
     if (!operator.canManageRefunds) throw httpError(403, 'This operator cannot manage refunds.');
     const result = await client.query(
-      `SELECT id, status, amount_centavos AS "amountCentavos"
-       FROM order_refunds WHERE public_id = $1 FOR UPDATE`,
+      `SELECT order_refunds.id, order_refunds.status,
+              order_refunds.amount_centavos AS "amountCentavos",
+              orders.public_id AS "orderPublicId", orders.user_id AS "orderUserId"
+       FROM order_refunds
+       JOIN orders ON orders.id = order_refunds.order_id
+       WHERE order_refunds.public_id = $1 FOR UPDATE OF order_refunds`,
       [refundId],
     );
     if (!result.rowCount) throw httpError(404, 'Refund review not found.');
@@ -401,6 +475,18 @@ export async function reviewOrderRefund(
        VALUES ($1, $2, 'review_required', $3, 'operator', $4, $5, $6)`,
       [crypto.randomUUID(), refund.id, target, operator.id, eventKey, reviewReason],
     );
+    // Essential payment-category notification. Customer-safe copy only: never includes the
+    // internal review reason, operator identity, or provider identifiers.
+    await insertNotification(client, {
+      userId: refund.orderUserId,
+      eventType: target === 'approved' ? 'refund_approved' : 'refund_rejected',
+      title: target === 'approved' ? 'Refund approved' : 'Refund update',
+      body: target === 'approved'
+        ? 'Your refund has been approved and is being processed.'
+        : 'We reviewed your refund request. See your order for details.',
+      linkPath: `/orders/${refund.orderPublicId}`,
+      dedupeKey: `refund:${eventKey}`,
+    });
     await client.query('UPDATE order_operators SET last_used_at = now() WHERE id = $1', [operator.id]);
     await client.query('COMMIT');
     return { refundId, status: target, replayed: false };

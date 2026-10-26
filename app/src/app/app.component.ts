@@ -53,6 +53,21 @@ export function menuLinkIsActive(currentUrl: string, linkUrl: string): boolean {
   return path === linkUrl;
 }
 
+export async function closeMenuBeforeNavigation(
+  event: Event,
+  closeMenu: () => Promise<unknown>,
+  navigate: () => Promise<unknown>,
+  focusDestination: () => void,
+): Promise<void> {
+  const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  trigger?.blur();
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && focused.closest('ion-menu')) focused.blur();
+  await closeMenu();
+  await navigate();
+  focusDestination();
+}
+
 const SPLASH_MIN_MS = 2400;
 
 @Component({
@@ -102,6 +117,7 @@ export class AppComponent {
 
   readonly accountLinks: MenuLink[] = [
     { title: 'My Account', url: '/profile', icon: 'person-outline' },
+    { title: 'Notifications', url: '/notifications', icon: 'notifications-outline' },
     { title: 'My Orders', url: '/orders', icon: 'receipt-outline' },
     { title: 'My Addresses', url: '/profile/addresses', icon: 'location-outline' },
     { title: 'Settings', url: '/profile/settings', icon: 'settings-outline' },
@@ -145,14 +161,22 @@ export class AppComponent {
     return menuLinkIsActive(this.activePath(), url);
   }
 
-  goToLogin(): void {
-    void this.menu.close();
-    void this.router.navigate(['/login'], { queryParams: { returnUrl: this.activePath() } });
+  async goToLogin(event: Event): Promise<void> {
+    await closeMenuBeforeNavigation(
+      event,
+      () => this.menu.close(),
+      () => this.router.navigate(['/login'], { queryParams: { returnUrl: this.activePath() } }),
+      () => this.focusMainContent(),
+    );
   }
 
-  manageAccount(): void {
-    void this.menu.close();
-    void this.router.navigateByUrl('/profile');
+  async manageAccount(event: Event): Promise<void> {
+    await closeMenuBeforeNavigation(
+      event,
+      () => this.menu.close(),
+      () => this.router.navigateByUrl('/profile'),
+      () => this.focusMainContent(),
+    );
   }
 
   async confirmLogout(): Promise<void> {
@@ -197,5 +221,9 @@ export class AppComponent {
   private hideSplash(): void {
     this.splashLeaving.set(true);
     setTimeout(() => this.showSplash.set(false), 450);
+  }
+
+  private focusMainContent(): void {
+    document.getElementById('main-content')?.focus({ preventScroll: true });
   }
 }

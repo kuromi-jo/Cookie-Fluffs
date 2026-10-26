@@ -22,22 +22,37 @@
     } @else {
       <section class="order-list" aria-label="Order history">
         @for (order of orders(); track order.id) {
-          <a class="order-ticket" [routerLink]="['/orders', order.id]">
-            <span class="ticket-thumbnails" aria-hidden="true">
-              @for (image of order.thumbnailUrls; track image) {
-                <span class="ticket-thumb"><ion-icon name="cf-cookie"></ion-icon><img [src]="image" alt="" (error)="hideBrokenImage($event)" /></span>
-              } @empty {
-                <span class="ticket-thumb"><ion-icon name="cf-cookie"></ion-icon></span>
+          <article class="order-ticket">
+            <a class="ticket-link" [routerLink]="['/orders', order.id]">
+              <span class="ticket-thumbnails" aria-hidden="true">
+                @for (image of order.thumbnailUrls; track image) {
+                  <span class="ticket-thumb"><ion-icon name="cf-cookie"></ion-icon><img [src]="image" alt="" (error)="hideBrokenImage($event)" /></span>
+                } @empty {
+                  <span class="ticket-thumb"><ion-icon name="cf-cookie"></ion-icon></span>
+                }
+              </span>
+              <span class="ticket-copy">
+                <span class="ticket-top"><strong>#{{ shortReference(order.id) }}</strong><time [attr.datetime]="order.createdAt">{{ order.createdAt | date: 'mediumDate' }}</time></span>
+                <span class="item-names">{{ itemNames(order) || 'Order items' }}</span>
+                <small>{{ order.itemCount }} {{ order.itemCount === 1 ? 'cookie' : 'cookies' }} · {{ order.fulfillmentMethod === 'delivery' ? 'Delivery' : 'Store pickup' }}</small>
+                <span class="ticket-status"><span>{{ paymentStatusLabel(order) }}</span><span>{{ orderStatusLabel(order) }}</span>@if (order.cancellationStatus === 'pending') { <span>Cancellation requested</span> }@if (order.refundStatus) { <span>{{ refundStatusLabel(order) }}</span> }</span>
+              </span>
+              <span class="ticket-total">₱{{ order.total | number: '1.2-2' }}<ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></span>
+            </a>
+            <div class="reorder-actions">
+              <ion-button fill="outline" size="small" (click)="reorder(order)" [disabled]="!!reorderingId() || !order.itemCount">
+                @if (reorderingId() === order.id) { <ion-spinner name="crescent"></ion-spinner> } @else { Reorder }
+              </ion-button>
+              @if (reorderOrderId() === order.id && reorderResult(); as result) {
+                <div class="reorder-result" role="status">
+                  @if (result.added.length) { <p>{{ result.added.length }} {{ result.added.length === 1 ? 'item' : 'items' }} added using today’s menu and prices.</p> }
+                  @if (result.unavailable.length) { <p>{{ result.unavailable.length }} {{ result.unavailable.length === 1 ? 'item was' : 'items were' }} unavailable and skipped.</p> }
+                  <ion-button fill="clear" size="small" routerLink="/cart">View cart</ion-button>
+                </div>
               }
-            </span>
-            <span class="ticket-copy">
-              <span class="ticket-top"><strong>#{{ shortReference(order.id) }}</strong><time [attr.datetime]="order.createdAt">{{ order.createdAt | date: 'mediumDate' }}</time></span>
-              <span class="item-names">{{ itemNames(order) || 'Order items' }}</span>
-              <small>{{ order.itemCount }} {{ order.itemCount === 1 ? 'cookie' : 'cookies' }} · {{ order.fulfillmentMethod === 'delivery' ? 'Delivery' : 'Store pickup' }}</small>
-              <span class="ticket-status"><span>{{ paymentStatusLabel(order) }}</span><span>{{ orderStatusLabel(order) }}</span>@if (order.cancellationStatus === 'pending') { <span>Cancellation requested</span> }@if (order.refundStatus) { <span>{{ refundStatusLabel(order) }}</span> }</span>
-            </span>
-            <span class="ticket-total">₱{{ order.total | number: '1.2-2' }}<ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></span>
-          </a>
+              @if (reorderOrderId() === order.id && reorderError()) { <p class="reorder-error" role="alert">{{ reorderError() }}</p> }
+            </div>
+          </article>
         }
       </section>
       @if (error()) { <p class="load-error" role="alert">{{ error() }}</p> }

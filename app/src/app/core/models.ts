@@ -34,7 +34,21 @@ export interface FavoriteProduct extends Product {
 export interface UserPreferences {
   reduceMotion: boolean;
   largerText: boolean;
+  notifyOrderUpdates?: boolean;
   updatedAt: string | null;
+}
+
+export type NotificationCategory = 'order' | 'payment' | 'security';
+
+export interface AppNotification {
+  id: string;
+  category: NotificationCategory;
+  eventType: string;
+  title: string;
+  body: string;
+  linkPath: string | null;
+  read: boolean;
+  createdAt: string;
 }
 
 /** Home-screen collections, also used as the Shop tab's ?show= filter. */
@@ -60,6 +74,8 @@ export function discountPercent(p: Product): number {
   return p.salePrice === null ? 0 : Math.round((1 - p.salePrice / p.price) * 100);
 }
 
+export type Gender = 'female' | 'male' | 'non_binary' | 'prefer_not_to_say';
+
 export interface User {
   id: number;
   fullName: string;
@@ -68,6 +84,9 @@ export interface User {
   email: string;
   phone: string;
   avatar: string | null;
+  gender?: Gender | null;
+  dateOfBirth?: string | null;
+  hasPassword?: boolean;
   createdAt: string;
 }
 
@@ -382,6 +401,25 @@ export interface OrderSummary {
 export interface OrderHistoryPage {
   orders: OrderSummary[];
   nextCursor: string | null;
+}
+
+export interface ReorderAddedItem {
+  lineType: 'single' | 'box';
+  displayName: string;
+  quantity: number;
+}
+
+export interface ReorderUnavailableItem {
+  displayName: string;
+  reason: string;
+  quantity: number;
+}
+
+export interface ReorderResult {
+  cart: Cart;
+  added: ReorderAddedItem[];
+  unavailable: ReorderUnavailableItem[];
+  replayed: boolean;
 }
 
 /* ------------------------------------------------------------------ packs */

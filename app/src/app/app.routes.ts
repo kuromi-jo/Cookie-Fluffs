@@ -1,3 +1,7 @@
+/**
+ * @file app.routes.ts
+ * @description Lazy customer routes within the persistent Cookie Fluffs navigation shell.
+ */
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
@@ -53,6 +57,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/settings/settings.page').then((m) => m.SettingsPage),
       },
       {
+        path: 'profile/security',
+        title: 'Privacy & Security',
+        loadComponent: () => import('./pages/security/security.page').then((m) => m.SecurityPage),
+      },
+      {
         path: 'profile',
         title: 'My Profile',
         loadComponent: () => import('./pages/profile/profile.page').then((m) => m.ProfilePage),
@@ -67,6 +76,11 @@ export const routes: Routes = [
         path: 'orders',
         title: 'My Orders',
         loadComponent: () => import('./pages/orders/orders.page').then((m) => m.OrdersPage),
+      },
+      {
+        path: 'notifications',
+        title: 'Notifications',
+        loadComponent: () => import('./pages/notifications/notifications.page').then((m) => m.NotificationsPage),
       },
       {
         path: 'help/faq',
@@ -112,6 +126,18 @@ export const routes: Routes = [
     path: 'login',
     title: 'Log in',
     loadComponent: () => import('./pages/login/login.page').then((m) => m.LoginPage),
+  },
+  {
+    path: 'forgot-password',
+    title: 'Forgot password',
+    loadComponent: () =>
+      import('./pages/forgot-password/forgot-password.page').then((m) => m.ForgotPasswordPage),
+  },
+  {
+    path: 'reset-password',
+    title: 'Reset password',
+    loadComponent: () =>
+      import('./pages/reset-password/reset-password.page').then((m) => m.ResetPasswordPage),
   },
   {
     path: 'terms',

@@ -20,6 +20,7 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^4.22.3",
+    "google-auth-library": "^11.3.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1"
   }

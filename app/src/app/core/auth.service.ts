@@ -20,6 +20,30 @@ export interface SignupData {
   password: string;
 }
 
+export interface PasswordRecoveryConfig {
+  enabled: boolean;
+}
+
+export interface GoogleAuthConfig {
+  enabled: boolean;
+  webClientId?: string;
+}
+
+export interface GoogleAuthPending {
+  kind: 'signup_required' | 'link_required';
+  selector: string;
+  challenge: string;
+  message?: string;
+  profile?: { email: string; firstName: string; lastName: string };
+}
+
+export type GoogleAuthIntent = 'login' | 'signup';
+
+export interface AccountStatus {
+  hasPassword: boolean;
+  google: { linked: boolean };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
@@ -51,10 +75,154 @@ export class AuthService {
     this.setUser(user);
   }
 
-  async updateProfile(changes: Partial<Pick<User, 'firstName' | 'lastName' | 'phone' | 'avatar'>>): Promise<User> {
+  async updateProfile(
+    changes: Partial<Pick<User, 'firstName' | 'lastName' | 'phone' | 'avatar' | 'gender' | 'dateOfBirth'>>,
+  ): Promise<User> {
     const user = await firstValueFrom(this.http.put<User>(`${this.base}/me`, changes));
     this.setUser(user);
     return user;
+  }
+
+  /** Changes the password and atomically replaces this device's revoked session token. */
+  async changePassword(currentPassword: string, newPassword: string): Promise<User> {
+    const response = await firstValueFrom(this.http.post<AuthResponse>(`${this.base}/change-password`, {
+      currentPassword,
+      newPassword,
+    }));
+    this.setSession(response);
+    return response.user;
+  }
+
+  async passwordRecoveryConfig(): Promise<PasswordRecoveryConfig> {
+    return firstValueFrom(this.http.get<PasswordRecoveryConfig>(`${this.base}/recovery-config`));
+  }
+
+  async googleAuthConfig(): Promise<GoogleAuthConfig> {
+    return firstValueFrom(this.http.get<GoogleAuthConfig>(`${this.base}/google-config`));
+  }
+
+  /** Reads which sign-in methods the authenticated account has (booleans only). */
+  async accountStatus(): Promise<AccountStatus> {
+    return firstValueFrom(this.http.get<AccountStatus>(`${this.base}/account-status`));
+  }
+
+  /** Applies a verified phone change (requires a verified change_phone challenge handle). */
+  async changePhone(challengeId: string, newPhone: string): Promise<User> {
+    const response = await firstValueFrom(
+      this.http.post<{ user: User }>(`${this.base}/change-phone`, { challengeId, newPhone }),
+    );
+    this.setUser(response.user);
+    return response.user;
+  }
+
+  /** Step-up reauthentication with the current password; returns an opaque single-use proof id. */
+  async reauthPassword(password: string): Promise<string> {
+    const response = await firstValueFrom(
+      this.http.post<{ reauthId: string }>(`${this.base}/reauth`, { method: 'password', password }),
+    );
+    return response.reauthId;
+  }
+
+  /**
+   * Step-up reauthentication with a fresh Google token; returns an opaque single-use proof id
+   * bound to the given operation (default change_email for backward compatibility).
+   */
+  async reauthGoogle(
+    selector: string,
+    nonce: string,
+    idToken: string,
+    operation: 'change_email' | 'set_password' = 'change_email',
+  ): Promise<string> {
+    const response = await firstValueFrom(
+      this.http.post<{ reauthId: string }>(`${this.base}/reauth`, {
+        method: 'google', selector, nonce, idToken, operation,
+      }),
+    );
+    return response.reauthId;
+  }
+
+  /**
+   * Sets a first password for a Google-only account. Requires a Google reauth proof and a verified
+   * set_password challenge. The server rotates auth_version and returns a fresh token, so this
+   * device stays signed in while other sessions are invalidated.
+   */
+  async setPassword(reauthId: string, challengeId: string, newPassword: string): Promise<User> {
+    const response = await firstValueFrom(
+      this.http.post<AuthResponse>(`${this.base}/set-password`, { reauthId, challengeId, newPassword }),
+    );
+    this.setSession(response);
+    return response.user;
+  }
+
+  /**
+   * Applies a verified email change. Requires a reauth proof and a verified change_email
+   * challenge for the new address. The server rotates auth_version and returns a fresh token,
+   * so this device stays signed in while other sessions are invalidated.
+   */
+  async changeEmail(reauthId: string, challengeId: string, newEmail: string): Promise<User> {
+    const response = await firstValueFrom(
+      this.http.post<AuthResponse>(`${this.base}/change-email`, { reauthId, challengeId, newEmail }),
+    );
+    this.setSession(response);
+    return response.user;
+  }
+
+  async googleNonce(intent: GoogleAuthIntent): Promise<{ selector: string; nonce: string }> {
+    return firstValueFrom(this.http.post<{ selector: string; nonce: string }>(`${this.base}/google/nonce`, { intent }));
+  }
+
+  async authenticateWithGoogle(idToken: string, selector: string, nonce: string): Promise<User> {
+    const response = await firstValueFrom(this.http.post<AuthResponse>(`${this.base}/google/authenticate`, {
+      idToken,
+      selector,
+      nonce,
+    }));
+    this.setSession(response);
+    return response.user;
+  }
+
+  async completeGoogleSignup(
+    selector: string,
+    challenge: string,
+    firstName: string,
+    lastName: string,
+    phone: string,
+    acceptedTerms: boolean,
+  ): Promise<User> {
+    const response = await firstValueFrom(this.http.post<AuthResponse>(`${this.base}/google/signup`, {
+      selector,
+      challenge,
+      firstName,
+      lastName,
+      phone,
+      acceptedTerms,
+    }));
+    this.setSession(response);
+    return response.user;
+  }
+
+  async linkGoogleAccount(selector: string, challenge: string, password: string): Promise<User> {
+    const response = await firstValueFrom(this.http.post<AuthResponse>(`${this.base}/google/link`, {
+      selector,
+      challenge,
+      password,
+    }));
+    this.setSession(response);
+    return response.user;
+  }
+
+  async requestPasswordReset(email: string): Promise<string> {
+    const response = await firstValueFrom(this.http.post<{ message: string }>(`${this.base}/forgot-password`, { email }));
+    return response.message;
+  }
+
+  async resetPassword(selector: string, token: string, newPassword: string): Promise<string> {
+    const response = await firstValueFrom(this.http.post<{ message: string }>(`${this.base}/reset-password`, {
+      selector,
+      token,
+      newPassword,
+    }));
+    return response.message;
   }
 
   logout(): void {

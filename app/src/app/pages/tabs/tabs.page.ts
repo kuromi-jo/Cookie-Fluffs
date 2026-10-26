@@ -17,7 +17,8 @@ export function navigationTabForPath(url: string): NavigationTab {
   if (path === '/cart') return 'cart';
   if (path === '/shop' || path.startsWith('/product/')) return 'shop';
   if (path === '/profile' || path.startsWith('/profile/') || path === '/orders'
-    || path.startsWith('/orders/') || path === '/help' || path.startsWith('/help/')) return 'account';
+    || path.startsWith('/orders/') || path === '/notifications'
+    || path === '/help' || path.startsWith('/help/')) return 'account';
   return 'home';
 }
 

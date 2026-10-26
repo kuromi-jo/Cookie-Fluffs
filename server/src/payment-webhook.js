@@ -5,6 +5,7 @@
 import crypto from 'node:crypto';
 import { ONLINE_PAYMENT_METHODS } from './payment-config.js';
 import { ensureRefundReview } from './refund-service.js';
+import { insertNotification } from './notification-service.js';
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
@@ -80,6 +81,7 @@ export async function reconcilePaymongoEvent(client, event, payloadHash) {
         `SELECT pa.id, pa.payment_method AS "paymentMethod", pa.provider_method AS "providerMethod",
                 pa.amount_centavos AS "amountCentavos", pa.currency, pa.status,
                 pa.provider_payment_id AS "providerPaymentId", o.id AS "orderId",
+                o.user_id AS "orderUserId", o.public_id AS "orderPublicId",
                 COALESCE(o.payment_state, o.payment_status) AS "paymentStatus"
          FROM payment_attempts pa JOIN orders o ON o.id = pa.order_id
          WHERE pa.provider_intent_id = $1 FOR UPDATE OF pa, o`,
@@ -108,6 +110,15 @@ export async function reconcilePaymongoEvent(client, event, payloadHash) {
              WHERE id = $1 AND COALESCE(payment_state, payment_status) <> 'refunded'`,
             [attempt.orderId],
           );
+          // Essential payment notification, deduped on the stable provider payment id.
+          await insertNotification(client, {
+            userId: attempt.orderUserId,
+            eventType: 'payment_paid',
+            title: 'Payment received',
+            body: 'We received your payment. Your order is confirmed.',
+            linkPath: `/orders/${attempt.orderPublicId}`,
+            dedupeKey: `payment_paid:${payment.id}`,
+          });
           await ensureRefundReview(client, attempt.orderId);
         }
       } else {
@@ -129,6 +140,14 @@ export async function reconcilePaymongoEvent(client, event, payloadHash) {
              WHERE id = $1 AND COALESCE(payment_state, payment_status) NOT IN ('paid', 'refunded')`,
             [attempt.orderId],
           );
+          await insertNotification(client, {
+            userId: attempt.orderUserId,
+            eventType: 'payment_failed',
+            title: 'Payment did not go through',
+            body: 'Your payment was not completed. Open your order to try again.',
+            linkPath: `/orders/${attempt.orderPublicId}`,
+            dedupeKey: `payment_failed:${payment.id}`,
+          });
         }
       }
       await markEventProcessed(client, event.eventId);

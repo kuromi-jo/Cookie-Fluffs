@@ -26,6 +26,97 @@
       <ion-segment-button value="signup"><ion-label>Sign up</ion-label></ion-segment-button>
     </ion-segment>
 
+    @if (googlePending(); as pending) {
+      <section class="google-followup cf-card" aria-labelledby="google-followup-title">
+        @if (pending.kind === 'signup_required') {
+          <p class="cf-eyebrow">One last step</p>
+          <h2 id="google-followup-title">Complete your account</h2>
+          <p class="google-copy">Google verified your email. Review your name and add a mobile number for order updates.</p>
+
+          <ion-input
+            #firstNameInput
+            class="cf-input"
+            type="text"
+            label="First name"
+            labelPlacement="floating"
+            autocomplete="given-name"
+            autocapitalize="words"
+            [ngModel]="firstName"
+            (ngModelChange)="updateText('firstName', $event)"
+          >
+            <ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon>
+          </ion-input>
+          <ion-input
+            class="cf-input"
+            type="text"
+            label="Last name"
+            labelPlacement="floating"
+            autocomplete="family-name"
+            autocapitalize="words"
+            [ngModel]="lastName"
+            (ngModelChange)="updateText('lastName', $event)"
+          >
+            <ion-icon slot="start" name="person-outline" aria-hidden="true"></ion-icon>
+          </ion-input>
+
+          <div class="verified-email-row">
+            <span class="verified-email-label">Email verified by Google</span>
+            <span class="verified-identity">{{ pending.profile?.email }}</span>
+          </div>
+
+          <ion-input
+            class="cf-input"
+            type="tel"
+            label="Mobile number"
+            labelPlacement="floating"
+            autocomplete="tel"
+            inputmode="tel"
+            [ngModel]="phone"
+            (ngModelChange)="updateText('phone', $event)"
+          >
+            <ion-icon slot="start" name="call-outline" aria-hidden="true"></ion-icon>
+          </ion-input>
+          <div class="consent-row google-consent">
+            <ion-checkbox
+              #termsInput
+              aria-label="Agree to the Terms of Use and Privacy Policy"
+              [checked]="acceptedTerms"
+              (ionChange)="onTermsChange($event)"
+            ></ion-checkbox>
+            <p class="consent-copy">
+              I agree to the <a routerLink="/terms">Terms of Use</a> and
+              <a routerLink="/privacy">Privacy Policy</a>
+            </p>
+          </div>
+          @if (googleError()) { <p class="form-error" role="alert">{{ googleError() }}</p> }
+          <ion-button expand="block" class="cf-btn-lg" [disabled]="googleBusy()" (click)="completeGoogleSignup()">
+            @if (googleBusy()) { <ion-spinner name="crescent"></ion-spinner> } @else { Complete account }
+          </ion-button>
+        } @else {
+          <p class="cf-eyebrow">Protect your account</p>
+          <h2 id="google-followup-title">Confirm before linking</h2>
+          <p class="google-copy">Enter your Cookie Fluffs password to link this Google account.</p>
+          <ion-input
+            class="cf-input"
+            type="password"
+            label="Cookie Fluffs password"
+            labelPlacement="floating"
+            autocomplete="current-password"
+            [(ngModel)]="password"
+          >
+            <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
+            <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+          </ion-input>
+          @if (googleError()) { <p class="form-error" role="alert">{{ googleError() }}</p> }
+          <ion-button expand="block" class="cf-btn-lg" [disabled]="googleBusy() || !password" (click)="completeGoogleLink()">
+            @if (googleBusy()) { <ion-spinner name="crescent"></ion-spinner> } @else { Link and continue }
+          </ion-button>
+        }
+        <ion-button fill="clear" expand="block" [disabled]="googleBusy()" (click)="cancelGoogleCompletion()">
+          Use another method
+        </ion-button>
+      </section>
+    } @else {
     <form (ngSubmit)="submit()" novalidate class="form">
       @if (mode() === 'signup') {
         <div id="firstName-field" class="field-group">
@@ -161,51 +252,19 @@
         }
 
         @if (mode() === 'signup') {
-          <section class="password-guide" aria-live="polite">
-            <div class="strength-heading">
-              <span>Password strength</span>
-              @if (passwordStrength().label) {
-                <strong [class]="'strength-' + passwordStrength().level">{{ passwordStrength().label }}</strong>
-              }
-            </div>
-            <div class="strength-bar" aria-hidden="true">
-              @for (segment of [1, 2, 3]; track segment) {
-                <span
-                  [class.active]="segment <= passwordStrength().segments"
-                  [class]="'segment strength-' + passwordStrength().level"
-                ></span>
-              }
-            </div>
-            <ul class="password-checks">
-              <li [class.done]="passwordLengthOkay()">
-                <ion-icon [name]="passwordLengthOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
-                8–64 characters
-              </li>
-              <li [class.done]="passwordUppercaseOkay()">
-                <ion-icon [name]="passwordUppercaseOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
-                One uppercase letter
-              </li>
-              <li [class.done]="passwordLowercaseOkay()">
-                <ion-icon [name]="passwordLowercaseOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
-                One lowercase letter
-              </li>
-              <li [class.done]="passwordNumberOkay()">
-                <ion-icon [name]="passwordNumberOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
-                One number
-              </li>
-              <li [class.done]="passwordSpecialCharacterOkay()">
-                <ion-icon [name]="passwordSpecialCharacterOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
-                One special character
-              </li>
-              <li [class.done]="passwordPersonalInfoOkay()">
-                <ion-icon [name]="passwordPersonalInfoOkay() ? 'checkmark-circle' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
-                Does not contain your name or email
-              </li>
-            </ul>
-            <p class="password-tip">A few random words make a strong password.</p>
-          </section>
+          <app-password-requirements
+            [password]="password"
+            [email]="email"
+            [firstName]="firstName"
+            [lastName]="lastName"
+            [identityKnown]="true"
+          ></app-password-requirements>
         }
       </div>
+
+      @if (mode() === 'login') {
+        <a class="forgot-link" routerLink="/forgot-password" routerDirection="forward">Forgot password?</a>
+      }
 
       @if (mode() === 'signup') {
         <div id="confirmPassword-field" class="field-group">
@@ -271,13 +330,57 @@
       </ion-button>
     </form>
 
-    <p class="swap">
+    @if (googleEnabled()) {
+      <div class="google-auth" aria-label="Google account options">
+        <div class="auth-divider"><span>or</span></div>
+        @if (googleNotice(); as notice) {
+          <div class="google-notice cf-card" role="alert">
+            <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+            <p class="google-notice-copy">{{ notice.message }}</p>
+            <div class="google-notice-actions">
+              @if (notice.kind === 'signup_needed') {
+                <ion-button expand="block" class="cf-btn-lg" (click)="goToSignupFromNotice()">Go to sign up</ion-button>
+              } @else {
+                <ion-button expand="block" class="cf-btn-lg" (click)="goToLoginFromNotice()">Go to log in</ion-button>
+              }
+              <ion-button fill="clear" expand="block" (click)="useAnotherGoogleAccount()">
+                Use another Google account
+              </ion-button>
+            </div>
+          </div>
+        } @else if (nativeGoogle) {
+          <ion-button
+            type="button"
+            expand="block"
+            fill="outline"
+            class="google-native-button"
+            [disabled]="googleBusy()"
+            (click)="startNativeGoogle()"
+          >
+            @if (googleBusy()) {
+              <ion-spinner name="crescent"></ion-spinner>
+            } @else {
+              <ion-icon slot="start" name="logo-google" aria-hidden="true"></ion-icon>
+              Continue with Google
+            }
+          </ion-button>
+        } @else {
+          <div #googleButton class="google-web-button" aria-label="Continue with Google"></div>
+        }
+        @if (googleError()) {
+          <p class="form-error google-error" role="alert">{{ googleError() }}</p>
+        }
+      </div>
+    }
+    }
+
+    @if (!googlePending()) {<p class="swap">
       @if (mode() === 'login') {
         New to Cookie Fluffs? <button type="button" (click)="setMode('signup')">Create an account</button>
       } @else {
         Already have an account? <button type="button" (click)="setMode('login')">Log in</button>
       }
-    </p>
+    </p>}
 
     <button type="button" class="guest" (click)="browseAsGuest()">Continue browsing as guest</button>
   </div>

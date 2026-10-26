@@ -2,9 +2,10 @@
  * @file login.page.ts
  * @description Accessible login and signup flow with inline validation.
  */
-import { Component, inject, input, signal, viewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, inject, input, OnDestroy, signal, viewChild } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   IonBackButton,
   IonButton,
@@ -24,17 +25,11 @@ import {
   ModalController,
   NavController,
 } from '@ionic/angular';
-import { AuthService } from '../../core/auth.service';
+import { AuthService, GoogleAuthConfig, GoogleAuthIntent, GoogleAuthPending } from '../../core/auth.service';
+import { GoogleAuthService } from '../../core/google-auth.service';
 import { UiService } from '../../core/ui.service';
 import { apiErrorMessage, apiFieldErrors } from '../../core/api-error';
 import {
-  hasEnoughDifferentCharacters,
-  passwordContainsPersonalInfo,
-  passwordHasLowercase,
-  passwordHasNumber,
-  passwordHasSpecialCharacter,
-  passwordHasUppercase,
-  passwordLengthIsValid,
   validateEmail,
   validateConfirmPassword,
   validateFirstName,
@@ -44,13 +39,21 @@ import {
 } from '../../core/signup-rules';
 import { ConsentModalComponent } from '../../components/consent-modal.component';
 import { prefersReducedMotion } from '../../core/preference.service';
+import { PasswordRequirementsComponent } from '../../components/password-requirements.component';
 
 type Mode = 'login' | 'signup';
 type FieldName = 'firstName' | 'lastName' | 'email' | 'phone' | 'password' | 'confirmPassword' | 'terms';
 type TextField = Exclude<FieldName, 'terms'>;
-type FieldErrors = Partial<Record<FieldName, string>>;
-type StrengthLevel = 'neutral' | 'short' | 'easy' | 'okay' | 'strong';
+const GOOGLE_LINK_RESTART_CODE = 'google_link_restart_required';
+const GOOGLE_LINK_RESTART_MESSAGE = "We couldn't confirm your Cookie Fluffs password. Select Continue with Google to try again.";
+const GOOGLE_RETRY_MESSAGE = 'Google sign-in was interrupted. Select Continue with Google to try again.';
 
+/** A friendly notice shown when the Google account does not match the chosen tab. */
+interface GoogleNotice {
+  kind: 'signup_needed' | 'login_required';
+  message: string;
+}
+type FieldErrors = Partial<Record<FieldName, string>>;
 const SIGNUP_FIELDS: FieldName[] = ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword', 'terms'];
 const LOGIN_FIELDS: FieldName[] = ['email', 'password'];
 const FOCUS_ORDER: FieldName[] = ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword', 'terms'];
@@ -76,9 +79,10 @@ const FOCUS_ORDER: FieldName[] = ['firstName', 'lastName', 'email', 'phone', 'pa
     IonButton,
     IonIcon,
     IonSpinner,
+    PasswordRequirementsComponent,
   ],
 })
-export class LoginPage {
+export class LoginPage implements AfterViewInit, OnDestroy {
   /** Where to go after logging in (query param ?returnUrl=/cart). */
   readonly returnUrl = input<string>();
 
@@ -86,7 +90,9 @@ export class LoginPage {
   private ui = inject(UiService);
   private nav = inject(NavController);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private modals = inject(ModalController);
+  private google = inject(GoogleAuthService);
 
   private readonly firstNameInput = viewChild<IonInput>('firstNameInput');
   private readonly lastNameInput = viewChild<IonInput>('lastNameInput');
@@ -95,6 +101,7 @@ export class LoginPage {
   private readonly passwordInput = viewChild<IonInput>('passwordInput');
   private readonly confirmPasswordInput = viewChild<IonInput>('confirmPasswordInput');
   private readonly termsInput = viewChild<IonCheckbox>('termsInput');
+  private readonly googleButton = viewChild<ElementRef<HTMLElement>>('googleButton');
 
   readonly mode = signal<Mode>('login');
   readonly submitting = signal(false);
@@ -102,6 +109,13 @@ export class LoginPage {
   readonly fieldErrors = signal<FieldErrors>({});
   readonly touched = signal<ReadonlySet<FieldName>>(new Set());
   readonly submitted = signal(false);
+  readonly googleEnabled = signal(false);
+  readonly googleBusy = signal(false);
+  readonly googleError = signal<string | null>(null);
+  readonly googlePending = signal<GoogleAuthPending | null>(null);
+  readonly googleNotice = signal<GoogleNotice | null>(null);
+  readonly nativeGoogle = this.google.isNativeAndroid;
+  private googleConfig: GoogleAuthConfig | null = null;
 
   email = '';
   password = '';
@@ -113,14 +127,64 @@ export class LoginPage {
   private consentUnlocked = false;
   private consentOpening = false;
 
+  ngAfterViewInit(): void {
+    // Restore the selected tab from the validated query param so a GIS reload that
+    // was triggered to switch intent reopens the correct tab. Only 'signup' is
+    // honoured; any other value safely falls back to the default login tab.
+    if (this.route.snapshot.queryParamMap.get('mode') === 'signup') this.mode.set('signup');
+    this.google.prepareWebPage();
+    const restartNotice = this.google.consumeRestartNotice();
+    if (restartNotice) {
+      this.googleError.set(restartNotice === 'link' ? GOOGLE_LINK_RESTART_MESSAGE : GOOGLE_RETRY_MESSAGE);
+    }
+    void this.prepareGoogle();
+  }
+
+  ngOnDestroy(): void {
+    this.google.restoreWebPage();
+  }
+
   setMode(value: unknown): void {
-    if (value === 'login' || value === 'signup') {
+    if ((value === 'login' || value === 'signup') && value !== this.mode()) {
       this.mode.set(value);
       this.error.set(null);
       this.fieldErrors.set({});
       this.touched.set(new Set());
       this.submitted.set(false);
+      this.startFreshGoogleAttempt();
     }
+  }
+
+  /**
+   * Switching tabs must start a fresh Google attempt bound to the new intent.
+   * On web GIS initializes once per document, so if an attempt already began we
+   * reload to issue a new nonce; otherwise we re-prime the button in place.
+   */
+  private startFreshGoogleAttempt(): void {
+    this.googleNotice.set(null);
+    this.googleError.set(null);
+    this.googlePending.set(null);
+    if (!this.googleEnabled()) return;
+    if (!this.nativeGoogle && this.google.hasInitializedWebAttempt()) {
+      // A fresh web attempt needs a page reload to re-init GIS with a new nonce.
+      // Persist the selected tab in the URL first so the reload reopens it.
+      this.syncModeQueryParam();
+      this.google.restartWebPage(null);
+      return;
+    }
+    void this.prepareWebGoogleButton();
+  }
+
+  /**
+   * Writes the current tab into the ?mode= query param without navigating, so a
+   * following GIS reload preserves it. Never carries tokens, nonces, or selectors.
+   */
+  private syncModeQueryParam(): void {
+    const tree = this.router.createUrlTree([], {
+      queryParams: { mode: this.mode() },
+      queryParamsHandling: 'merge',
+    });
+    history.replaceState(history.state, document.title, this.router.serializeUrl(tree));
   }
 
   updateText(field: TextField, value: string | null | undefined): void {
@@ -186,46 +250,6 @@ export class LoginPage {
     return this.touched().has(field);
   }
 
-  passwordLengthOkay(): boolean {
-    return passwordLengthIsValid(this.password);
-  }
-
-  passwordUppercaseOkay(): boolean {
-    return passwordHasUppercase(this.password);
-  }
-
-  passwordLowercaseOkay(): boolean {
-    return passwordHasLowercase(this.password);
-  }
-
-  passwordNumberOkay(): boolean {
-    return passwordHasNumber(this.password);
-  }
-
-  passwordSpecialCharacterOkay(): boolean {
-    return passwordHasSpecialCharacter(this.password);
-  }
-
-  passwordPersonalInfoOkay(): boolean {
-    return this.password.length > 0 &&
-      !passwordContainsPersonalInfo(this.password, this.email, this.firstName, this.lastName);
-  }
-
-  passwordStrength(): { level: StrengthLevel; label: string; segments: number } {
-    if (!this.password) return { level: 'neutral', label: '', segments: 0 };
-    if ([...this.password].length < 8) return { level: 'short', label: 'Too short', segments: 1 };
-    const policyError = validatePassword(this.password, {
-      email: this.email,
-      firstName: this.firstName,
-      lastName: this.lastName,
-    });
-    if (policyError || !hasEnoughDifferentCharacters(this.password)) {
-      return { level: 'easy', label: 'Too easy to guess', segments: 1 };
-    }
-    if ([...this.password].length < 12) return { level: 'okay', label: 'Okay', segments: 2 };
-    return { level: 'strong', label: 'Strong', segments: 3 };
-  }
-
   async submit(): Promise<void> {
     this.error.set(null);
     this.submitted.set(true);
@@ -279,6 +303,182 @@ export class LoginPage {
 
   browseAsGuest(): void {
     void this.router.navigateByUrl('/home');
+  }
+
+  async startNativeGoogle(): Promise<void> {
+    if (!this.googleConfig?.enabled || !this.googleConfig.webClientId || this.googleBusy()) return;
+    this.googleBusy.set(true);
+    this.googleError.set(null);
+    try {
+      const issued = await this.auth.googleNonce(this.mode() as GoogleAuthIntent);
+      const idToken = await this.google.nativeIdToken(this.googleConfig.webClientId, issued.nonce);
+      this.googleBusy.set(false);
+      await this.finishGoogle(idToken, issued.selector, issued.nonce);
+    } catch (error) {
+      this.captureGoogleFailure(error);
+    } finally {
+      this.googleBusy.set(false);
+    }
+  }
+
+  async completeGoogleSignup(): Promise<void> {
+    const pending = this.googlePending();
+    if (pending?.kind !== 'signup_required' || this.googleBusy()) return;
+    const nameError = validateFirstName(this.firstName)
+      || validateLastName(this.lastName)
+      || validatePhone(this.phone);
+    if (nameError) {
+      this.googleError.set(nameError);
+      return;
+    }
+    if (!this.acceptedTerms) {
+      await this.openConsent();
+      if (!this.acceptedTerms) return;
+    }
+    this.googleBusy.set(true);
+    this.googleError.set(null);
+    try {
+      const user = await this.auth.completeGoogleSignup(
+        pending.selector,
+        pending.challenge,
+        this.firstName,
+        this.lastName,
+        this.phone,
+        this.acceptedTerms,
+      );
+      await this.completeGoogleNavigation(user.firstName ?? user.fullName.split(' ')[0]);
+    } catch (error) {
+      this.captureGoogleFailure(error);
+    } finally {
+      this.googleBusy.set(false);
+    }
+  }
+
+  async completeGoogleLink(): Promise<void> {
+    const pending = this.googlePending();
+    if (pending?.kind !== 'link_required' || !this.password || this.googleBusy()) return;
+    this.googleBusy.set(true);
+    this.googleError.set(null);
+    try {
+      const user = await this.auth.linkGoogleAccount(pending.selector, pending.challenge, this.password);
+      this.password = '';
+      await this.completeGoogleNavigation(user.firstName ?? user.fullName.split(' ')[0]);
+    } catch (error) {
+      if (error instanceof HttpErrorResponse
+        && error.status === 400
+        && error.error?.code === GOOGLE_LINK_RESTART_CODE) {
+        this.googlePending.set(null);
+        this.password = '';
+        if (this.nativeGoogle) this.googleError.set(GOOGLE_LINK_RESTART_MESSAGE);
+        else this.google.restartWebPage('link');
+      } else {
+        this.captureGoogleFailure(error);
+      }
+    } finally {
+      this.googleBusy.set(false);
+    }
+  }
+
+  /** Notice action: move to the Sign Up tab and begin a fresh signup-intent attempt. */
+  goToSignupFromNotice(): void {
+    this.setMode('signup');
+  }
+
+  /** Notice action: move to the Login tab and begin a fresh login-intent attempt. */
+  goToLoginFromNotice(): void {
+    this.setMode('login');
+  }
+
+  /** Notice action: try a different Google account under the current tab's intent. */
+  useAnotherGoogleAccount(): void {
+    this.startFreshGoogleAttempt();
+  }
+
+  cancelGoogleCompletion(): void {
+    if (!this.nativeGoogle) {
+      this.google.restartWebPage(null);
+      return;
+    }
+    this.googlePending.set(null);
+    this.googleError.set(null);
+    this.password = '';
+    this.acceptedTerms = false;
+    void this.prepareWebGoogleButton();
+  }
+
+  private async prepareGoogle(): Promise<void> {
+    if (!this.nativeGoogle && this.google.hasInitializedWebAttempt()) {
+      this.google.restartWebPage(null);
+      return;
+    }
+    try {
+      this.googleConfig = await this.auth.googleAuthConfig();
+      this.googleEnabled.set(this.googleConfig.enabled && !!this.googleConfig.webClientId);
+      await this.prepareWebGoogleButton();
+    } catch {
+      this.googleEnabled.set(false);
+    }
+  }
+
+  private async prepareWebGoogleButton(): Promise<void> {
+    if (!this.googleEnabled() || this.nativeGoogle || this.googlePending() || this.googleNotice()
+      || !this.googleConfig?.webClientId) return;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const element = this.googleButton()?.nativeElement;
+    if (!element) return;
+    try {
+      const issued = await this.auth.googleNonce(this.mode() as GoogleAuthIntent);
+      await this.google.renderWebButton(element, this.googleConfig.webClientId, issued.nonce, (idToken) => {
+        void this.finishGoogle(idToken, issued.selector, issued.nonce);
+      });
+    } catch (error) {
+      this.captureGoogleFailure(error);
+    }
+  }
+
+  private async finishGoogle(idToken: string, selector: string, nonce: string): Promise<void> {
+    if (this.googleBusy()) return;
+    this.googleBusy.set(true);
+    this.googleError.set(null);
+    try {
+      const user = await this.auth.authenticateWithGoogle(idToken, selector, nonce);
+      await this.completeGoogleNavigation(user.firstName ?? user.fullName.split(' ')[0]);
+    } catch (error) {
+      if (error instanceof HttpErrorResponse
+        && (error.error?.kind === 'signup_required' || error.error?.kind === 'link_required')) {
+        this.googlePending.set(error.error as GoogleAuthPending);
+        if (error.error.profile) {
+          this.firstName = error.error.profile.firstName;
+          this.lastName = error.error.profile.lastName;
+          this.email = error.error.profile.email;
+        }
+        return;
+      }
+      if (error instanceof HttpErrorResponse
+        && (error.error?.kind === 'signup_needed' || error.error?.kind === 'login_required')) {
+        // Intent mismatch: show friendly guidance with a clear next action instead
+        // of silently creating or authenticating an account.
+        this.googleNotice.set({ kind: error.error.kind, message: error.error.message });
+        return;
+      }
+      this.captureGoogleFailure(error);
+      if (!this.nativeGoogle) this.google.restartWebPage('retry');
+    } finally {
+      this.googleBusy.set(false);
+    }
+  }
+
+  private captureGoogleFailure(error: unknown): void {
+    const message = apiErrorMessage(error);
+    this.googleError.set(message === 'Something went wrong on our side. Please try again.'
+      ? 'Google sign-in could not be completed. Please try again.'
+      : message);
+  }
+
+  private async completeGoogleNavigation(firstName: string): Promise<void> {
+    const target = this.returnUrl();
+    await this.nav.navigateRoot(target && target.startsWith('/') && target !== '/login' ? target : '/home');
+    void this.ui.toast(`Welcome, ${firstName}!`, { icon: 'heart' });
   }
 
   private validateFields(fields: FieldName[]): FieldErrors {

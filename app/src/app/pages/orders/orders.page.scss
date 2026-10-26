@@ -9,8 +9,9 @@ ion-content { --background: var(--cf-canvas); }
 .orders-heading h1 { margin: 5px 0 7px; font-size: 1.9rem; }
 .orders-heading > p:last-child { margin: 0; color: var(--cf-choco-light); font-size: 0.8rem; line-height: 1.5; }
 .order-list { display: grid; gap: 11px; }
-.order-ticket { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 112px; padding: 14px; border: 1px solid var(--cf-pink-border); border-radius: var(--cf-radius); background: #fff; color: var(--cf-choco); text-decoration: none; }
-.order-ticket:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15); }
+.order-ticket { overflow: hidden; border: 1px solid var(--cf-pink-border); border-radius: var(--cf-radius); background: #fff; }
+.ticket-link { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 112px; padding: 14px; color: var(--cf-choco); text-decoration: none; }
+.ticket-link:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15); }
 .ticket-thumbnails { display: flex; width: 62px; min-width: 0; }
 .ticket-thumb { position: relative; display: grid; place-items: center; width: 38px; height: 38px; margin-left: -16px; overflow: hidden; border: 2px solid #fff; border-radius: 50%; background: var(--cf-pink-soft); color: var(--cf-pink-deep); font-size: 18px; }
 .ticket-thumb:first-child { width: 48px; height: 48px; margin-left: 0; z-index: 3; }
@@ -26,6 +27,12 @@ ion-content { --background: var(--cf-canvas); }
 .ticket-status span { padding: 4px 7px; border-radius: 999px; background: var(--cf-pink-soft); color: var(--cf-choco-medium); font-size: 0.62rem; font-weight: 700; }
 .ticket-total { display: flex; align-items: center; gap: 3px; font-family: var(--cf-font-display); font-size: 0.9rem; font-weight: 800; white-space: nowrap; }
 .ticket-total ion-icon { color: var(--cf-pink-deep); font-size: 17px; }
+.reorder-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 10px; padding: 9px 12px; border-top: 1px solid var(--cf-pink-border); background: var(--cf-pink-soft); }
+.reorder-actions > ion-button { min-height: 44px; margin: 0; }
+.reorder-result { display: flex; flex: 1 1 190px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; }
+.reorder-result p, .reorder-error { flex: 1 1 180px; margin: 0; font-size: 0.69rem; line-height: 1.45; }
+.reorder-result ion-button { min-height: 44px; margin: 0; }
+.reorder-error { color: var(--ion-color-danger); }
 .load-more { min-height: 48px; margin: 18px 0 0; }
 .load-error { margin: 14px 0 0; color: var(--ion-color-danger); font-size: 0.75rem; text-align: center; }
 .state { display: grid; justify-items: center; gap: 10px; padding: 64px 4px; text-align: center; }
@@ -35,7 +42,7 @@ ion-content { --background: var(--cf-canvas); }
 .state ion-button { width: 100%; margin-top: 8px; }
 @media (max-width: 340px) {
   .orders-page { padding-inline: 14px; }
-  .order-ticket { grid-template-columns: 58px minmax(0, 1fr); padding-inline: 12px; }
+  .ticket-link { grid-template-columns: 58px minmax(0, 1fr); padding-inline: 12px; }
   .ticket-thumbnails { width: 58px; }
   .ticket-total { grid-column: 2; justify-content: space-between; }
 }

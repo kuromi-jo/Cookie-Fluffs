@@ -125,6 +125,7 @@ ion-content { --background: var(--cf-canvas); }
   .payment-message,
   .payment-recovery,
   .cancellation-action,
+  .reorder-panel,
   .order-actions { display: none !important; }
   :host, ion-content { --background: #fff; background: #fff; }
   .confirmation-page { padding: 0; }

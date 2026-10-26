@@ -1,0 +1,93 @@
+<!-- @file security.page.html @description Mobile password-change form for the authenticated customer. -->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/profile" text=""></ion-back-button></ion-buttons>
+    <ion-title class="cf-title">Privacy &amp; Security</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page security-page">
+    <header class="security-intro">
+      <span class="security-mark"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span>
+      <div><h1>Change your password</h1><p>Use a password you do not use for another account.</p></div>
+    </header>
+
+    @if (accountStatus(); as status) {
+      <section class="cf-card sign-in-methods" aria-labelledby="sign-in-methods-title">
+        <h2 id="sign-in-methods-title">Sign-in methods</h2>
+        <p class="cf-muted">How you log in to Cookie Fluffs.</p>
+        <ul class="method-list">
+          <li class="method-row">
+            <span class="method-icon"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span>
+            <span class="method-copy"><strong>Password</strong><small>Email and password login</small></span>
+            @if (status.hasPassword) {
+              <span class="method-state is-on"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Set</span>
+            } @else {
+              <span class="method-state is-off"><ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>Not set</span>
+            }
+          </li>
+          <li class="method-row">
+            <span class="method-icon"><ion-icon name="logo-google" aria-hidden="true"></ion-icon></span>
+            <span class="method-copy"><strong>Google</strong><small>Continue with Google</small></span>
+            @if (status.google.linked) {
+              <span class="method-state is-on"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Connected</span>
+            } @else {
+              <span class="method-state is-off"><ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>Not connected</span>
+            }
+          </li>
+        </ul>
+        @if (!status.google.linked && status.hasPassword) {
+          <p class="method-hint cf-muted">To connect Google, log out and choose "Continue with Google" on the login screen. We confirm your password before linking.</p>
+        }
+      </section>
+    }
+
+    @if (user()?.hasPassword === false) {
+      <section class="cf-card security-form" aria-labelledby="google-security-title">
+        <h2 id="google-security-title">Google sign-in account</h2>
+        <p class="cf-muted">This account does not have a Cookie Fluffs password to change. Continue using Google to sign in.</p>
+      </section>
+    } @else {
+    <form class="cf-card security-form" (ngSubmit)="submit()" novalidate>
+      <div class="field-group">
+        <ion-input id="currentPassword" class="cf-input" type="password" label="Current password" labelPlacement="floating" name="currentPassword" autocomplete="current-password" [class.ion-invalid]="!!fieldError('currentPassword')" [class.ion-touched]="isTouched('currentPassword')" [ngModel]="currentPassword" (ngModelChange)="update('currentPassword', $event)" (ionBlur)="blur('currentPassword')">
+          <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
+          <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+        </ion-input>
+        @if (fieldError('currentPassword'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+      </div>
+
+      <div class="field-group">
+        <ion-input id="newPassword" class="cf-input" type="password" label="New password" labelPlacement="floating" name="newPassword" autocomplete="new-password" [class.ion-invalid]="!!fieldError('newPassword')" [class.ion-touched]="isTouched('newPassword')" [ngModel]="newPassword" (ngModelChange)="update('newPassword', $event)" (ionBlur)="blur('newPassword')">
+          <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
+          <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+        </ion-input>
+        @if (fieldError('newPassword'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+      </div>
+
+      <div class="field-group">
+        <ion-input id="confirmPassword" class="cf-input" type="password" label="Confirm new password" labelPlacement="floating" name="confirmPassword" autocomplete="new-password" [class.ion-invalid]="!!fieldError('confirmPassword')" [class.ion-touched]="isTouched('confirmPassword')" [ngModel]="confirmPassword" (ngModelChange)="update('confirmPassword', $event)" (ionBlur)="blur('confirmPassword')">
+          <ion-icon slot="start" name="lock-closed-outline" aria-hidden="true"></ion-icon>
+          <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+        </ion-input>
+        @if (fieldError('confirmPassword'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+      </div>
+
+      <app-password-requirements
+        [password]="newPassword"
+        [email]="user()?.email ?? ''"
+        [firstName]="user()?.firstName ?? ''"
+        [lastName]="user()?.lastName ?? ''"
+        [identityKnown]="true"
+      ></app-password-requirements>
+      @if (pageError()) { <p class="form-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ pageError() }}</p> }
+      @if (succeeded()) { <p class="success-message" role="status"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Your password is updated. Other signed-in sessions can no longer access your account.</p> }
+
+      <ion-button type="submit" expand="block" class="cf-btn-lg" [disabled]="saving()">
+        @if (saving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Change password }
+      </ion-button>
+    </form>
+    }
+  </main>
+</ion-content>

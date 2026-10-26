@@ -115,6 +115,69 @@ ion-modal.cf-sheet {
   --background: var(--cf-canvas);
 }
 
+/* Date-of-birth picker: a bottom sheet (breakpoints), full width, rounded top corners.
+   Portaled at the Ionic app host, so this must be global; dedicated class avoids reusing
+   generic/centered modal styles. */
+/* Date-of-birth picker: a compact, content-sized bottom sheet (NOT a breakpoint sheet,
+   which would force full-viewport height). Bottom-anchored like the pack picker, bounded
+   height sized to the calendar, rounded top corners, dimmed backdrop over the Profile page.
+   Portaled at the Ionic app host, so this must be global. */
+ion-modal.dob-sheet-modal {
+  --width: 100%;
+  --max-width: 100%;
+  // Fits the calendar header, date grid and Cancel/Set buttons without a large empty area,
+  // and never taller than the app viewport (with safe-area allowance).
+  --height: min(430px, calc(100dvh - 24px - env(safe-area-inset-top)));
+  --max-height: calc(100dvh - env(safe-area-inset-top));
+  --border-radius: 28px 28px 0 0;
+  --background: var(--cf-canvas);
+  align-items: flex-end;
+  justify-content: center;
+}
+
+ion-modal.dob-sheet-modal::part(content) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+ion-modal.dob-sheet-modal .dob-sheet {
+  display: flex;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 8px 8px calc(10px + env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+ion-modal.dob-sheet-modal ion-datetime {
+  width: 100%;
+  max-width: 360px;
+  height: 100%;
+  margin-inline: auto;
+  --background: var(--cf-canvas);
+}
+
+/* Identity-verification bottom sheet: bounded, bottom-anchored, rounded top. Same proven
+   content-sized pattern as the DOB/pack sheets (NOT a full-viewport breakpoint sheet). */
+ion-modal.verify-sheet-modal {
+  --width: 100%;
+  --max-width: 100%;
+  --height: min(480px, calc(100dvh - 24px - env(safe-area-inset-top)));
+  --max-height: calc(100dvh - env(safe-area-inset-top));
+  --border-radius: 28px 28px 0 0;
+  --background: var(--cf-canvas);
+  align-items: flex-end;
+  justify-content: center;
+}
+
+ion-modal.verify-sheet-modal::part(content) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 /* The pack picker is portaled at the Ionic app host; constrain its wrapper to that host, not the desktop viewport. */
 ion-modal.pack-picker {
   --width: 100%;
