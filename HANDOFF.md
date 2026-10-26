@@ -25,10 +25,11 @@
 
 ```bash
 npm run setup     # first time: installs root, server and app
+npm --prefix server run migrate  # explicit schema migration for a verified target
 npm run dev       # starts the API (port 3000) and the app (port 4200)
 ```
 
-The API creates and updates the Neon tables automatically on start (`server/src/db.js`), including one-time migrations recorded in the `app_meta` table. More detail is in `README.md`.
+API startup never changes the schema. Run the explicit migration command against a verified target first; completed migrations are recorded in `app_meta`. More detail is in the deployment guide.
 
 ---
 
@@ -98,7 +99,16 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - [x] **Build stability correction**: Angular persistent caching is disabled after native LMDB allocator aborts reproduced on Node 22/24; production builds pass without dependency or budget changes
 - [ ] **Checkout confirmation polish (P2a-3)**: approved fulfillment business details and the final dedicated confirmation experience
 - [ ] **Payment follow-up (deferred)**: manual Maya failure/retry acceptance, approved production configuration, provider refund execution (P5R-B), and promo codes
-- [ ] **Orders follow-up**: "reorder"; owned order tracking, cancellation requests, history and printable summaries are complete
+- [x] **P7 Reorder**: owned order snapshots rebuild available singles and complete boxes into the existing cart once, using current server prices and durable request idempotency
+- [x] **P8A account security**: authenticated password changes rotate database-backed JWT sessions, enforce durable throttling, and reject legacy or deactivated sessions
+- [x] **P8B-1 password recovery foundation**: disabled-by-default hashed reset tokens, durable abuse controls, optional Brevo delivery, fresh-login reset flow, and accessible recovery screens
+- [x] **Authentication modernization**: shared live password guidance and branded recovery email are complete; feature-flagged web/Android Google auth is implemented and awaits OAuth configuration plus guarded `google_auth_v1` sandbox migration
+- [x] **Google linking retry safety**: consumed linking challenges return a stable restart-required result, and Login clears stale confirmation state before offering a fresh Google flow
+- [x] **Google web and menu accessibility**: GIS uses route-safe referrer policies and one initialization per document, while manual menu actions close once with safe focus transfer
+- [x] **In-app notifications (Account/Notifications Phase 6)**: `notifications_v1` table, transaction-embedded SAVEPOINT-contained writes, preference-gated optional order updates (payment/security always essential), dedupe, keyset pagination, unread badge, mark-one/all; Notification Center UI and settings toggle. Automated tests pass; push/real-time delivery is NOT built.
+- [x] **Verified Change Phone (P3/3.1)**: explicit VERIFIED state + atomic consume, strict auth_version binding; `phone` removed from `PROFILE_FIELDS`; sandbox-accepted via a real supervised OTP test.
+- [x] **Reauthenticated Change Email (P4)**: mandatory reauth proof + new-email OTP, atomic dual-consume, duplicate rejection, auth_version rotation + fresh session; sandbox-accepted via a real supervised OTP test (user's email changed under supervision).
+- [x] **Set Password for Google-only accounts (P5)**: mandatory Google reauth + email OTP, set-only guard, bcrypt-10, auth_version rotation; sandbox-accepted via a real supervised OTP test. Google reauth modal lifecycle, resend-cooldown UX, and 320-412px button alignment fixed and verified.
 - [ ] **Custom Cookie Builder**: dough, mix-ins, toppings, live preview (the core feature from the project plan)
 - [x] **Capacitor Android preparation**: Capacitor 8 Android platform, local Angular assets, API 36/min SDK 24, and the existing native plugins are configured
 - [x] **APK readiness (debug submission)**: a debug-signed APK uses the isolated HTTPS sandbox API; physical-device installation and native payment deep links remain pending
@@ -142,7 +152,7 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 - P3 stores a nullable draft-agreement version and server timestamp for new development checkouts. Production omits and rejects the draft workflow; historical orders remain valid without agreement fields.
 - My Orders links to the existing owned detail view. Printable documents use persisted snapshots and distinguish genuine paid, pending, cash-due, demo-approved, and demo-unpaid states.
 - P3 verification: 103 server tests passed with the opt-in database test skipped, all 20 isolated PostgreSQL tests passed, and all 89 Angular tests passed. Lint, syntax, and `git diff --check` pass; the production build still aborts in the known LMDB native allocator path with exit 134.
-- Known limitations: PayMongo remains test-only; manual failed-payment retry acceptance is deferred, and there is no scheduling, live rider tracking, reorder, refund policy, voucher backend, or production fulfillment configuration.
+- Known limitations: PayMongo remains test-only; manual failed-payment retry acceptance is deferred, and there is no scheduling, live rider tracking, approved refund policy, voucher backend, or production fulfillment configuration.
 - Manual checks still required at 320, 360, 390 and 430px plus the 412px desktop phone frame: all four steps, keyboard focus, footer visibility, voucher state, retry flow and confirmation refresh.
 - Automated verification: 56 app tests pass; app lint and production build pass. Server tests pass with the extended real-PostgreSQL suite opt-in when a disposable loopback database is configured.
 
@@ -193,11 +203,29 @@ The API creates and updates the Neon tables automatically on start (`server/src/
 
 ---
 
+## RESOLVED — verification security requirement (Phases 3, 3.1, 4, 5)
+
+The Phase 2 concern below is now fully addressed and tested in the isolated sandbox. The standalone
+`POST /api/verification/verify` no longer consumes the proof (`consume: false`); verification moves a
+challenge to an explicit server-side VERIFIED state, and the protected change runs in ONE transaction
+that atomically consumes the authorization. Delivered and verified:
+- `verification_verified_state_v1` (explicit verified state) and `verification_auth_version_v1` (strict
+  auth_version binding — NULL/mismatch rejected at both verify and consume).
+- Verified Change Phone (P3/3.1); `phone` removed from `PROFILE_FIELDS`.
+- Reauthenticated Change Email (P4): mandatory reauth proof + new-email OTP, atomic dual-consume,
+  auth_version rotation, uniqueness, session invalidation.
+- Set Password for Google-only accounts (P5): mandatory Google reauth + email OTP, set-only guard,
+  bcrypt-10, auth_version rotation.
+- Purpose-bound, single-use reauth proofs (`reauth_authorizations`) and purpose-separated Google
+  reauth nonces; cross-operation and replay rejected; all covered by tests.
+
+See `docs/HANDOVER.md` for the full architecture, endpoints, migrations, and remaining work.
+
 ## Last session (where work stopped)
 
-**Date:** 2026-10-25
-**State:** P6B-2A separates validated API startup from advisory-locked migrations and adds sanitized liveness/readiness checks; no migration was run.
-**Next:** adapt the private sandbox environment to the explicit APP_ENV/agreement/CORS flags, run the approved migration command there, then restart and verify readiness.
+**Date:** 2026-10-26
+**State:** Account security + notifications work committed locally on `main` as three checkpoints (backend, frontend, docs); each builds green (backend 340 / frontend 299 tests, lint clean). README documents the new routes and feature flags. `app/angular.json` is intentionally left uncommitted (local-only cache/host tweaks). Nothing pushed.
+**Next:** Push the three local commits to the shared `main` after a separate review; then P6A physical Android device acceptance and the deferred payment/refund follow-ups. Production OTP/push delivery and Android device acceptance remain future work.
 
 ## Key files map
 

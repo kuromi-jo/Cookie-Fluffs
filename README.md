@@ -146,6 +146,16 @@ Cookie-Fluffs/
 | POST | `/api/auth/signup` | Create account (password is hashed with bcrypt) |
 | POST | `/api/auth/login` | Log in, returns a token |
 | GET / PUT | `/api/auth/me` | Read / update profile (name, phone, photo) |
+| GET | `/api/auth/account-status` | Owner-scoped booleans for which sign-in methods the account has (no secrets) |
+| POST | `/api/auth/change-password` | Change the password for an account that already has one |
+| POST | `/api/auth/change-phone` | Save a new phone number after its code was verified (see verification routes) |
+| POST | `/api/auth/reauth` | Prove current identity to authorize a sensitive change; returns a single-use proof |
+| POST | `/api/auth/change-email` | Change email by consuming a reauth proof plus a verified new-email code |
+| POST | `/api/auth/set-password` | Set a first password for a Google-only account (reauth + verified code required) |
+| GET | `/api/auth/recovery-config` | Whether password recovery is enabled (feature flag) |
+| GET | `/api/auth/google-config` | Whether Google sign-in is enabled (feature flag) |
+| POST | `/api/auth/google/nonce` · `/google/authenticate` · `/google/signup` · `/google/link` | Google sign-in, signup and account linking (only when `GOOGLE_AUTH_ENABLED`) |
+| POST | `/api/auth/forgot-password` · `/reset-password` | Email password recovery (only when `PASSWORD_RECOVERY_ENABLED`) |
 | GET | `/api/cart` | View cart with totals |
 | POST | `/api/cart` | Add `{ productId, quantity }` |
 | PATCH | `/api/cart/:productId` | Set `quantity` and/or tick / untick (`selected`) |
@@ -160,11 +170,29 @@ Cookie-Fluffs/
 | GET | `/api/geography/ncr` | Versioned NCR PSGC cities and barangays used by checkout |
 | GET | `/api/payments/config` | Customer-safe list of enabled test payment methods |
 | POST | `/api/webhooks/paymongo` | Verify and reconcile signed PayMongo test payment events |
+| POST | `/api/verification/start` · `/verify` | Start and confirm an email code for a sensitive change (change-phone, change-email, set-password) |
+| POST | `/api/verification/google/nonce` · `/google/verify` | Step-up reauth nonce and check for Google-linked customers |
+| GET | `/api/notifications?limit=&cursor=` | Owner-scoped in-app notifications (keyset pagination) |
+| GET | `/api/notifications/unread-count` | Count of unread notifications |
+| POST | `/api/notifications/read-all` · `/:id/read` | Mark all, or one, as read |
+| GET / PUT | `/api/preferences` | Read / update notification and app preferences |
 | POST | `/api/contact` | Save a Contact Us message |
+
+### Feature flags (server)
+
+These stay **off by default** and are read at startup from `server/.env` (documented with blank values in `server/.env.example`). The identity-verification challenge engine (code generation, hashing, expiry, rate limits) always works for automated tests via `VERIFICATION_CODE_PEPPER`; only real email **delivery** is gated.
+
+| Flag | Default | What it turns on |
+|---|---|---|
+| `VERIFICATION_DELIVERY_ENABLED` | off | Real email delivery of verification codes (requires a valid Brevo config). The engine still runs without it. |
+| `GOOGLE_AUTH_ENABLED` | off | Google sign-in, signup, linking and Google step-up reauth. |
+| `PASSWORD_RECOVERY_ENABLED` | off | Forgot-password / reset-password by email. |
+
+> Not yet done: production OTP/email delivery is validated only against test providers; there is no push-notification delivery (notifications are in-app only); the Android build is not verified on physical devices; and payments remain test-mode / cash / nonproduction card demo only. None of these are production-ready.
 
 ### Database tables (Neon)
 
-`users` · `products` · `cart_items` · `cart_boxes` + `cart_box_items` · `orders` + `order_items` + `order_box_items` · `payment_attempts` + `payment_webhook_events` · `demo_payment_attempts` · `contact_messages` · `app_meta` (records one-time data migrations)
+`users` · `products` · `cart_items` · `cart_boxes` + `cart_box_items` · `orders` + `order_items` + `order_box_items` · `payment_attempts` + `payment_webhook_events` · `demo_payment_attempts` · `contact_messages` · `verification_challenges` · `reauth_authorizations` · `notifications` · `user_preferences` · `app_meta` (records one-time data migrations)
 
 ---
 
