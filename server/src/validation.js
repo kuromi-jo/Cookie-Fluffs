@@ -66,6 +66,35 @@ export function validatePhone(value) {
   return normalizePhone(value) ? null : 'Enter a Philippine mobile number, like 0917 123 4567.';
 }
 
+export const GENDER_VALUES = Object.freeze(['female', 'male', 'non_binary', 'prefer_not_to_say']);
+
+/** Validates the optional gender field. null/empty clears it; otherwise it must be an allowed value. */
+export function validateGender(value) {
+  if (value === null || value === undefined || value === '') return null;
+  return GENDER_VALUES.includes(value) ? null : 'Choose one of the listed options for gender.';
+}
+
+/**
+ * Validates the optional date of birth. null/empty clears it. Otherwise it must be a real
+ * calendar date in YYYY-MM-DD form, not in the future, and within a sane range.
+ */
+export function validateDateOfBirth(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const text = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return 'Enter your date of birth as YYYY-MM-DD.';
+  const [year, month, day] = text.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  // Reject impossible calendar dates (e.g. 2026-02-30 would roll over).
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return 'Enter a real calendar date.';
+  }
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  if (date.getTime() > todayUtc) return 'Date of birth cannot be in the future.';
+  if (year < 1900) return 'Enter a valid date of birth.';
+  return null;
+}
+
 export function validatePassword(password, { email = '', firstName = '', lastName = '' } = {}) {
   const value = String(password ?? '');
   const characters = [...value];

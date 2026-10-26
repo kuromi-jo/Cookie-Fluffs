@@ -150,6 +150,12 @@ function scriptedClient({ unavailable = false, existingFingerprint = null, failA
       if (sql.includes('FROM order_cancellation_requests')) return { rowCount: 0, rows: [] };
       if (sql.includes('FROM order_refunds')) return { rowCount: 0, rows: [] };
       if (sql.includes('FROM refund_events')) return { rowCount: 0, rows: [] };
+      // Notification side effect (savepoint-wrapped, preference-gated, deduped insert).
+      if (sql.startsWith('SAVEPOINT') || sql.startsWith('RELEASE') || sql.startsWith('ROLLBACK TO SAVEPOINT')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('notify_order_updates AS "allowed"')) return { rowCount: 1, rows: [{ allowed: true }] };
+      if (sql.startsWith('INSERT INTO notifications')) return { rowCount: 1, rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     },
   };

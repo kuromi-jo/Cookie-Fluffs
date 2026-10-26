@@ -13,6 +13,7 @@ import {
 import { lockUserCart } from './cart-lock.js';
 import { loadOrderLifecycle } from './order-lifecycle.js';
 import { loadOrderRefund } from './refund-service.js';
+import { insertNotification } from './notification-service.js';
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 const LOCAL_COOKIE_IMAGE_RE = /^assets\/cookies\/[a-z0-9][a-z0-9-]*\.(?:avif|jpeg|jpg|png|webp)$/i;
@@ -441,6 +442,15 @@ export async function createOrder(client, userId, checkout, requestFingerprint, 
        VALUES ($1, $2, NULL, 'placed', 'customer', $3, $4)`,
       [crypto.randomUUID(), orderId, userId, checkout.idempotencyKey],
     );
+    // Order placement is optional order-progress: respects notify_order_updates.
+    await insertNotification(client, {
+      userId,
+      eventType: 'order_placed',
+      title: 'Order placed',
+      body: 'Thanks! We got your order and will start on it soon.',
+      linkPath: `/orders/${publicId}`,
+      dedupeKey: `order_placed:${publicId}`,
+    });
 
     for (const line of lines) {
       const itemResult = await client.query(

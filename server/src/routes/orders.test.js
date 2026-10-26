@@ -18,6 +18,18 @@ process.env.FULFILLMENT_PICKUP_HOURS = 'Configured test hours';
 const { signToken } = await import('../auth.js');
 const { createOrdersRouter } = await import('./orders.js');
 
+function testAuthenticate(req, res, next) {
+  const token = String(req.headers?.authorization ?? '').replace(/^Bearer /, '');
+  if (token.split('.').length !== 3) return res.status(401).json({ message: 'Please log in first.' });
+  req.userId = 42;
+  return next();
+}
+
+function createTestOrdersRouter(...args) {
+  while (args.length < 6) args.push(undefined);
+  return createOrdersRouter(...args, testAuthenticate);
+}
+
 function responseRecorder() {
   return {
     statusCode: 200,
@@ -34,7 +46,7 @@ function responseRecorder() {
 }
 
 function layers() {
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => { throw new Error('Database should not be reached.'); } },
     undefined,
     { config: { enabled: false, methods: [] } },
@@ -100,7 +112,7 @@ test('rejects disabled fulfillment before database work', async () => {
     pickup: { enabled: false, unavailableMessage: 'Pickup is not configured.', location: '', hours: '' },
     agreement: { required: true, version: 'draft-2026-10-24-v1' },
   };
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => { connected = true; } },
     undefined,
     undefined,
@@ -143,7 +155,7 @@ test('accepts a valid authenticated checkout and passes the JWT subject to the s
     },
     getOrderByPublicId: async () => null,
   };
-  const router = createOrdersRouter(dbPool, orderActions);
+  const router = createTestOrdersRouter(dbPool, orderActions);
   const auth = router.stack.find((layer) => !layer.route).handle;
   const post = router.stack.find((layer) => layer.route?.path === '/' && layer.route.methods.post).route.stack[0].handle;
   const req = { headers: { authorization: `Bearer ${signToken(42)}` }, body: validCheckout };
@@ -165,7 +177,7 @@ test('returns not found when an authenticated customer does not own the order', 
       return null;
     },
   };
-  const router = createOrdersRouter(dbPool, orderActions);
+  const router = createTestOrdersRouter(dbPool, orderActions);
   const auth = router.stack.find((layer) => !layer.route).handle;
   const get = router.stack.find((layer) => layer.route?.path === '/:id' && layer.route.methods.get).route.stack[0].handle;
   const req = {
@@ -191,7 +203,7 @@ test('submits an owner-scoped cancellation request with only an idempotency key'
       return { id: '123e4567-e89b-42d3-a456-426614174000', orderStatus: 'cancelled' };
     },
   };
-  const router = createOrdersRouter({ connect: async () => client }, orderActions);
+  const router = createTestOrdersRouter({ connect: async () => client }, orderActions);
   const auth = router.stack.find((layer) => !layer.route).handle;
   const cancel = router.stack.find(
     (layer) => layer.route?.path === '/:id/cancellation-requests' && layer.route.methods.post,
@@ -211,7 +223,7 @@ test('submits an owner-scoped cancellation request with only an idempotency key'
 
 test('rejects cancellation request field injection before database work', async () => {
   let connected = false;
-  const router = createOrdersRouter({ connect: async () => { connected = true; } });
+  const router = createTestOrdersRouter({ connect: async () => { connected = true; } });
   const auth = router.stack.find((layer) => !layer.route).handle;
   const cancel = router.stack.find(
     (layer) => layer.route?.path === '/:id/cancellation-requests' && layer.route.methods.post,
@@ -228,6 +240,52 @@ test('rejects cancellation request field injection before database work', async 
   assert.equal(connected, false);
 });
 
+test('submits an owner-scoped reorder with only an idempotency key', async () => {
+  const client = { releaseCalled: false, release() { this.releaseCalled = true; } };
+  let received;
+  const orderActions = {
+    async reorderOrder(_client, userId, id, idempotencyKey) {
+      received = { userId, id, idempotencyKey };
+      return { cart: { itemCount: 2 }, added: [{ displayName: 'Cookie', quantity: 2 }], unavailable: [], replayed: false };
+    },
+  };
+  const router = createTestOrdersRouter({ connect: async () => client }, orderActions);
+  const auth = router.stack.find((layer) => !layer.route).handle;
+  const reorder = router.stack.find(
+    (layer) => layer.route?.path === '/:id/reorder' && layer.route.methods.post,
+  ).route.stack[0].handle;
+  const req = {
+    headers: { authorization: `Bearer ${signToken(42)}` },
+    params: { id: '123e4567-e89b-42d3-a456-426614174000' },
+    body: { idempotencyKey: '223e4567-e89b-42d3-a456-426614174000' },
+  };
+  const res = responseRecorder();
+  auth(req, res, () => undefined);
+  await reorder(req, res, (error) => { throw error; });
+  assert.deepEqual(received, { userId: 42, id: req.params.id, idempotencyKey: req.body.idempotencyKey });
+  assert.equal(res.body.cart.itemCount, 2);
+  assert.equal(client.releaseCalled, true);
+});
+
+test('rejects reorder field injection before database work', async () => {
+  let connected = false;
+  const router = createTestOrdersRouter({ connect: async () => { connected = true; } });
+  const auth = router.stack.find((layer) => !layer.route).handle;
+  const reorder = router.stack.find(
+    (layer) => layer.route?.path === '/:id/reorder' && layer.route.methods.post,
+  ).route.stack[0].handle;
+  const req = {
+    headers: { authorization: `Bearer ${signToken(42)}` },
+    params: { id: '123e4567-e89b-42d3-a456-426614174000' },
+    body: { idempotencyKey: '223e4567-e89b-42d3-a456-426614174000', total: 1 },
+  };
+  const res = responseRecorder();
+  auth(req, res, () => undefined);
+  await reorder(req, res, (error) => { throw error; });
+  assert.equal(res.statusCode, 400);
+  assert.equal(connected, false);
+});
+
 test('returns bounded owner-scoped order history', async () => {
   const client = { releaseCalled: false, release() { this.releaseCalled = true; } };
   let received;
@@ -239,7 +297,7 @@ test('returns bounded owner-scoped order history', async () => {
       return { orders: [], nextCursor: null };
     },
   };
-  const router = createOrdersRouter({ connect: async () => client }, orderActions);
+  const router = createTestOrdersRouter({ connect: async () => client }, orderActions);
   const auth = router.stack.find((layer) => !layer.route).handle;
   const list = router.stack.find((layer) => layer.route?.path === '/' && layer.route.methods.get).route.stack[0].handle;
   const req = { headers: { authorization: `Bearer ${signToken(42)}` }, query: { limit: '12', cursor: 'opaque' } };
@@ -253,7 +311,7 @@ test('returns bounded owner-scoped order history', async () => {
 
 test('rejects unbounded order-history page sizes before database work', async () => {
   let connected = false;
-  const router = createOrdersRouter({ connect: async () => { connected = true; } });
+  const router = createTestOrdersRouter({ connect: async () => { connected = true; } });
   const auth = router.stack.find((layer) => !layer.route).handle;
   const list = router.stack.find((layer) => layer.route?.path === '/' && layer.route.methods.get).route.stack[0].handle;
   const req = { headers: { authorization: `Bearer ${signToken(42)}` }, query: { limit: '100' } };
@@ -290,7 +348,7 @@ test('creates a payment session for the authenticated order with only a UUID key
     },
   };
   const paymentAdapter = { config: { enabled: true, methods: [{ id: 'gcash' }] } };
-  const router = createOrdersRouter(dbPool, orderActions, paymentAdapter);
+  const router = createTestOrdersRouter(dbPool, orderActions, paymentAdapter);
   const auth = router.stack.find((layer) => !layer.route).handle;
   const payment = router.stack.find(
     (layer) => layer.route?.path === '/:id/payment-session' && layer.route.methods.post,
@@ -319,7 +377,7 @@ test('creates an owned Payment Intent with only a UUID key', async () => {
       return { flow: 'payment_intent', attemptId: 'attempt', paymentIntentId: 'pi_test', clientKey: 'client_test' };
     },
   };
-  const router = createOrdersRouter({ connect: async () => client }, orderActions, {
+  const router = createTestOrdersRouter({ connect: async () => client }, orderActions, {
     config: { enabled: true, methods: [{ id: 'gcash' }] },
   });
   const auth = router.stack.find((layer) => !layer.route).handle;
@@ -350,7 +408,7 @@ test('returns a machine-readable 410 only for a confirmed failed payment attempt
     getOrderByPublicId: async () => null,
     createOrReusePaymentIntent: async () => { throw error; },
   };
-  const router = createOrdersRouter({ connect: async () => client }, orderActions, {
+  const router = createTestOrdersRouter({ connect: async () => client }, orderActions, {
     config: { enabled: true, methods: [{ id: 'maya' }] },
   });
   const auth = router.stack.find((layer) => !layer.route).handle;
@@ -382,7 +440,7 @@ test('runs an authenticated card demo with only a scenario and UUID key', async 
       return { attemptId: 'demo-attempt', scenario, status: 'demo_approved', isDemo: true };
     },
   };
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => client },
     orderActions,
     { config: { enabled: false, methods: [] } },
@@ -410,7 +468,7 @@ test('runs an authenticated card demo with only a scenario and UUID key', async 
 
 test('rejects card-demo credentials and production demo access before database work', async () => {
   let connected = false;
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => { connected = true; } },
     {},
     { config: { enabled: false, methods: [] } },
@@ -438,7 +496,7 @@ test('rejects card-demo credentials and production demo access before database w
 
 test('rejects unsupported card-demo scenarios before database work', async () => {
   let connected = false;
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => { connected = true; } },
     {},
     { config: { enabled: false, methods: [] } },
@@ -465,7 +523,7 @@ test('rejects unsupported card-demo scenarios before database work', async () =>
 
 test('rejects sensitive card fields while the demo endpoint is enabled', async () => {
   let connected = false;
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => { connected = true; } },
     {},
     { config: { enabled: false, methods: [] } },
@@ -500,7 +558,7 @@ test('runs an authenticated wallet demo with only an action and UUID key', async
       return { attemptId: 'wallet-attempt', walletMethod: 'gcash', status: 'demo_approved', isDemo: true };
     },
   };
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => client },
     orderActions,
     { config: { enabled: false, methods: [] } },
@@ -526,7 +584,7 @@ test('runs an authenticated wallet demo with only an action and UUID key', async
 
 test('rejects wallet credentials and production wallet demos before database work', async () => {
   let connected = false;
-  const router = createOrdersRouter(
+  const router = createTestOrdersRouter(
     { connect: async () => { connected = true; } },
     {},
     { config: { enabled: false, methods: [] } },

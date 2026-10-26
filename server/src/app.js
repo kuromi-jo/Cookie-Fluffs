@@ -16,6 +16,8 @@ import paymongoWebhookRouter from './routes/paymongo-webhook.js';
 import addressesRouter from './routes/addresses.js';
 import favoritesRouter from './routes/favorites.js';
 import preferencesRouter from './routes/preferences.js';
+import notificationsRouter from './routes/notifications.js';
+import verificationRouter from './routes/verification.js';
 import { corsOptions } from './cors-config.js';
 
 export function livenessHandler(_req, res) {
@@ -53,6 +55,8 @@ export function createApp({ env = process.env, readiness = assertSchemaReady } =
   app.use('/api/addresses', addressesRouter);
   app.use('/api/favorites', favoritesRouter);
   app.use('/api/preferences', preferencesRouter);
+  app.use('/api/notifications', notificationsRouter);
+  app.use('/api/verification', verificationRouter);
   app.use('/api', (_req, res) => res.status(404).json({ message: 'Endpoint not found.' }));
 
   app.use((err, _req, res, _next) => {

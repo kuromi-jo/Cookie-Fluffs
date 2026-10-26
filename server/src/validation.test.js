@@ -8,9 +8,11 @@ import {
   joinName,
   normalizePhone,
   splitFullName,
+  validateDateOfBirth,
   validateEmail,
   validateFirstName,
   validateFullName,
+  validateGender,
   validateLastName,
   validatePassword,
   validatePhone,
@@ -54,6 +56,23 @@ test('normalizes Philippine mobile numbers', () => {
   }
   for (const phone of ['12345', '0817 123 4567', '-------']) assert.equal(normalizePhone(phone), null);
   assert.equal(validatePhone('0917 123 4567'), null);
+});
+
+test('validates optional gender (empty allowed, enum enforced)', () => {
+  for (const value of [null, undefined, '']) assert.equal(validateGender(value), null);
+  for (const value of ['female', 'male', 'non_binary', 'prefer_not_to_say']) assert.equal(validateGender(value), null);
+  assert.notEqual(validateGender('other'), null);
+  assert.notEqual(validateGender('M'), null);
+});
+
+test('validates optional date of birth (empty allowed, real past calendar dates only)', () => {
+  for (const value of [null, undefined, '']) assert.equal(validateDateOfBirth(value), null);
+  assert.equal(validateDateOfBirth('1998-05-20'), null);
+  assert.notEqual(validateDateOfBirth('2020-02-30'), null); // impossible day
+  assert.notEqual(validateDateOfBirth('1998/05/20'), null); // wrong format
+  assert.notEqual(validateDateOfBirth('1850-01-01'), null); // below sane range
+  const nextYear = `${new Date().getUTCFullYear() + 1}-01-01`;
+  assert.notEqual(validateDateOfBirth(nextYear), null); // future
 });
 
 test('enforces password length and required character classes', () => {

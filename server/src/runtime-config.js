@@ -28,6 +28,15 @@ function strictBoolean(env, name) {
   return value === 'true';
 }
 
+function optionalStrictBoolean(env, name, fallback = false) {
+  const value = typeof env[name] === 'string' ? env[name].trim() : '';
+  if (!value) return fallback;
+  if (!['true', 'false'].includes(value.toLowerCase())) {
+    throw new RuntimeConfigError(`${name} must be true or false.`);
+  }
+  return value.toLowerCase() === 'true';
+}
+
 function databaseUrl(env) {
   const value = requiredText(env, 'DATABASE_URL');
   try {
@@ -69,6 +78,75 @@ function corsOrigins(env, appEnv) {
   return Object.freeze([...new Set(origins)]);
 }
 
+/** Validates password-recovery settings without making recovery available by default. */
+export function passwordRecoveryConfig(env = process.env) {
+  const enabled = optionalStrictBoolean(env, 'PASSWORD_RECOVERY_ENABLED');
+  if (!enabled) return Object.freeze({ enabled: false });
+
+  const originText = requiredText(env, 'PASSWORD_RECOVERY_ORIGIN');
+  let origin;
+  try {
+    const parsed = new URL(originText);
+    if (parsed.protocol !== 'https:' || parsed.origin !== originText) throw new Error();
+    origin = parsed.origin;
+  } catch {
+    throw new RuntimeConfigError('PASSWORD_RECOVERY_ORIGIN must be an exact HTTPS origin.');
+  }
+  const tokenPepper = requiredText(env, 'PASSWORD_RESET_TOKEN_PEPPER');
+  if (tokenPepper.length < 32 || PLACEHOLDER_SECRET_RE.test(tokenPepper) || new Set(tokenPepper).size < 12) {
+    throw new RuntimeConfigError('PASSWORD_RESET_TOKEN_PEPPER must be a strong secret of at least 32 characters.');
+  }
+  const brevoApiKey = requiredText(env, 'BREVO_API_KEY');
+  const senderEmail = requiredText(env, 'BREVO_SENDER_EMAIL').toLowerCase();
+  const senderName = requiredText(env, 'BREVO_SENDER_NAME');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+    throw new RuntimeConfigError('BREVO_SENDER_EMAIL must be a valid verified sender.');
+  }
+  if (senderName.length > 80) throw new RuntimeConfigError('BREVO_SENDER_NAME is too long.');
+  return Object.freeze({ enabled, origin, tokenPepper, brevoApiKey, senderEmail, senderName });
+}
+
+/**
+ * Validates identity-verification settings. The challenge engine (code generation, hashing,
+ * expiry, rate limits) always works for automated tests via the pepper; real email DELIVERY
+ * stays off unless VERIFICATION_DELIVERY_ENABLED is true with valid Brevo settings.
+ */
+export function verificationConfig(env = process.env) {
+  const pepper = typeof env.VERIFICATION_CODE_PEPPER === 'string' ? env.VERIFICATION_CODE_PEPPER.trim() : '';
+  const hasPepper = pepper.length >= 32 && !PLACEHOLDER_SECRET_RE.test(pepper) && new Set(pepper).size >= 12;
+  const deliveryEnabled = optionalStrictBoolean(env, 'VERIFICATION_DELIVERY_ENABLED');
+  if (!deliveryEnabled) {
+    // Engine available when a strong pepper exists; delivery remains disabled.
+    return Object.freeze({ deliveryEnabled: false, pepper: hasPepper ? pepper : null });
+  }
+  if (!hasPepper) {
+    throw new RuntimeConfigError('VERIFICATION_CODE_PEPPER must be a strong secret of at least 32 characters.');
+  }
+  const brevoApiKey = requiredText(env, 'BREVO_API_KEY');
+  const senderEmail = requiredText(env, 'BREVO_SENDER_EMAIL').toLowerCase();
+  const senderName = requiredText(env, 'BREVO_SENDER_NAME');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+    throw new RuntimeConfigError('BREVO_SENDER_EMAIL must be a valid verified sender.');
+  }
+  return Object.freeze({ deliveryEnabled: true, pepper, brevoApiKey, senderEmail, senderName });
+}
+
+/** Validates optional Google identity settings while keeping the feature off by default. */
+export function googleAuthConfig(env = process.env) {
+  const enabled = optionalStrictBoolean(env, 'GOOGLE_AUTH_ENABLED');
+  if (!enabled) return Object.freeze({ enabled: false });
+
+  const webClientId = requiredText(env, 'GOOGLE_WEB_CLIENT_ID');
+  if (!/^[0-9]+-[a-z0-9-]+\.apps\.googleusercontent\.com$/i.test(webClientId)) {
+    throw new RuntimeConfigError('GOOGLE_WEB_CLIENT_ID must be a valid Google web OAuth client ID.');
+  }
+  const noncePepper = requiredText(env, 'GOOGLE_AUTH_NONCE_PEPPER');
+  if (noncePepper.length < 32 || PLACEHOLDER_SECRET_RE.test(noncePepper) || new Set(noncePepper).size < 12) {
+    throw new RuntimeConfigError('GOOGLE_AUTH_NONCE_PEPPER must be a strong secret of at least 32 characters.');
+  }
+  return Object.freeze({ enabled, webClientId, noncePepper });
+}
+
 /** Validates all security- and business-sensitive runtime settings before startup. */
 export function validateRuntimeConfig(env = process.env) {
   const appEnv = requiredText(env, 'APP_ENV').toLowerCase();
@@ -101,6 +179,12 @@ export function validateRuntimeConfig(env = process.env) {
     throw new RuntimeConfigError('Payment demonstrations must be disabled in production.');
   }
   const fulfillment = fulfillmentConfig(env);
+  const passwordRecovery = passwordRecoveryConfig(env);
+  const googleAuth = googleAuthConfig(env);
+  const allowedCorsOrigins = corsOrigins(env, appEnv);
+  if (passwordRecovery.enabled && !allowedCorsOrigins.includes(passwordRecovery.origin)) {
+    throw new RuntimeConfigError('PASSWORD_RECOVERY_ORIGIN must also be an allowed CORS origin.');
+  }
   if (deliveryRequested && !fulfillment.delivery.enabled) {
     throw new RuntimeConfigError('Enabled delivery requires valid approved PSGC city codes.');
   }
@@ -114,10 +198,12 @@ export function validateRuntimeConfig(env = process.env) {
     port,
     databaseUrl: databaseUrl(env),
     jwtSecret: jwtSecret(env),
-    corsOrigins: corsOrigins(env, appEnv),
+    corsOrigins: allowedCorsOrigins,
     agreement: Object.freeze({ required: agreementRequired, version: agreementVersion }),
     fulfillment,
     demos: Object.freeze({ card: cardDemoEnabled, wallet: walletDemoEnabled }),
+    passwordRecovery,
+    googleAuth,
   });
 }
 

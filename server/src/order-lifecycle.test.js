@@ -35,7 +35,7 @@ test('immediately cancels a paid placed order while preserving payment for refun
       calls.push({ sql, params });
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql)) return { rowCount: 0, rows: [] };
       if (sql.includes('FROM orders WHERE public_id') && sql.includes('user_id')) {
-        return { rowCount: 1, rows: [{ id: 9, orderStatus: 'placed', fulfillmentMethod: 'delivery', paymentStatus: 'paid' }] };
+        return { rowCount: 1, rows: [{ id: 9, publicId: orderId, userId: 7, orderStatus: 'placed', fulfillmentMethod: 'delivery', paymentStatus: 'paid' }] };
       }
       if (sql.includes('idempotency_key = $2')) return { rowCount: 0, rows: [] };
       if (sql.includes("status IN ('pending', 'approved')")) return { rowCount: 0, rows: [] };
@@ -44,11 +44,15 @@ test('immediately cancels a paid placed order while preserving payment for refun
       }
       if (sql.startsWith('UPDATE orders') || sql.startsWith('INSERT INTO order_status_events')) return { rowCount: 1, rows: [] };
       if (sql.includes('FROM orders') && sql.includes('JOIN payment_attempts')) return { rowCount: 0, rows: [] };
+      if (sql.startsWith('SAVEPOINT') || sql.startsWith('RELEASE') || sql.startsWith('ROLLBACK TO SAVEPOINT')) return { rowCount: 0, rows: [] };
+      if (sql.includes('notify_order_updates AS "allowed"')) return { rowCount: 1, rows: [{ allowed: true }] };
+      if (sql.startsWith('INSERT INTO notifications')) return { rowCount: 1, rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     },
   };
   const result = await requestOrderCancellation(client, 7, orderId, key);
   assert.equal(result.status, 'approved');
+  assert.ok(calls.some((call) => call.sql.startsWith('INSERT INTO notifications')));
   assert.equal(result.refundReviewStatus, 'review_required');
   assert.ok(calls.some((call) => call.sql.startsWith('UPDATE orders') && call.params[1] === 'cancelled'));
   assert.equal(calls.at(-1).sql, 'COMMIT');
@@ -65,12 +69,14 @@ test('requires explicit refund permission and records an idempotent review decis
       if (sql.includes('FROM order_operators WHERE public_id')) return { rowCount: 1, rows: [{
         id: 4, publicId: operatorId, displayName: 'Refund Baker', credentialHash: hash, canManageRefunds: true,
       }] };
-      if (sql.includes('FROM order_refunds WHERE public_id')) {
-        return { rowCount: 1, rows: [{ id: 8, status: 'review_required', amountCentavos: 28_300 }] };
+      if (sql.includes('FROM order_refunds') && sql.includes('JOIN orders')) {
+        return { rowCount: 1, rows: [{ id: 8, status: 'review_required', amountCentavos: 28_300, orderPublicId: orderId, orderUserId: 7 }] };
       }
       if (sql.includes('FROM refund_events')) return { rowCount: 0, rows: [] };
       if (sql.startsWith('UPDATE order_refunds') || sql.startsWith('INSERT INTO refund_events')
         || sql.startsWith('UPDATE order_operators')) return { rowCount: 1, rows: [] };
+      if (sql.startsWith('SAVEPOINT') || sql.startsWith('RELEASE') || sql.startsWith('ROLLBACK TO SAVEPOINT')) return { rowCount: 0, rows: [] };
+      if (sql.startsWith('INSERT INTO notifications')) return { rowCount: 1, rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     },
   };
@@ -83,6 +89,7 @@ test('requires explicit refund permission and records an idempotent review decis
     'Approved after checking the paid cancellation.',
   );
   assert.equal(result.status, 'approved');
+  assert.ok(calls.some((call) => call.sql.startsWith('INSERT INTO notifications')));
   assert.ok(calls.some((call) => call.sql.startsWith('UPDATE order_refunds')));
   assert.equal(calls.at(-1).sql, 'COMMIT');
 });
@@ -116,8 +123,8 @@ test('rolls back a refund decision when its audit event cannot be recorded', asy
       if (sql.includes('FROM order_operators WHERE public_id')) return { rowCount: 1, rows: [{
         id: 4, publicId: operatorId, displayName: 'Refund Baker', credentialHash: hash, canManageRefunds: true,
       }] };
-      if (sql.includes('FROM order_refunds WHERE public_id')) {
-        return { rowCount: 1, rows: [{ id: 8, status: 'review_required', amountCentavos: 28_300 }] };
+      if (sql.includes('FROM order_refunds') && sql.includes('JOIN orders')) {
+        return { rowCount: 1, rows: [{ id: 8, status: 'review_required', amountCentavos: 28_300, orderPublicId: orderId, orderUserId: 7 }] };
       }
       if (sql.includes('FROM refund_events')) return { rowCount: 0, rows: [] };
       if (sql.startsWith('UPDATE order_refunds')) return { rowCount: 1, rows: [] };
@@ -165,12 +172,15 @@ test('enforces pickup transitions with an authenticated individual operator', as
         return { rowCount: 1, rows: [{ id: 4, publicId: operatorId, displayName: 'Baker One', credentialHash: hash }] };
       }
       if (sql.includes('FROM orders WHERE public_id') && sql.includes('FOR UPDATE')) {
-        return { rowCount: 1, rows: [{ id: 9, orderStatus: 'ready', fulfillmentMethod: 'pickup', paymentStatus: 'pending_cash' }] };
+        return { rowCount: 1, rows: [{ id: 9, publicId: orderId, userId: 7, orderStatus: 'ready', fulfillmentMethod: 'pickup', paymentStatus: 'pending_cash' }] };
       }
       if (sql.includes('FROM order_status_events') || sql.includes('FROM order_cancellation_requests')) return { rowCount: 0, rows: [] };
       if (sql.startsWith('UPDATE orders') || sql.startsWith('INSERT INTO order_status_events') || sql.startsWith('UPDATE order_operators')) {
         return { rowCount: 1, rows: [] };
       }
+      if (sql.startsWith('SAVEPOINT') || sql.startsWith('RELEASE') || sql.startsWith('ROLLBACK TO SAVEPOINT')) return { rowCount: 0, rows: [] };
+      if (sql.includes('notify_order_updates AS "allowed"')) return { rowCount: 1, rows: [{ allowed: true }] };
+      if (sql.startsWith('INSERT INTO notifications')) return { rowCount: 1, rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     },
   };
@@ -183,6 +193,7 @@ test('enforces pickup transitions with an authenticated individual operator', as
   );
   assert.equal(result.orderStatus, 'completed');
   assert.ok(calls.some((call) => call.sql.startsWith('INSERT INTO order_status_events')));
+  assert.ok(calls.some((call) => call.sql.startsWith('INSERT INTO notifications')));
 });
 
 test('rejects invalid or revoked operator credentials before order mutation', async () => {

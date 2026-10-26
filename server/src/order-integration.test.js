@@ -53,6 +53,7 @@ if (!testDatabaseUrl) {
   let reviewOrderRefund;
   let revokeOrderOperator;
   let rotateOrderOperatorCredential;
+  let reorderOrder;
   let fixtureNumber = 0;
 
   const deliveryCheckout = (overrides = {}) => ({
@@ -88,6 +89,7 @@ if (!testDatabaseUrl) {
   });
 
   async function resetFixtures() {
+    await pool.query('DELETE FROM order_reorder_attempts');
     await pool.query('DELETE FROM payment_webhook_events');
     await pool.query('DELETE FROM refund_events');
     await pool.query('DELETE FROM refund_attempts');
@@ -207,6 +209,7 @@ if (!testDatabaseUrl) {
     ({ initDb, pool: appPool } = await import('./db.js'));
     ({ lockUserCart } = await import('./cart-lock.js'));
     ({ createOrder, getOrderByPublicId, listOrders } = await import('./order-service.js'));
+    ({ reorderOrder } = await import('./reorder-service.js'));
     ({ orderRequestFingerprint } = await import('./order-validation.js'));
     ({ createOrReusePaymentIntent, createOrReusePaymentSession } = await import('./payment-service.js'));
     ({ parsePaymongoEvent, reconcilePaymongoEvent } = await import('./payment-webhook.js'));
@@ -247,7 +250,7 @@ if (!testDatabaseUrl) {
       const tables = await pool.query(
         `SELECT tablename FROM pg_tables
          WHERE schemaname = 'public' AND tablename = ANY($1) ORDER BY tablename`,
-        [['demo_payment_attempts', 'order_box_items', 'order_items', 'order_operators', 'order_status_events', 'order_cancellation_requests', 'order_refunds', 'orders', 'payment_attempts', 'payment_webhook_events', 'refund_attempts', 'refund_events', 'wallet_demo_attempts']],
+        [['demo_payment_attempts', 'order_box_items', 'order_items', 'order_operators', 'order_status_events', 'order_cancellation_requests', 'order_refunds', 'order_reorder_attempts', 'orders', 'payment_attempts', 'payment_webhook_events', 'refund_attempts', 'refund_events', 'wallet_demo_attempts']],
       );
       assert.deepEqual(tables.rows.map((row) => row.tablename), [
         'demo_payment_attempts',
@@ -256,6 +259,7 @@ if (!testDatabaseUrl) {
         'order_items',
         'order_operators',
         'order_refunds',
+        'order_reorder_attempts',
         'order_status_events',
         'orders',
         'payment_attempts',
@@ -273,6 +277,9 @@ if (!testDatabaseUrl) {
       const demoMarker = await pool.query("SELECT value FROM app_meta WHERE key = 'card_demo_v1'");
       assert.equal(demoMarker.rowCount, 1);
       assert.notEqual(demoMarker.rows[0].value, 'pending');
+      const reorderMarker = await pool.query("SELECT value FROM app_meta WHERE key = 'reorder_v1'");
+      assert.equal(reorderMarker.rowCount, 1);
+      assert.notEqual(reorderMarker.rows[0].value, 'pending');
       const agreementMarker = await pool.query("SELECT value FROM app_meta WHERE key = 'order_agreement_v1'");
       assert.equal(agreementMarker.rowCount, 1);
       assert.notEqual(agreementMarker.rows[0].value, 'pending');
@@ -813,6 +820,127 @@ if (!testDatabaseUrl) {
       } finally {
         client.release();
       }
+    });
+
+    test('reorders available singles at current prices and replays one cart mutation', async () => {
+      await resetFixtures();
+      const userId = await addUser('reorder-singles');
+      const availableId = await addProduct({ label: 'reorder-current', price: '100.00' });
+      const unavailableId = await addProduct({ label: 'reorder-missing', price: '80.00' });
+      await addSingle(userId, availableId, { quantity: 2 });
+      await addSingle(userId, unavailableId, { quantity: 1 });
+      const placed = await placeOrder(userId, deliveryCheckout());
+      await pool.query('UPDATE products SET price = 125, is_available = true WHERE id = $1', [availableId]);
+      await pool.query('UPDATE products SET is_available = false WHERE id = $1', [unavailableId]);
+      await addSingle(userId, availableId, { quantity: 3 });
+      const key = crypto.randomUUID();
+      const client = await pool.connect();
+      try {
+        const first = await reorderOrder(client, userId, placed.order.id, key);
+        assert.equal(first.replayed, false);
+        assert.deepEqual(first.added, [{ lineType: 'single', displayName: 'Integration reorder-current', quantity: 2 }]);
+        assert.equal(first.unavailable.length, 1);
+        assert.equal(first.cart.items[0].quantity, 5);
+        assert.equal(first.cart.items[0].price, 125);
+        const replay = await reorderOrder(client, userId, placed.order.id, key);
+        assert.equal(replay.replayed, true);
+        assert.equal(replay.cart.items[0].quantity, 5);
+      } finally {
+        client.release();
+      }
+      const attempts = await pool.query('SELECT count(*)::int AS count FROM order_reorder_attempts WHERE user_id = $1', [userId]);
+      assert.equal(attempts.rows[0].count, 1);
+    });
+
+    test('rebuilds complete boxes and skips the whole box when one component is unavailable', async () => {
+      await resetFixtures();
+      const userId = await addUser('reorder-box');
+      const productIds = [];
+      for (let index = 0; index < 4; index += 1) {
+        productIds.push(await addProduct({ label: `reorder-box-${index}`, price: '90.00' }));
+      }
+      await addBox(userId, productIds, { quantity: 2 });
+      const placed = await placeOrder(userId, pickupCheckout());
+      await pool.query('UPDATE products SET is_available = false WHERE id = $1', [productIds[2]]);
+      const client = await pool.connect();
+      try {
+        const skipped = await reorderOrder(client, userId, placed.order.id, crypto.randomUUID());
+        assert.equal(skipped.added.length, 0);
+        assert.equal(skipped.unavailable.length, 1);
+        assert.equal(skipped.cart.boxes.length, 0);
+        await pool.query('UPDATE products SET is_available = true WHERE id = $1', [productIds[2]]);
+        const rebuilt = await reorderOrder(client, userId, placed.order.id, crypto.randomUUID());
+        assert.equal(rebuilt.added[0].lineType, 'box');
+        assert.equal(rebuilt.cart.boxes.length, 1);
+        assert.equal(rebuilt.cart.boxes[0].quantity, 2);
+        assert.deepEqual(rebuilt.cart.boxes[0].cookies.map((cookie) => cookie.productId), productIds);
+      } finally {
+        client.release();
+      }
+    });
+
+    test('serializes concurrent reorder retries and rejects ownership and cross-order key reuse', async () => {
+      await resetFixtures();
+      const userId = await addUser('reorder-concurrent');
+      const otherUserId = await addUser('reorder-other');
+      const productId = await addProduct({ label: 'reorder-concurrent', price: '70.00' });
+      await addSingle(userId, productId, { quantity: 2 });
+      const firstOrder = await placeOrder(userId, pickupCheckout());
+      await addSingle(userId, productId, { quantity: 1 });
+      const secondOrder = await placeOrder(userId, pickupCheckout());
+      const key = crypto.randomUUID();
+      const firstClient = await pool.connect();
+      const secondClient = await pool.connect();
+      try {
+        const results = await Promise.all([
+          reorderOrder(firstClient, userId, firstOrder.order.id, key),
+          reorderOrder(secondClient, userId, firstOrder.order.id, key),
+        ]);
+        assert.deepEqual(results.map((result) => result.replayed).sort(), [false, true]);
+        const cartItem = await pool.query('SELECT quantity FROM cart_items WHERE user_id = $1 AND product_id = $2', [userId, productId]);
+        assert.equal(cartItem.rows[0].quantity, 2);
+        await assert.rejects(
+          () => reorderOrder(firstClient, userId, secondOrder.order.id, key),
+          (error) => error.status === 409,
+        );
+        await assert.rejects(
+          () => reorderOrder(firstClient, otherUserId, firstOrder.order.id, crypto.randomUUID()),
+          (error) => error.status === 404,
+        );
+      } finally {
+        firstClient.release();
+        secondClient.release();
+      }
+    });
+
+    test('rolls back cart additions when reorder result persistence fails', async () => {
+      await resetFixtures();
+      const userId = await addUser('reorder-rollback');
+      const productId = await addProduct({ label: 'reorder-rollback', price: '60.00' });
+      await addSingle(userId, productId, { quantity: 2 });
+      const placed = await placeOrder(userId, pickupCheckout());
+      const realClient = await pool.connect();
+      const failingClient = {
+        query(text, params) {
+          if (String(text).includes('INSERT INTO order_reorder_attempts')) throw new Error('injected reorder failure');
+          return realClient.query(text, params);
+        },
+      };
+      try {
+        await assert.rejects(
+          () => reorderOrder(failingClient, userId, placed.order.id, crypto.randomUUID()),
+          /injected reorder failure/,
+        );
+      } finally {
+        realClient.release();
+      }
+      const counts = await pool.query(
+        `SELECT
+           (SELECT count(*)::int FROM cart_items WHERE user_id = $1) AS cart_items,
+           (SELECT count(*)::int FROM order_reorder_attempts WHERE user_id = $1) AS attempts`,
+        [userId],
+      );
+      assert.deepEqual(counts.rows[0], { cart_items: 0, attempts: 0 });
     });
 
     test('persists selected boxes, mixed carts, free delivery and pickup', async () => {
@@ -1844,6 +1972,93 @@ if (!testDatabaseUrl) {
           new Promise((resolve) => setTimeout(resolve, 2_000)),
         ]);
       }
+    });
+
+    test('generates a placed notification committed with the order and respects the preference', async () => {
+      const userId = await addUser('notify-placed');
+      const productId = await addProduct({ label: 'notify-placed' });
+      await addSingle(userId, productId);
+      const placed = await placeOrder(userId, deliveryCheckout());
+
+      const notes = await pool.query(
+        `SELECT event_type AS "eventType", title, link_path AS "linkPath", read_at AS "readAt"
+         FROM notifications WHERE user_id = $1 ORDER BY id`,
+        [userId],
+      );
+      assert.equal(notes.rowCount, 1);
+      assert.equal(notes.rows[0].eventType, 'order_placed');
+      assert.equal(notes.rows[0].linkPath, `/orders/${placed.order.id}`);
+      assert.equal(notes.rows[0].readAt, null);
+
+      // With the order preference off, a second placed order creates no order notification.
+      await pool.query(
+        `INSERT INTO user_preferences (user_id, reduce_motion, larger_text, notify_order_updates)
+         VALUES ($1, false, false, false)
+         ON CONFLICT (user_id) DO UPDATE SET notify_order_updates = false`,
+        [userId],
+      );
+      await addSingle(userId, productId);
+      await placeOrder(userId, deliveryCheckout());
+      const afterOptOut = await pool.query('SELECT count(*)::int AS count FROM notifications WHERE user_id = $1', [userId]);
+      assert.equal(afterOptOut.rows[0].count, 1);
+    });
+
+    test('emits accurate status notifications and dedupes a replayed transition', async () => {
+      const userId = await addUser('notify-status');
+      const productId = await addProduct({ label: 'notify-status' });
+      await addSingle(userId, productId);
+      const placed = await placeOrder(userId, pickupCheckout());
+      const operator = await addOperator('Notify Baker');
+      const key = crypto.randomUUID();
+      const client = await pool.connect();
+      try {
+        await advanceOrderStatus(client, operator, placed.order.id, 'confirmed', key);
+        // Replay with the same key must not create a duplicate notification.
+        await advanceOrderStatus(client, operator, placed.order.id, 'confirmed', key);
+      } finally {
+        client.release();
+      }
+      const confirmed = await pool.query(
+        `SELECT count(*)::int AS count FROM notifications
+         WHERE user_id = $1 AND event_type = 'order_confirmed'`,
+        [userId],
+      );
+      assert.equal(confirmed.rows[0].count, 1);
+    });
+
+    test('still delivers order cancellation when the order preference is off', async () => {
+      const userId = await addUser('notify-cancel');
+      const productId = await addProduct({ label: 'notify-cancel' });
+      await addSingle(userId, productId);
+      await pool.query(
+        `INSERT INTO user_preferences (user_id, reduce_motion, larger_text, notify_order_updates)
+         VALUES ($1, false, false, false) ON CONFLICT (user_id) DO UPDATE SET notify_order_updates = false`,
+        [userId],
+      );
+      const placed = await placeOrder(userId, deliveryCheckout());
+      const client = await pool.connect();
+      try {
+        await requestOrderCancellation(client, userId, placed.order.id, crypto.randomUUID());
+      } finally {
+        client.release();
+      }
+      const cancelled = await pool.query(
+        `SELECT count(*)::int AS count FROM notifications
+         WHERE user_id = $1 AND event_type = 'order_cancelled'`,
+        [userId],
+      );
+      // Placement was suppressed (pref off) but the essential cancellation still arrived.
+      assert.equal(cancelled.rows[0].count, 1);
+    });
+
+    test('a parent transaction rollback discards the notification (no false notification)', async () => {
+      const userId = await addUser('notify-rollback');
+      const productId = await addProduct({ label: 'notify-rollback', available: false });
+      await addSingle(userId, productId);
+      // Placement fails (unavailable product) and rolls back; no notification must remain.
+      await assert.rejects(() => placeOrder(userId, deliveryCheckout()), (error) => error.status === 409);
+      const notes = await pool.query('SELECT count(*)::int AS count FROM notifications WHERE user_id = $1', [userId]);
+      assert.equal(notes.rows[0].count, 0);
     });
   });
 }
