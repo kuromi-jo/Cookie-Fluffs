@@ -20,6 +20,7 @@
           <h1 id="profile-name">{{ user.fullName }}</h1>
           <p><ion-icon name="mail-outline" aria-hidden="true"></ion-icon>{{ user.email }}</p>
           <p><ion-icon name="call-outline" aria-hidden="true"></ion-icon>{{ user.phone }}</p>
+          <p class="member-since-inline"><ion-icon name="time-outline" aria-hidden="true"></ion-icon>Member since {{ user.createdAt | date: 'MMMM y' }}</p>
         </div>
         @if (!editing()) {
           <ion-button fill="outline" class="edit-profile" (click)="startEditing()">
@@ -36,11 +37,18 @@
         <section class="cf-card edit-card" aria-labelledby="personal-heading">
           <header><h2 id="personal-heading">Personal information</h2><p>Keep your delivery contact details up to date.</p></header>
 
-          <label class="photo-action">
-            <app-avatar [src]="draft().avatar" [name]="draft().firstName + ' ' + draft().lastName" style="--size: 64px" />
-            <span><strong>Change profile photo</strong><small>JPG or PNG works best.</small></span>
-            <input type="file" accept="image/*" (change)="onPhotoPicked($event)" [disabled]="saving()" />
-          </label>
+          <div class="photo-row">
+            <label class="photo-action">
+              <app-avatar [src]="draft().avatar" [name]="draft().firstName + ' ' + draft().lastName" style="--size: 64px" />
+              <span><strong>Change profile photo</strong><small>JPG or PNG works best.</small></span>
+              <input type="file" accept="image/*" (change)="onPhotoPicked($event)" [disabled]="saving()" />
+            </label>
+            @if (draft().avatar) {
+              <ion-button fill="clear" size="small" class="remove-photo" (click)="removePhoto()" [disabled]="saving()">
+                <ion-icon slot="start" name="trash-outline" aria-hidden="true"></ion-icon>Remove photo
+              </ion-button>
+            }
+          </div>
 
           <div class="name-fields">
             <div class="field-group">
@@ -53,16 +61,68 @@
             </div>
           </div>
 
-          <div class="field-group">
-            <ion-input id="profile-phone" class="cf-input" [class.ion-invalid]="!!fieldError('phone')" [class.ion-touched]="isTouched('phone')" type="tel" inputmode="tel" autocomplete="tel" label="Mobile number" labelPlacement="floating" name="phone" [ngModel]="draft().phone" (ngModelChange)="update('phone', $event)" (ionBlur)="blur('phone')"></ion-input>
-            @if (fieldError('phone'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+          <div class="protected-field">
+            <span class="protected-icon"><ion-icon name="call-outline" aria-hidden="true"></ion-icon></span>
+            <span class="protected-copy">
+              <small>Mobile number (protected)</small>
+              <strong>{{ maskedPhone(user.phone) }}</strong>
+            </span>
+            <ion-button fill="outline" size="small" class="change-btn" (click)="startChangePhone()">Change</ion-button>
           </div>
 
-          <div class="email-readonly"><ion-icon name="mail-outline" aria-hidden="true"></ion-icon><span><small>Email address</small><strong>{{ user.email }}</strong><em>Email changes are not available yet.</em></span></div>
+          <div class="protected-field">
+            <span class="protected-icon"><ion-icon name="mail-outline" aria-hidden="true"></ion-icon></span>
+            <span class="protected-copy">
+              <small>Email (protected)</small>
+              <strong>{{ maskedEmail(user.email) }}</strong>
+            </span>
+            <ion-button fill="outline" size="small" class="change-btn" (click)="startChangeEmail()">Change</ion-button>
+          </div>
+
+          @if (canSetPassword()) {
+            <div class="protected-field">
+              <span class="protected-icon"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span>
+              <span class="protected-copy">
+                <small>Password</small>
+                <strong>Set a password to log in with email too</strong>
+              </span>
+              <ion-button fill="outline" size="small" class="change-btn" [disabled]="settingPassword()" (click)="startSetPassword()">Set</ion-button>
+            </div>
+          }
+
+          <h3 class="group-label">Optional details</h3>
+
+          <div class="field-group">
+            <ion-select class="cf-input cf-select" label="Gender (optional)" labelPlacement="floating" interface="action-sheet" placeholder="Prefer not to say" [ngModel]="draft().gender" (ngModelChange)="setGender($event)" name="gender">
+              @for (option of genderOptions; track option.value) {
+                <ion-select-option [value]="option.value">{{ option.label }}</ion-select-option>
+              }
+            </ion-select>
+          </div>
+
+          <div id="profile-dateOfBirth-field" class="field-group">
+            <ion-input id="profile-dateOfBirth" class="cf-input" [class.ion-invalid]="!!fieldError('dateOfBirth')" [class.ion-touched]="isTouched('dateOfBirth')" label="Date of birth (optional)" labelPlacement="floating" [value]="draft().dateOfBirth" [readonly]="true" button="true" id="dob-trigger">
+              <ion-icon slot="start" name="calendar-outline" aria-hidden="true"></ion-icon>
+              @if (draft().dateOfBirth) {
+                <ion-button slot="end" fill="clear" size="small" (click)="clearDateOfBirth()" aria-label="Clear date of birth"><ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon></ion-button>
+              }
+            </ion-input>
+            <ion-modal trigger="dob-trigger" class="dob-sheet-modal">
+              <ng-template>
+                <div class="dob-sheet">
+                  <ion-datetime presentation="date" [max]="maxBirthDate" [value]="draft().dateOfBirth" (ionChange)="setDateOfBirth($any($event.detail.value))" [showDefaultButtons]="true" doneText="Set" cancelText="Cancel"></ion-datetime>
+                </div>
+              </ng-template>
+            </ion-modal>
+            @if (fieldError('dateOfBirth'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
+          </div>
+
+          <div class="email-readonly protected"><ion-icon name="mail-outline" aria-hidden="true"></ion-icon><span><small>Email address (protected)</small><strong>{{ user.email }}</strong><em>Email changes will use secure verification (coming soon).</em></span></div>
+          <div class="member-since"><ion-icon name="time-outline" aria-hidden="true"></ion-icon><span><small>Member since</small><strong>{{ user.createdAt | date: 'MMMM y' }}</strong></span></div>
           @if (pageError()) { <p class="save-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ pageError() }}</p> }
 
           <div class="form-actions">
-            <ion-button expand="block" class="cf-btn-lg" (click)="save()" [disabled]="saving()">@if (saving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Save changes }</ion-button>
+            <ion-button expand="block" class="cf-btn-lg" (click)="save()" [disabled]="saving() || !hasChanges()">@if (saving()) { <ion-spinner name="crescent"></ion-spinner> } @else { Save changes }</ion-button>
             <ion-button expand="block" fill="clear" (click)="cancelEditing()" [disabled]="saving()">Cancel</ion-button>
           </div>
         </section>
@@ -70,16 +130,18 @@
         <section class="account-section" aria-labelledby="account-heading">
           <h2 id="account-heading">Your account</h2>
           <a class="account-row cf-card" routerLink="/profile/addresses"><span class="row-icon"><ion-icon name="location-outline" aria-hidden="true"></ion-icon></span><span><strong>My Addresses</strong><small>Save delivery details for checkout</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/notifications"><span class="row-icon"><ion-icon name="notifications-outline" aria-hidden="true"></ion-icon></span><span><strong>Notifications</strong><small>Order updates and account alerts</small></span>@if (notifications.hasUnread()) {<span class="row-badge" [class.stale]="notifications.unreadStale()" [attr.aria-label]="notifications.unread() + ' unread'">{{ notifications.unread() }}</span>}<ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
           <a class="account-row cf-card" routerLink="/orders"><span class="row-icon"><ion-icon name="receipt-outline" aria-hidden="true"></ion-icon></span><span><strong>My Orders</strong><small>Review orders, payments, and receipts</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
           <a class="account-row cf-card" routerLink="/profile/favorites"><span class="row-icon"><ion-icon name="heart-outline" aria-hidden="true"></ion-icon></span><span><strong>My Favorites</strong><small>Keep your favorite cookies close</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
           <a class="account-row cf-card" routerLink="/profile/settings"><span class="row-icon"><ion-icon name="settings-outline" aria-hidden="true"></ion-icon></span><span><strong>App Settings</strong><small>Adjust motion and text size</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/profile/security"><span class="row-icon"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span><span><strong>Privacy &amp; Security</strong><small>Change your password securely</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
         </section>
 
         <section class="account-section" aria-labelledby="help-heading">
           <h2 id="help-heading">Help and policies</h2>
           <a class="account-row cf-card" routerLink="/help"><span class="row-icon"><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon></span><span><strong>Help &amp; Support</strong><small>Find answers or send us a message</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
           <a class="account-row cf-card" routerLink="/terms"><span class="row-icon"><ion-icon name="book-outline" aria-hidden="true"></ion-icon></span><span><strong>Terms of Use</strong><small>Draft for our class project</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
-          <a class="account-row cf-card" routerLink="/privacy"><span class="row-icon"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span><span><strong>Privacy Policy</strong><small>Draft for our class project</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
+          <a class="account-row cf-card" routerLink="/privacy"><span class="row-icon"><ion-icon name="document-text-outline" aria-hidden="true"></ion-icon></span><span><strong>Privacy Policy</strong><small>Draft for our class project</small></span><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></a>
         </section>
 
         <ion-button class="logout-action" fill="outline" expand="block" (click)="confirmLogout()"><ion-icon slot="start" name="log-out-outline" aria-hidden="true"></ion-icon>Log out</ion-button>

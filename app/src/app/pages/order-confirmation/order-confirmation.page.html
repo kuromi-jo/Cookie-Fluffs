@@ -163,6 +163,29 @@
       </section>
 
       <p class="placed-at">Placed {{ placed.createdAt | date: 'medium' }}</p>
+      @if (isOrderDetail()) {
+        <section class="confirmation-section reorder-panel">
+          <h2>Enjoy these cookies again</h2>
+          <p class="cf-muted">Available items will be added to your current cart using today’s menu and prices.</p>
+          <ion-button class="cf-btn-lg" expand="block" (click)="reorder()" [disabled]="reordering() || !placed.items.length">
+            @if (reordering()) { <ion-spinner name="crescent"></ion-spinner> } @else { Reorder }
+          </ion-button>
+          @if (reorderError()) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ reorderError() }}</p> }
+          @if (reorderResult(); as result) {
+            <div class="reorder-summary" role="status">
+              @if (result.added.length) {
+                <strong>{{ result.added.length }} {{ result.added.length === 1 ? 'item' : 'items' }} added</strong>
+                <ul>@for (item of result.added; track item.lineType + item.displayName) { <li>{{ item.quantity }} × {{ item.displayName }}</li> }</ul>
+              } @else { <strong>No items were added.</strong> }
+              @if (result.unavailable.length) {
+                <p>Unavailable items were skipped:</p>
+                <ul>@for (item of result.unavailable; track item.displayName + item.reason) { <li>{{ item.quantity }} × {{ item.displayName }} — {{ item.reason }}</li> }</ul>
+              }
+              @if (result.added.length) { <ion-button fill="outline" expand="block" routerLink="/cart">View cart</ion-button> }
+            </div>
+          }
+        </section>
+      }
       <section class="order-actions" aria-label="Order actions">
         @if (!isOrderDetail()) { <ion-button class="cf-btn-lg" expand="block" [routerLink]="['/orders', placed.id]">View My Order</ion-button> }
         <ion-button fill="outline" expand="block" (click)="printReceipt()"><ion-icon slot="start" name="receipt-outline" aria-hidden="true"></ion-icon>Print Receipt</ion-button>

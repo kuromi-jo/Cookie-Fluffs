@@ -33,6 +33,7 @@ export class SettingsPage {
   private ui = inject(UiService);
   readonly reduceMotion = signal(false);
   readonly largerText = signal(false);
+  readonly notifyOrderUpdates = signal(true);
 
   async ionViewWillEnter(): Promise<void> {
     if (!this.auth.isLoggedIn()) {
@@ -43,16 +44,22 @@ export class SettingsPage {
       const values = await this.preferences.load();
       this.reduceMotion.set(values.reduceMotion);
       this.largerText.set(values.largerText);
+      this.notifyOrderUpdates.set(values.notifyOrderUpdates ?? true);
     } catch {
       const current = this.preferences.preferences();
       this.reduceMotion.set(current.reduceMotion);
       this.largerText.set(current.largerText);
+      this.notifyOrderUpdates.set(current.notifyOrderUpdates ?? true);
     }
   }
 
   async save(): Promise<void> {
     try {
-      await this.preferences.save({ reduceMotion: this.reduceMotion(), largerText: this.largerText() });
+      await this.preferences.save({
+        reduceMotion: this.reduceMotion(),
+        largerText: this.largerText(),
+        notifyOrderUpdates: this.notifyOrderUpdates(),
+      });
       await this.ui.toast('App settings saved.', { icon: 'checkmark-circle' });
     } catch {
       // The service exposes the accessible page error.

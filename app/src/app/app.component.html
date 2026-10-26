@@ -20,22 +20,18 @@
           <h2>{{ user.fullName }}</h2>
           <p class="contact"><ion-icon name="call-outline"></ion-icon>{{ user.phone }}</p>
           <p class="email"><ion-icon name="mail-outline"></ion-icon>{{ user.email }}</p>
-          <ion-menu-toggle [autoHide]="false">
-            <button type="button" class="manage-account" [class.active]="isActive('/profile')" (click)="manageAccount()">
-              <ion-icon name="person-outline" aria-hidden="true"></ion-icon> Manage account
-            </button>
-          </ion-menu-toggle>
+          <button type="button" class="manage-account" [class.active]="isActive('/profile')" (click)="manageAccount($event)">
+            <ion-icon name="person-outline" aria-hidden="true"></ion-icon> Manage account
+          </button>
         } @else {
           <div class="avatar-btn guest">
             <app-avatar name="Guest" src="assets/brand/cookie-logo.svg" style="--size: 76px" />
           </div>
           <h2>Hello, Cookie Lover!</h2>
           <p class="contact"><ion-icon name="call-outline"></ion-icon>Log in to add your number</p>
-          <ion-menu-toggle [autoHide]="false">
-            <button type="button" class="login-pill" (click)="goToLogin()">
-              <ion-icon name="log-in-outline"></ion-icon> Log in or Sign up
-            </button>
-          </ion-menu-toggle>
+          <button type="button" class="login-pill" (click)="goToLogin($event)">
+            <ion-icon name="log-in-outline"></ion-icon> Log in or Sign up
+          </button>
         }
       </section>
 
@@ -102,7 +98,7 @@
     </ion-footer>
   </ion-menu>
 
-  <ion-router-outlet id="main-content"></ion-router-outlet>
+  <ion-router-outlet id="main-content" tabindex="-1" aria-label="Page content"></ion-router-outlet>
 
   @if (showSplash()) {
     <app-splash [leaving]="splashLeaving()" />

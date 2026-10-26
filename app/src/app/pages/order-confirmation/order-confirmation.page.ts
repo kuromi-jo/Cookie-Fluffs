@@ -21,12 +21,14 @@ import {
 } from '@ionic/angular';
 import { AuthService } from '../../core/auth.service';
 import { apiErrorMessage } from '../../core/api-error';
+import { CartService } from '../../core/cart.service';
 import { DemoCardFormComponent } from '../../components/demo-card-form.component';
 import { presentSimulatedCardVerification } from '../../components/simulated-card-verification.modal';
 import { presentSimulatedWalletConfirmation } from '../../components/simulated-wallet-confirmation.modal';
 import { DemoCardFlow, DemoCardScenario, demoScenarioForFlow } from '../../core/demo-card';
-import { Order, RefundStatus } from '../../core/models';
+import { Order, RefundStatus, ReorderResult } from '../../core/models';
 import { OrderService } from '../../core/order.service';
+import { ProductService } from '../../core/product.service';
 import { isOnlinePayment, paymentLabel } from '../../core/checkout-rules';
 
 const PROVIDER_PAYMENT_ERRORS = new Set([
@@ -160,6 +162,8 @@ export class OrderConfirmationPage implements OnDestroy {
 
   readonly auth = inject(AuthService);
   private orders = inject(OrderService);
+  private cart = inject(CartService);
+  readonly products = inject(ProductService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private modals = inject(ModalController);
@@ -176,6 +180,9 @@ export class OrderConfirmationPage implements OnDestroy {
   readonly demoFlow = signal<DemoCardFlow | null>(null);
   readonly cancellationAction = signal(false);
   readonly cancellationError = signal('');
+  readonly reordering = signal(false);
+  readonly reorderResult = signal<ReorderResult | null>(null);
+  readonly reorderError = signal('');
   private stopPaymentPolling?: () => void;
   private stopLifecyclePolling?: () => void;
   private readonly returnRefresh = new PaymentReturnRefreshGate();
@@ -263,6 +270,27 @@ export class OrderConfirmationPage implements OnDestroy {
 
   printReceipt(): void {
     window.print();
+  }
+
+  async reorder(): Promise<void> {
+    const order = this.order();
+    if (!order || !this.isOrderDetail() || this.reordering()) return;
+    this.reorderResult.set(null);
+    this.reorderError.set('');
+    if (!this.products.online()) {
+      this.reorderError.set('Reconnect to Cookie Fluffs before adding this order to your cart.');
+      return;
+    }
+    this.reordering.set(true);
+    try {
+      const result = await this.orders.reorder(order.id);
+      this.cart.replaceFromServer(result.cart);
+      this.reorderResult.set(result);
+    } catch (error) {
+      this.reorderError.set(apiErrorMessage(error));
+    } finally {
+      this.reordering.set(false);
+    }
   }
 
   paymentLabel(order: Order): string {

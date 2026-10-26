@@ -138,6 +138,37 @@ describe('order confirmation API', () => {
     await expect(result).resolves.toEqual({ orders: [], nextCursor: null });
   });
 
+  it('reuses one reorder key after an ambiguous failure and clears it after success', async () => {
+    const orderId = '123e4567-e89b-42d3-a456-426614174000';
+    const first = service.reorder(orderId);
+    const firstRequest = http.expectOne(`/api/orders/${orderId}/reorder`);
+    const firstKey = firstRequest.request.body.idempotencyKey;
+    firstRequest.flush({ message: 'Unavailable' }, { status: 503, statusText: 'Unavailable' });
+    await expect(first).rejects.toBeTruthy();
+
+    const retry = service.reorder(orderId);
+    const retryRequest = http.expectOne(`/api/orders/${orderId}/reorder`);
+    expect(retryRequest.request.body.idempotencyKey).toBe(firstKey);
+    retryRequest.flush({
+      cart: { items: [], boxes: [], itemCount: 0, selectedCount: 0, subtotal: 0, deliveryFee: 49, freeDeliveryMin: 500, total: 49 },
+      added: [],
+      unavailable: [],
+      replayed: true,
+    });
+    await expect(retry).resolves.toMatchObject({ replayed: true });
+
+    const next = service.reorder(orderId);
+    const nextRequest = http.expectOne(`/api/orders/${orderId}/reorder`);
+    expect(nextRequest.request.body.idempotencyKey).not.toBe(firstKey);
+    nextRequest.flush({
+      cart: { items: [], boxes: [], itemCount: 0, selectedCount: 0, subtotal: 0, deliveryFee: 49, freeDeliveryMin: 500, total: 49 },
+      added: [],
+      unavailable: [],
+      replayed: false,
+    });
+    await next;
+  });
+
   it('reuses one non-sensitive cancellation key for repeated taps', async () => {
     const orderId = '123e4567-e89b-42d3-a456-426614174000';
     const response = { id: orderId, orderStatus: 'cancelled' } as Order;

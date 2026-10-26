@@ -9,7 +9,7 @@ import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 import { UserPreferences } from './models';
 
-const DEFAULTS: UserPreferences = { reduceMotion: false, largerText: false, updatedAt: null };
+const DEFAULTS: UserPreferences = { reduceMotion: false, largerText: false, notifyOrderUpdates: true, updatedAt: null };
 
 export function prefersReducedMotion(): boolean {
   const accountSetting = typeof document !== 'undefined'
@@ -75,7 +75,7 @@ export class PreferenceService {
     }
   }
 
-  async save(values: Pick<UserPreferences, 'reduceMotion' | 'largerText'>): Promise<UserPreferences> {
+  async save(values: Pick<UserPreferences, 'reduceMotion' | 'largerText'> & { notifyOrderUpdates?: boolean }): Promise<UserPreferences> {
     this.saving.set(true);
     this.error.set('');
     try {

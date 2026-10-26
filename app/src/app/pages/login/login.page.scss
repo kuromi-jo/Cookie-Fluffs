@@ -83,108 +83,163 @@ ion-toolbar {
   }
 }
 
-.helper,
-.password-tip {
+.forgot-link {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: fit-content;
+  min-height: 44px;
+  margin: -8px 0 8px auto;
+  color: var(--cf-pink-deep);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-underline-offset: 3px;
+}
+
+.helper {
   margin: 6px 6px 0;
   color: var(--cf-choco-light);
   font-size: 0.75rem;
   font-weight: 600;
 }
 
-.password-guide {
-  margin-top: 10px;
-  padding: 12px 14px;
+.google-followup {
+  padding: 20px;
+
+  h2 {
+    margin: 4px 0 8px;
+    font-family: var(--cf-font-display);
+    font-size: 1.45rem;
+  }
+
+  .cf-input {
+    margin-top: 16px;
+  }
+}
+
+.google-copy,
+.verified-identity {
+  margin: 0;
+  color: var(--cf-choco-light);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.verified-identity {
+  margin-top: 8px;
+  color: var(--cf-choco-medium);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.verified-email-row .verified-identity {
+  margin-top: 0;
+}
+
+.google-consent {
+  margin: 10px 0 14px;
+}
+
+.google-auth {
+  margin-top: 18px;
+}
+
+.auth-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--cf-choco-light);
+  font-size: 0.78rem;
+  font-weight: 700;
+
+  &::before,
+  &::after {
+    height: 1px;
+    background: var(--cf-pink-border);
+    content: '';
+  }
+}
+
+.google-native-button {
+  --border-color: var(--cf-pink-border);
+  --border-radius: 999px;
+  --color: var(--cf-choco);
+  min-height: 52px;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.google-web-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+
+  // The official GIS button renders inside a nested wrapper/iframe. Center that
+  // wrapper and let it shrink on narrow devices without clipping the branding.
+  > div {
+    margin-inline: auto;
+    max-width: 100%;
+  }
+
+  iframe {
+    margin-inline: auto !important;
+    max-width: 100% !important;
+  }
+}
+
+.google-error {
+  margin-top: 12px;
+}
+
+.google-notice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: 10px;
+  padding: 16px;
+
+  > ion-icon {
+    margin-top: 2px;
+    color: var(--cf-pink-deep);
+    font-size: 22px;
+  }
+
+  .google-notice-copy {
+    grid-column: 2;
+    margin: 0;
+    color: var(--cf-choco-medium);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .google-notice-actions {
+    grid-column: 1 / -1;
+    margin-top: 14px;
+  }
+}
+
+.verified-email-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 16px;
+  padding: 10px 14px;
   border: 1px solid var(--cf-pink-border);
-  border-radius: var(--cf-radius-sm);
+  border-radius: 14px;
   background: var(--cf-pink-card);
 }
 
-.strength-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 0.75rem;
+.verified-email-label {
+  color: var(--cf-choco-light);
+  font-size: 0.72rem;
   font-weight: 700;
-
-  span {
-    color: var(--cf-choco-medium);
-  }
-}
-
-.strength-short {
-  color: var(--ion-color-danger);
-}
-
-.strength-easy {
-  color: var(--ion-color-warning-shade);
-}
-
-.strength-okay {
-  color: var(--cf-pink-deep);
-}
-
-.strength-strong {
-  color: var(--ion-color-success);
-}
-
-.strength-bar {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin: 8px 0 10px;
-
-  .segment {
-    height: 4px;
-    border-radius: 999px;
-    background: var(--ion-color-light-shade);
-    transition: background-color 180ms ease;
-
-    &.active.strength-short {
-      background: var(--ion-color-danger);
-    }
-
-    &.active.strength-easy {
-      background: var(--ion-color-warning);
-    }
-
-    &.active.strength-okay {
-      background: var(--cf-pink-accent);
-    }
-
-    &.active.strength-strong {
-      background: var(--ion-color-success);
-    }
-  }
-}
-
-.password-checks {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    color: var(--cf-choco-light);
-    font-size: 0.75rem;
-    font-weight: 600;
-
-    &.done {
-      color: var(--ion-color-success-shade);
-    }
-  }
-
-  ion-icon {
-    flex: none;
-    font-size: 17px;
-  }
-}
-
-.password-tip {
-  margin: 9px 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .consent-field {
@@ -300,10 +355,4 @@ ion-toolbar {
     padding-inline: 18px;
   }
 
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .strength-bar .segment {
-    transition: none;
-  }
 }

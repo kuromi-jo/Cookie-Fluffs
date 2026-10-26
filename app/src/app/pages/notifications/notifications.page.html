@@ -1,0 +1,77 @@
+<!-- @file notifications.page.html @description Mobile notification center for the authenticated customer. -->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/profile" text=""></ion-back-button></ion-buttons>
+    <ion-title class="cf-title">Notifications</ion-title>
+    <ion-buttons slot="end">
+      @if (notifications.hasUnread()) {
+        <ion-button (click)="markAllRead()">Mark all read</ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page notifications-page">
+    @if (notifications.loading() && !notifications.items().length) {
+      <ul class="note-list" aria-hidden="true">
+        @for (s of skeletons; track s) {
+          <li class="note-row cf-card skeleton">
+            <ion-skeleton-text [animated]="true" style="width: 40px; height: 40px; border-radius: 12px;"></ion-skeleton-text>
+            <div class="note-copy">
+              <ion-skeleton-text [animated]="true" style="width: 55%;"></ion-skeleton-text>
+              <ion-skeleton-text [animated]="true" style="width: 85%;"></ion-skeleton-text>
+            </div>
+          </li>
+        }
+      </ul>
+    } @else if (notifications.error() && !notifications.items().length) {
+      <aside class="page-notice" role="alert">
+        <ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon>
+        <p>We couldn't load your notifications. Check your connection and try again.</p>
+        <ion-button fill="outline" (click)="retry()">Try again</ion-button>
+      </aside>
+    } @else if (!notifications.items().length) {
+      <aside class="empty-state">
+        <span class="empty-mark"><ion-icon name="notifications-outline" aria-hidden="true"></ion-icon></span>
+        <h2>No notifications yet</h2>
+        <p>Order updates and account alerts will show up here.</p>
+        <ion-button class="cf-btn-lg" routerLink="/shop" routerDirection="root">Browse cookies</ion-button>
+      </aside>
+    } @else {
+      <ul class="note-list">
+        @for (item of notifications.items(); track item.id) {
+          <li>
+            <button
+              type="button"
+              class="note-row cf-card"
+              [class.unread]="!item.read"
+              (click)="open(item)"
+              [attr.aria-label]="(item.read ? '' : 'Unread. ') + item.title + '. ' + item.body"
+            >
+              <span class="note-icon" [attr.data-category]="item.category">
+                <ion-icon [name]="categoryIcon(item.category)" aria-hidden="true"></ion-icon>
+              </span>
+              <span class="note-copy">
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.body }}</small>
+                <time [attr.datetime]="item.createdAt">{{ relativeTime(item.createdAt) }}</time>
+              </span>
+              @if (!item.read) { <span class="unread-dot" aria-hidden="true"></span> }
+            </button>
+          </li>
+        }
+      </ul>
+
+      @if (notifications.nextCursor()) {
+        <ion-infinite-scroll (ionInfinite)="loadMore($event)">
+          <ion-infinite-scroll-content loadingSpinner="crescent"></ion-infinite-scroll-content>
+        </ion-infinite-scroll>
+      }
+
+      @if (notifications.error()) {
+        <p class="inline-error" role="alert">{{ notifications.error() }}</p>
+      }
+    }
+  </main>
+</ion-content>

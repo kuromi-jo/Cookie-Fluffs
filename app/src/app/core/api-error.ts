@@ -12,7 +12,7 @@ export function apiErrorMessage(err: unknown): string {
     }
     const body = err.error;
     if (
-      (err.status === 400 || err.status === 401 || err.status === 409) &&
+      (err.status === 400 || err.status === 401 || err.status === 409 || err.status === 429) &&
       body &&
       typeof body === 'object' &&
       typeof body.message === 'string'

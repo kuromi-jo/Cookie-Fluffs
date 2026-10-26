@@ -117,6 +117,22 @@
   &:focus-within { box-shadow: 0 0 0 3px var(--cf-pink-border); }
 }
 
+.photo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 18px;
+
+  .photo-action { flex: 1 1 220px; margin-bottom: 0; }
+
+  .remove-photo {
+    --color: var(--cf-pink-deep);
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+}
+
 .field-group { margin-bottom: 14px; }
 .name-fields { display: grid; gap: 0; }
 
@@ -134,6 +150,65 @@
   span { display: grid; gap: 2px; min-width: 0; }
   small, em { color: var(--cf-choco-light); font-size: 0.7rem; font-style: normal; }
   strong { font-size: 0.84rem; overflow-wrap: anywhere; }
+}
+
+.group-label {
+  margin: 20px 4px 10px;
+  font-family: var(--cf-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cf-choco);
+}
+
+.cf-select {
+  --padding-start: 14px;
+  --padding-end: 10px;
+}
+
+.member-since {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 18px;
+  background: var(--cf-canvas);
+
+  > ion-icon { flex: none; color: var(--cf-pink-deep); font-size: 20px; }
+  span { display: grid; gap: 1px; }
+  small { color: var(--cf-choco-light); font-size: 0.7rem; }
+  strong { font-size: 0.86rem; }
+}
+
+.member-since-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cf-choco-light);
+  font-size: 0.78rem;
+}
+
+.email-readonly.protected { border-style: solid; }
+
+.protected-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 18px;
+  background: var(--cf-pink-soft);
+
+  .protected-icon { color: var(--cf-pink-deep); font-size: 20px; }
+  .protected-copy { display: grid; gap: 1px; min-width: 0; }
+  .protected-copy small { color: var(--cf-choco-light); font-size: 0.7rem; }
+  .protected-copy strong { font-size: 0.86rem; overflow-wrap: anywhere; }
+  .change-btn { --border-color: var(--cf-pink-accent); --color: var(--cf-pink-deep); margin: 0; }
 }
 
 .save-error {
@@ -181,6 +256,22 @@
   background: var(--cf-pink-soft);
   color: var(--cf-pink-deep);
   font-size: 21px;
+}
+
+.row-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--cf-pink-accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+
+  // A stale (offline / unconfirmed) count is dimmed so it is not read as current.
+  &.stale { opacity: 0.45; }
 }
 
 .logout-action {

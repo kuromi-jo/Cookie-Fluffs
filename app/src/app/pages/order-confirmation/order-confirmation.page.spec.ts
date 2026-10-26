@@ -3,9 +3,11 @@
  * @description Safe customer-facing messages for recoverable online-payment failures.
  */
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import {
   PaymentReturnRefreshGate,
+  OrderConfirmationPage,
   cancellationConfirmation,
   orderDocumentTitle,
   paymentRecoveryErrorMessage,
@@ -182,5 +184,32 @@ describe('print document labels', () => {
       .toBe('Cancelled Order — Refund Approved for Processing');
     expect(orderDocumentTitle(order({ refund: { ...refund, status: 'refunded', approvedAmount: 149 } })))
       .toBe('Refund Confirmation');
+  });
+});
+
+describe('order detail reorder', () => {
+  it('updates the shared cart from the authoritative reorder response', async () => {
+    const page = Object.create(OrderConfirmationPage.prototype) as OrderConfirmationPage;
+    const cart = { items: [], boxes: [], itemCount: 1, selectedCount: 1, subtotal: 100, deliveryFee: 49, freeDeliveryMin: 500, total: 149 };
+    const result = {
+      cart,
+      added: [{ lineType: 'single' as const, displayName: 'Cookie', quantity: 1 }],
+      unavailable: [],
+      replayed: false,
+    };
+    const replaceFromServer = vi.fn();
+    Object.assign(page as object, {
+      route: { snapshot: { routeConfig: { path: 'orders/:id' } } },
+      products: { online: signal(true) },
+      orders: { reorder: vi.fn().mockResolvedValue(result) },
+      cart: { replaceFromServer },
+      order: signal({ id: '123e4567-e89b-42d3-a456-426614174000' } as Order),
+      reordering: signal(false),
+      reorderResult: signal(null),
+      reorderError: signal(''),
+    });
+    await page.reorder();
+    expect(replaceFromServer).toHaveBeenCalledWith(cart);
+    expect(page.reorderResult()).toEqual(result);
   });
 });

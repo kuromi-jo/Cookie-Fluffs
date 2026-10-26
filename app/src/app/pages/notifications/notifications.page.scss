@@ -1,0 +1,114 @@
+/**
+ * @file notifications.page.scss
+ * @description Mobile notification center styling using the Cookie Fluffs design system.
+ */
+.notifications-page {
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+.note-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+  background: #fff;
+  cursor: pointer;
+
+  &.unread { background: var(--cf-pink-soft); }
+  &.skeleton { cursor: default; }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--cf-pink-border);
+  }
+}
+
+.note-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--cf-pink-soft);
+  color: var(--cf-pink-deep);
+  font-size: 20px;
+
+  &[data-category='payment'] { background: var(--cf-pink-card); }
+  &[data-category='security'] { background: var(--cf-pink-card); }
+}
+
+.note-row.unread .note-icon { background: #fff; }
+
+.note-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+
+  strong { color: var(--cf-choco); font-size: 0.92rem; }
+  small { color: var(--cf-choco-light); font-size: 0.8rem; line-height: 1.45; }
+  time { margin-top: 2px; color: var(--cf-choco-light); font-size: 0.72rem; font-weight: 700; }
+}
+
+.unread-dot {
+  align-self: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--cf-pink-accent);
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 48px;
+  text-align: center;
+
+  h2 { margin: 6px 0 0; font-family: var(--cf-font-display); font-size: 1.3rem; }
+  p { margin: 0 0 8px; color: var(--cf-choco-light); font-size: 0.86rem; }
+  ion-button { min-width: 200px; }
+}
+
+.empty-mark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  background: var(--cf-pink-soft);
+  color: var(--cf-pink-deep);
+  font-size: 32px;
+}
+
+.page-notice {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 40px;
+  padding: 20px;
+  text-align: center;
+  color: var(--cf-choco-light);
+
+  ion-icon { font-size: 30px; color: var(--cf-pink-deep); }
+  p { margin: 0; font-size: 0.86rem; }
+}
+
+.inline-error {
+  margin: 14px 2px 0;
+  color: var(--cf-pink-deep);
+  font-size: 0.8rem;
+  font-weight: 700;
+}

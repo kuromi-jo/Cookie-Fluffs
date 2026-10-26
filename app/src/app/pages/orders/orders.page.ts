@@ -18,9 +18,11 @@ import {
 } from '@ionic/angular';
 import { apiErrorMessage } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
-import { OrderSummary } from '../../core/models';
+import { CartService } from '../../core/cart.service';
+import { OrderSummary, ReorderResult } from '../../core/models';
 import { OrderService } from '../../core/order.service';
 import { paymentLabel } from '../../core/checkout-rules';
+import { ProductService } from '../../core/product.service';
 
 @Component({
   selector: 'app-orders',
@@ -44,6 +46,8 @@ import { paymentLabel } from '../../core/checkout-rules';
 export class OrdersPage {
   private auth = inject(AuthService);
   private ordersApi = inject(OrderService);
+  private cart = inject(CartService);
+  readonly products = inject(ProductService);
   private router = inject(Router);
 
   readonly orders = signal<OrderSummary[]>([]);
@@ -51,6 +55,10 @@ export class OrdersPage {
   readonly loading = signal(true);
   readonly loadingMore = signal(false);
   readonly error = signal('');
+  readonly reorderingId = signal('');
+  readonly reorderOrderId = signal('');
+  readonly reorderResult = signal<ReorderResult | null>(null);
+  readonly reorderError = signal('');
 
   async ionViewWillEnter(): Promise<void> {
     if (!this.auth.isLoggedIn()) {
@@ -87,6 +95,27 @@ export class OrdersPage {
       this.error.set(apiErrorMessage(error));
     } finally {
       this.loadingMore.set(false);
+    }
+  }
+
+  async reorder(order: OrderSummary): Promise<void> {
+    if (this.reorderingId()) return;
+    this.reorderOrderId.set(order.id);
+    this.reorderResult.set(null);
+    this.reorderError.set('');
+    if (!this.products.online()) {
+      this.reorderError.set('Reconnect to Cookie Fluffs before adding a previous order to your cart.');
+      return;
+    }
+    this.reorderingId.set(order.id);
+    try {
+      const result = await this.ordersApi.reorder(order.id);
+      this.cart.replaceFromServer(result.cart);
+      this.reorderResult.set(result);
+    } catch (error) {
+      this.reorderError.set(apiErrorMessage(error));
+    } finally {
+      this.reorderingId.set('');
     }
   }
 

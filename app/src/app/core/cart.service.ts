@@ -102,6 +102,11 @@ export class CartService {
     this.cart.set(await firstValueFrom(this.http.delete<Cart>(this.base)));
   }
 
+  /** Applies an authoritative cart returned by another server-side cart workflow. */
+  replaceFromServer(cart: Cart): void {
+    this.cart.set(cart);
+  }
+
   private run(productId: number, request: Observable<Cart>): Promise<Cart> {
     return this.track(this.busy, productId, request);
   }

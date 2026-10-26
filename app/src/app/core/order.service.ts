@@ -16,6 +16,7 @@ import {
   PaymentConfig,
   PaymentIntentSetup,
   PaymentSession,
+  ReorderResult,
   WalletDemoAction,
   WalletDemoResult,
 } from './models';
@@ -27,6 +28,7 @@ const PAYMENT_ATTEMPT_KEY = 'cf.payment-attempt';
 const DEMO_PAYMENT_ATTEMPT_KEY = 'cf.demo-payment-attempt';
 const WALLET_DEMO_ATTEMPT_KEY = 'cf.wallet-demo-attempt';
 const CANCELLATION_ATTEMPT_KEY = 'cf.order-cancellation-attempt';
+const REORDER_ATTEMPT_KEY = 'cf.order-reorder-attempt';
 
 interface PendingAttempt {
   state: 'pending';
@@ -214,6 +216,23 @@ export class OrderService {
       `${this.base}/${encodeURIComponent(orderId)}/cancellation-requests`,
       { idempotencyKey: this.cancellationAttemptKey(orderId, rotateAfterDecline) },
     ));
+  }
+
+  async reorder(orderId: string): Promise<ReorderResult> {
+    const idempotencyKey = this.reorderAttemptKey(orderId);
+    try {
+      const result = await firstValueFrom(this.http.post<ReorderResult>(
+        `${this.base}/${encodeURIComponent(orderId)}/reorder`,
+        { idempotencyKey },
+      ));
+      this.clearReorderAttemptKey(orderId, idempotencyKey);
+      return result;
+    } catch (error) {
+      if (!(error instanceof HttpErrorResponse) || (error.status !== 0 && error.status < 500)) {
+        this.clearReorderAttemptKey(orderId, idempotencyKey);
+      }
+      throw error;
+    }
   }
 
   paymentConfig(): Promise<PaymentConfig> {
@@ -589,6 +608,35 @@ export class OrderService {
       /* The in-flight request still carries one idempotency key. */
     }
     return idempotencyKey;
+  }
+
+  private reorderAttemptKey(orderId: string): string {
+    try {
+      const stored = JSON.parse(localStorage.getItem(REORDER_ATTEMPT_KEY) ?? '{}') as Record<string, unknown>;
+      if (typeof stored?.[orderId] === 'string') return stored[orderId];
+    } catch {
+      /* Malformed storage cannot be trusted for request replay. */
+    }
+    const idempotencyKey = crypto.randomUUID();
+    try {
+      const stored = JSON.parse(localStorage.getItem(REORDER_ATTEMPT_KEY) ?? '{}') as Record<string, unknown>;
+      localStorage.setItem(REORDER_ATTEMPT_KEY, JSON.stringify({ ...stored, [orderId]: idempotencyKey }));
+    } catch {
+      /* The server still protects the in-flight request with its idempotency key. */
+    }
+    return idempotencyKey;
+  }
+
+  private clearReorderAttemptKey(orderId: string, idempotencyKey: string): void {
+    try {
+      const stored = JSON.parse(localStorage.getItem(REORDER_ATTEMPT_KEY) ?? '{}') as Record<string, unknown>;
+      if (stored?.[orderId] !== idempotencyKey) return;
+      delete stored[orderId];
+      if (Object.keys(stored).length) localStorage.setItem(REORDER_ATTEMPT_KEY, JSON.stringify(stored));
+      else localStorage.removeItem(REORDER_ATTEMPT_KEY);
+    } catch {
+      /* Do not erase another order's unresolved retry key when storage is malformed. */
+    }
   }
 }
 
