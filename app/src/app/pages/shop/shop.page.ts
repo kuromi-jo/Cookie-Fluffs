@@ -1,6 +1,7 @@
 /**
  * @file shop.page.ts
- * @description "All Cookies" tab: the full menu from Neon with search, categories and sorting.
+ * @description "All Cookies" tab: the full menu from Neon with search, categories, a filter sheet
+ * (price, allergen-free, deals and tags) and sorting.
  * Query params (?category=, ?show=best|new|promo, ?focus=1) let Home deep-link into it.
  */
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
@@ -11,9 +12,11 @@ import {
   IonButton,
   IonButtons,
   IonContent,
+  IonFooter,
   IonHeader,
   IonIcon,
   IonMenuButton,
+  IonModal,
   IonRefresher,
   IonRefresherContent,
   IonSearchbar,
@@ -41,6 +44,34 @@ import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-ind
 import { prefersReducedMotion } from '../../core/preference.service';
 
 type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
+type PriceBand = 'any' | 'under-120' | '120-140' | 'over-140';
+
+export const PRICE_BANDS: { id: PriceBand; label: string }[] = [
+  { id: 'any', label: 'Any price' },
+  { id: 'under-120', label: 'Under ₱120' },
+  { id: '120-140', label: '₱120 to ₱140' },
+  { id: 'over-140', label: 'Over ₱140' },
+];
+
+/** Allergen names exactly as the menu lists them. */
+export const ALLERGEN_FILTERS = [
+  { id: 'Peanuts', label: 'No peanuts' },
+  { id: 'Tree Nuts', label: 'No tree nuts' },
+  { id: 'Dairy', label: 'No dairy' },
+  { id: 'Soy', label: 'No soy' },
+  { id: 'Eggs', label: 'No eggs' },
+] as const;
+
+export const TAG_FILTERS: Collection[] = ['promo', 'new', 'best', 'halloween'];
+
+/** True when the price the customer pays falls in the chosen band. */
+export function inPriceBand(p: Product, band: PriceBand): boolean {
+  const price = effectivePrice(p);
+  if (band === 'under-120') return price < 120;
+  if (band === '120-140') return price >= 120 && price <= 140;
+  if (band === 'over-140') return price > 140;
+  return true;
+}
 
 const isCategory = (v: unknown): v is CookieCategory | 'all' => CATEGORIES.some((c) => c.id === v);
 const isCollection = (v: unknown): v is Collection => typeof v === 'string' && Object.hasOwn(COLLECTIONS, v);
@@ -56,6 +87,8 @@ const isCollection = (v: unknown): v is Collection => typeof v === 'string' && O
     IonMenuButton,
     IonTitle,
     IonContent,
+    IonFooter,
+    IonModal,
     IonRefresher,
     IonRefresherContent,
     IonSearchbar,
@@ -90,6 +123,20 @@ export class ShopPage {
   readonly sort = signal<SortKey>('recommended');
   readonly skeletons = [1, 2, 3, 4, 5, 6];
 
+  /* ---------- Filter sheet ---------- */
+  readonly priceBands = PRICE_BANDS;
+  readonly allergenFilters = ALLERGEN_FILTERS;
+  readonly tagFilters = TAG_FILTERS;
+  readonly filtersOpen = signal(false);
+  readonly priceBand = signal<PriceBand>('any');
+  /** Allergens the customer wants to avoid. */
+  readonly freeFrom = signal<ReadonlySet<string>>(new Set());
+  /** Cookies matching any selected tag are shown. */
+  readonly tags = signal<ReadonlySet<Collection>>(new Set());
+  readonly activeFilterCount = computed(
+    () => (this.priceBand() !== 'any' ? 1 : 0) + this.freeFrom().size + this.tags().size,
+  );
+
   readonly sortOptions: { value: SortKey; label: string }[] = [
     { value: 'recommended', label: 'Recommended' },
     { value: 'price-asc', label: 'Price: low to high' },
@@ -101,12 +148,18 @@ export class ShopPage {
     const term = this.search().trim().toLowerCase();
     const cat = this.category();
     const col = this.collection();
+    const band = this.priceBand();
+    const avoid = this.freeFrom();
+    const tags = this.tags();
     const list = this.products
       .products()
       .filter(
         (p) =>
           (cat === 'all' || p.category === cat) &&
           (!col || inCollection(p, col)) &&
+          inPriceBand(p, band) &&
+          !p.allergens.some((a) => avoid.has(a)) &&
+          (!tags.size || [...tags].some((tag) => inCollection(p, tag))) &&
           (!term || `${p.name} ${p.tagline} ${p.flavorNotes}`.toLowerCase().includes(term)),
       );
     switch (this.sort()) {
@@ -172,7 +225,7 @@ export class ShopPage {
   }
 
   readonly hasFilters = computed(
-    () => this.category() !== 'all' || !!this.collection() || !!this.search().trim(),
+    () => this.category() !== 'all' || !!this.collection() || !!this.search().trim() || this.activeFilterCount() > 0,
   );
 
   constructor() {
@@ -208,10 +261,29 @@ export class ShopPage {
     void this.router.navigate([], { queryParams: { show: null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
+  setPriceBand(band: PriceBand): void {
+    this.priceBand.set(band);
+  }
+
+  toggleFreeFrom(allergen: string): void {
+    this.freeFrom.update((set) => toggled(set, allergen));
+  }
+
+  toggleTag(tag: Collection): void {
+    this.tags.update((set) => toggled(set, tag));
+  }
+
+  clearSheetFilters(): void {
+    this.priceBand.set('any');
+    this.freeFrom.set(new Set());
+    this.tags.set(new Set());
+  }
+
   resetFilters(): void {
     this.search.set('');
     this.category.set('all');
     this.collection.set(null);
+    this.clearSheetFilters();
     void this.router.navigate(['/shop'], { replaceUrl: true });
   }
 
@@ -227,4 +299,11 @@ export class ShopPage {
   addToCart(product: Product): void {
     void this.shop.choosePack(product);
   }
+}
+
+function toggled<T>(set: ReadonlySet<T>, value: T): ReadonlySet<T> {
+  const next = new Set(set);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  return next;
 }

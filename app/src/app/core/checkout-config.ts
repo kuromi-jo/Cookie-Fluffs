@@ -32,7 +32,7 @@ export const CLOSED_CHECKOUT_CONFIG: CheckoutConfig = {
   nonProductionDemo: false,
   delivery: { enabled: false, unavailableMessage: unavailable, allowedCityCodes: [] },
   pickup: { enabled: false, unavailableMessage: unavailable, location: '', hours: '' },
-  voucher: { enabled: false, unavailableMessage: 'Voucher support will be enabled in a future update.' },
+  voucher: { enabled: false, unavailableMessage: 'Vouchers can be applied once checkout options load.' },
   agreement: { required: false, version: null },
   pricing: { currency: 'PHP', deliveryFee: 0, freeDeliveryMinimum: 0 },
 };
@@ -82,7 +82,7 @@ export function normalizeCheckoutConfig(value: unknown): CheckoutConfig {
       location: pickupLocation,
       hours: pickupHours,
     },
-    voucher: CLOSED_CHECKOUT_CONFIG.voucher,
+    voucher: { enabled: true, unavailableMessage: '' },
     agreement: { required: agreementRequired, version: agreementVersion },
     pricing: { currency: 'PHP', deliveryFee, freeDeliveryMinimum },
   };

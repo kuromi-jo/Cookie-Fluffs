@@ -279,3 +279,103 @@
     animation: none;
   }
 }
+
+/* ---------- Filter button and sheet ---------- */
+.filter-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--cf-choco);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  ion-icon {
+    font-size: 16px;
+    color: var(--cf-pink-deep);
+  }
+
+  &.on {
+    border-color: var(--cf-choco-btn);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--cf-pink-accent);
+  }
+}
+
+.filter-count {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--cf-choco-btn);
+  color: var(--cf-canvas);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.filter-body {
+  padding: 8px 20px 24px;
+}
+
+.filter-group {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+
+  legend {
+    margin-bottom: 10px;
+    padding: 0;
+    font-family: var(--cf-font-display);
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--cf-choco);
+  }
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .chip {
+    min-height: 44px;
+  }
+}
+
+.filter-note {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  color: var(--cf-choco-light);
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--cf-pink-border);
+  background: var(--cf-canvas);
+
+  .clear-btn {
+    --color: var(--cf-pink-deep);
+    flex: none;
+    min-height: 44px;
+  }
+
+  .show-btn {
+    flex: 1;
+    margin: 0;
+  }
+}

@@ -25,6 +25,8 @@ export interface Product {
   isNew: boolean;
   /** Promo price; null when the cookie is not on promo. */
   salePrice: number | null;
+  /** Limited seasonal bake, e.g. 'halloween'; null or missing for the regular menu. */
+  season?: string | null;
 }
 
 export interface FavoriteProduct extends Product {
@@ -52,15 +54,17 @@ export interface AppNotification {
 }
 
 /** Home-screen collections, also used as the Shop tab's ?show= filter. */
-export type Collection = 'best' | 'new' | 'promo';
+export type Collection = 'best' | 'new' | 'promo' | 'halloween';
 
 export const COLLECTIONS: Record<Collection, { title: string; subtitle: string; icon: string }> = {
   promo: { title: 'Sweet deals', subtitle: 'Limited-time promo prices', icon: 'pricetag-outline' },
   best: { title: 'Best sellers', subtitle: 'Our most-loved bakes', icon: 'trophy-outline' },
   new: { title: 'Fresh from the oven', subtitle: 'New on the menu', icon: 'sparkles-outline' },
+  halloween: { title: 'Halloween specials', subtitle: 'Limited-time spooky bakes', icon: 'moon-outline' },
 };
 
 export function inCollection(p: Product, c: Collection): boolean {
+  if (c === 'halloween') return p.season === 'halloween';
   return c === 'best' ? p.isBestSeller : c === 'new' ? p.isNew : p.salePrice !== null;
 }
 
@@ -245,6 +249,8 @@ export interface OrderDetails {
   notes: string;
   agreementAccepted?: true;
   agreementVersion?: string;
+  /** Only sent when the customer applied a voucher. */
+  voucherCode?: string;
 }
 
 export interface OrderRequest extends OrderDetails {
@@ -372,6 +378,9 @@ export interface Order {
   packDiscount: number;
   discountTotal: number;
   deliveryFee: number;
+  /** Voucher applied at checkout; older orders have none. */
+  voucherCode?: string | null;
+  voucherDiscount?: number;
   total: number;
   currency: 'PHP';
   agreementVersion?: string | null;
@@ -470,3 +479,32 @@ export const CATEGORIES: { id: CookieCategory | 'all'; label: string; icon: stri
   { id: 'nutty', label: 'Nutty', icon: 'cf-nut' },
   { id: 'dietary', label: 'Lighter', icon: 'leaf-outline' },
 ];
+
+/* ------------------------------------------------------------------ vouchers */
+
+export type VoucherStatus = 'available' | 'used' | 'expired' | 'unavailable';
+
+export interface Voucher {
+  code: string;
+  title: string;
+  description: string;
+  discountType: 'fixed' | 'percent';
+  discountValue: number;
+  maxDiscount: number | null;
+  minSpend: number;
+  firstOrderOnly: boolean;
+  requiredSeason: string | null;
+  oncePerUser: boolean;
+  endsAt: string | null;
+  status: VoucherStatus;
+}
+
+/** Server price check for the checkout voucher box; the order itself is priced again. */
+export interface VoucherPreview {
+  code: string;
+  title: string;
+  discount: number;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+}

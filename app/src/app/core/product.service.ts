@@ -45,7 +45,8 @@ export function isPublicProduct(value: unknown): value is Product {
     && (p.badge === null || isString(p.badge))
     && isString(p.imageUrl) && p.imageUrl.startsWith('assets/cookies/')
     && typeof p.isAvailable === 'boolean' && typeof p.isBestSeller === 'boolean' && typeof p.isNew === 'boolean'
-    && (p.salePrice === null || isNumber(p.salePrice));
+    && (p.salePrice === null || isNumber(p.salePrice))
+    && (p.season === undefined || p.season === null || isString(p.season));
 }
 
 export function isPublicCatalog(value: unknown): value is Product[] {

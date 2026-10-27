@@ -94,6 +94,20 @@
           <span class="count">{{ visible().length }} {{ visible().length === 1 ? 'cookie' : 'cookies' }}</span>
         }
       </div>
+      <button
+        type="button"
+        class="filter-btn"
+        [class.on]="activeFilterCount() > 0"
+        aria-haspopup="dialog"
+        [attr.aria-label]="activeFilterCount() ? 'Filter, ' + activeFilterCount() + ' on' : 'Filter'"
+        (click)="filtersOpen.set(true)"
+      >
+        <ion-icon name="options-outline" aria-hidden="true"></ion-icon>
+        Filter
+        @if (activeFilterCount()) {
+          <span class="filter-count" aria-hidden="true">{{ activeFilterCount() }}</span>
+        }
+      </button>
       <ion-select
         class="sort"
         aria-label="Sort cookies"
@@ -154,4 +168,70 @@
       </div>
     }
   </div>
+
+  <!-- Filter sheet -->
+  <ion-modal
+    class="cf-sheet filter-sheet"
+    [isOpen]="filtersOpen()"
+    [breakpoints]="[0, 1]"
+    [initialBreakpoint]="1"
+    [handle]="true"
+    (didDismiss)="filtersOpen.set(false)"
+  >
+    <ng-template>
+      <ion-header class="cf-header">
+        <ion-toolbar>
+          <ion-title class="cf-title">Filter cookies</ion-title>
+          <ion-buttons slot="end">
+            <ion-button aria-label="Close filters" (click)="filtersOpen.set(false)">
+              <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content>
+        <div class="filter-body">
+          <fieldset class="filter-group">
+            <legend>Price</legend>
+            <div class="filter-chips">
+              @for (b of priceBands; track b.id) {
+                <button type="button" class="chip" [class.on]="priceBand() === b.id" [attr.aria-pressed]="priceBand() === b.id" (click)="setPriceBand(b.id)">
+                  {{ b.label }}
+                </button>
+              }
+            </div>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Allergen-free</legend>
+            <div class="filter-chips">
+              @for (a of allergenFilters; track a.id) {
+                <button type="button" class="chip" [class.on]="freeFrom().has(a.id)" [attr.aria-pressed]="freeFrom().has(a.id)" (click)="toggleFreeFrom(a.id)">
+                  {{ a.label }}
+                </button>
+              }
+            </div>
+            <p class="filter-note">Our kitchen also handles these, so trace amounts are possible.</p>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Deals and tags</legend>
+            <div class="filter-chips">
+              @for (tag of tagFilters; track tag) {
+                <button type="button" class="chip" [class.on]="tags().has(tag)" [attr.aria-pressed]="tags().has(tag)" (click)="toggleTag(tag)">
+                  <ion-icon [name]="collections[tag].icon" aria-hidden="true"></ion-icon>{{ collections[tag].title }}
+                </button>
+              }
+            </div>
+          </fieldset>
+        </div>
+      </ion-content>
+      <ion-footer class="filter-actions">
+        <ion-button fill="clear" class="clear-btn" [disabled]="!activeFilterCount()" (click)="clearSheetFilters()">Clear all</ion-button>
+        <ion-button class="cf-btn-lg show-btn" (click)="filtersOpen.set(false)">
+          Show {{ visible().length }} {{ visible().length === 1 ? 'cookie' : 'cookies' }}
+        </ion-button>
+      </ion-footer>
+    </ng-template>
+  </ion-modal>
 </ion-content>

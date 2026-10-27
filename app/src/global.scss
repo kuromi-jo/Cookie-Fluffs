@@ -203,6 +203,21 @@ ion-modal.location-picker {
   --border-radius: 28px 28px 0 0;
 }
 
+ion-modal.filter-sheet {
+  --width: 100%;
+  --max-width: 100%;
+  --height: min(600px, 82dvh);
+  --max-height: calc(100dvh - env(safe-area-inset-top));
+  --border-radius: 28px 28px 0 0;
+}
+
+ion-modal.filter-sheet::part(content) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 ion-modal.location-picker::part(content) {
   box-sizing: border-box;
   width: 100%;
@@ -287,6 +302,12 @@ ion-back-button {
 .cf-price {
   font-weight: 800;
   color: var(--cf-choco);
+}
+
+/* Voucher discount row in checkout and order receipts. */
+.cf-voucher-line {
+  color: var(--cf-pink-deep);
+  font-weight: 800;
 }
 
 .cf-page {

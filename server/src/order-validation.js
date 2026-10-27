@@ -8,6 +8,7 @@ import { normalizePhone } from './validation.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const POSTAL_CODE_RE = /^\d{4}$/;
+const VOUCHER_CODE_RE = /^[A-Z0-9]{3,20}$/;
 const ONLINE_PAYMENT_METHODS = new Set(['gcash', 'maya', 'card']);
 const TOP_LEVEL_FIELDS = new Set([
   'idempotencyKey',
@@ -20,6 +21,7 @@ const TOP_LEVEL_FIELDS = new Set([
   'notes',
   'agreementAccepted',
   'agreementVersion',
+  'voucherCode',
 ]);
 const ADDRESS_FIELDS = new Set([
   'addressLine1',
@@ -44,6 +46,15 @@ function validateBoundedText(value, label, min, max) {
     return { value: text, error: `${label} must be ${min} to ${max} characters.` };
   }
   return { value: text, error: null };
+}
+
+/** Upper-cases and trims a typed code. Returns null for an empty value and '' for an invalid one. */
+export function normalizeVoucherCode(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') return '';
+  const code = value.trim().toUpperCase();
+  if (!code) return null;
+  return VOUCHER_CODE_RE.test(code) ? code : '';
 }
 
 export function validateOrderRequest(body, {
@@ -135,6 +146,9 @@ export function validateOrderRequest(body, {
     errors.deliveryAddress = 'Pickup orders do not use a delivery address.';
   }
 
+  const voucherCode = normalizeVoucherCode(body.voucherCode);
+  if (voucherCode === '') errors.voucherCode = 'Enter a valid voucher code.';
+
   const value = {
     idempotencyKey,
     fulfillmentMethod,
@@ -146,6 +160,8 @@ export function validateOrderRequest(body, {
     notes,
     agreementAccepted,
     agreementVersion,
+    // Only present when used, so fingerprints of voucher-free checkouts stay unchanged.
+    ...(voucherCode ? { voucherCode } : {}),
   };
   return { value, errors };
 }

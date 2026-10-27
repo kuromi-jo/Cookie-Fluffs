@@ -42,6 +42,61 @@
       <span class="sprinkle s1"></span><span class="sprinkle s2"></span><span class="sprinkle s3"></span>
     </section>
 
+    <!-- Seasonal: Halloween specials -->
+    @if (products.loaded() && halloween().length) {
+      <section class="seasonal cf-rise" aria-labelledby="halloween-title">
+        <header class="seasonal-head">
+          <span class="seasonal-icon"><ion-icon name="moon-outline" aria-hidden="true"></ion-icon></span>
+          <div>
+            @if (halloweenDaysLeft !== null) {
+              <span class="seasonal-tag" role="status">
+                <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
+                {{ halloweenDaysLeft === 0 ? 'Last day!' : halloweenDaysLeft === 1 ? '1 day left' : halloweenDaysLeft + ' days left' }}
+              </span>
+            } @else {
+              <span class="seasonal-tag">Limited time</span>
+            }
+            <h2 id="halloween-title">Halloween specials</h2>
+            <p>{{ halloweenDaysLeft !== null ? 'Spooky bakes, only until Halloween' : 'Seasonal bakes, while they last' }}</p>
+          </div>
+          <a class="see-all" routerLink="/shop" [queryParams]="{ show: 'halloween' }">
+            See all <ion-icon name="chevron-forward" aria-hidden="true"></ion-icon>
+          </a>
+        </header>
+        <app-rail [inset]="18" label="Halloween specials">
+          @for (p of halloween(); track p.id) {
+            <app-product-card
+              [product]="p"
+              [inCart]="cart.quantityOf(p.id)"
+              [busy]="cart.busy().has(p.id)"
+              (add)="addToCart($event)"
+            />
+          }
+        </app-rail>
+      </section>
+    }
+
+    <!-- Cookie of the day -->
+    @if (cookieOfTheDay(); as cotd) {
+      <section class="cotd" aria-labelledby="cotd-title">
+        <a class="cotd-media" [routerLink]="['/product', cotd.id]" [attr.aria-label]="'View ' + cotd.name">
+          <img [src]="cotd.imageUrl" alt="" />
+        </a>
+        <div class="cotd-body">
+          <span class="cf-eyebrow"><ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon> Cookie of the day</span>
+          <h2 id="cotd-title"><a [routerLink]="['/product', cotd.id]">{{ cotd.name }}</a></h2>
+          <p>{{ cotd.tagline }}</p>
+          <div class="cotd-row">
+            <span class="cf-price">₱{{ (cotd.salePrice ?? cotd.price) | number: '1.0-0' }}</span>
+            <ion-button class="cotd-add" size="small" [disabled]="cart.busy().has(cotd.id)" (click)="addToCart(cotd)">
+              <ion-icon slot="start" name="cart-outline" aria-hidden="true"></ion-icon>
+              Add to cart
+            </ion-button>
+          </div>
+        </div>
+      </section>
+    }
+
     <!-- Category shortcuts -->
     <nav class="cat-grid" aria-label="Shop by category">
       @for (c of categories; track c.id) {
@@ -67,6 +122,58 @@
       <ion-icon name="arrow-forward" aria-hidden="true"></ion-icon>
     </button>
 
+    <!-- Signed-in extras: Order again and Your favorites -->
+    @if (auth.isLoggedIn()) {
+      @if (lastOrder(); as order) {
+        <section class="again" aria-labelledby="again-title">
+          <div class="again-thumbs" aria-hidden="true">
+            @for (src of order.thumbnailUrls.slice(0, 3); track $index) {
+              <img [src]="src" alt="" />
+            }
+          </div>
+          <div class="again-body">
+            <span class="cf-eyebrow">Order again</span>
+            <h2 id="again-title">
+              {{ order.itemNames.slice(0, 2).join(', ') }}@if (order.itemNames.length > 2) { +{{ order.itemNames.length - 2 }} more}
+            </h2>
+            <p>{{ order.itemCount }} {{ order.itemCount === 1 ? 'item' : 'items' }} · ₱{{ order.total | number: '1.2-2' }}</p>
+          </div>
+          <ion-button class="again-btn" [disabled]="reordering()" (click)="reorderLast(order)">
+            @if (reordering()) {
+              <ion-spinner name="crescent" aria-label="Adding to cart"></ion-spinner>
+            } @else {
+              Reorder
+            }
+          </ion-button>
+        </section>
+      }
+
+      @if (favoriteItems().length) {
+        <section class="collection is-favorites">
+          <header class="collection-head">
+            <span class="collection-icon"><ion-icon name="heart" aria-hidden="true"></ion-icon></span>
+            <div>
+              <h2 class="cf-section-title">Your favorites</h2>
+              <p>Cookies you saved</p>
+            </div>
+            <a class="see-all" routerLink="/profile/favorites">
+              See all <ion-icon name="chevron-forward" aria-hidden="true"></ion-icon>
+            </a>
+          </header>
+          <app-rail label="your favorites">
+            @for (p of favoriteItems(); track p.id) {
+              <app-product-card
+                [product]="p"
+                [inCart]="cart.quantityOf(p.id)"
+                [busy]="cart.busy().has(p.id)"
+                (add)="addToCart($event)"
+              />
+            }
+          </app-rail>
+        </section>
+      }
+    }
+
     @if (products.loaded()) {
       <!-- Sections: Promos, Best sellers, New arrivals -->
       @for (s of sections(); track s.id) {
@@ -81,7 +188,7 @@
               See all <ion-icon name="chevron-forward" aria-hidden="true"></ion-icon>
             </a>
           </header>
-          <div class="rail">
+          <app-rail [label]="s.title">
             @for (p of s.items; track p.id) {
               <app-product-card
                 [product]="p"
@@ -90,7 +197,7 @@
                 (add)="addToCart($event)"
               />
             }
-          </div>
+          </app-rail>
         </section>
       }
 
@@ -115,7 +222,7 @@
       </div>
     } @else {
       <div class="collection-head"><ion-skeleton-text [animated]="true" class="sk-title"></ion-skeleton-text></div>
-      <div class="rail">
+      <app-rail label="loading cookies">
         @for (s of skeletons; track s) {
           <div class="skeleton">
             <ion-skeleton-text [animated]="true" class="sk-img"></ion-skeleton-text>
@@ -123,7 +230,7 @@
             <ion-skeleton-text [animated]="true" style="width: 50%"></ion-skeleton-text>
           </div>
         }
-      </div>
+      </app-rail>
     }
   </div>
 </ion-content>

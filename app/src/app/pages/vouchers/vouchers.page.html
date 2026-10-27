@@ -1,0 +1,59 @@
+<!-- @file vouchers.page.html @description Voucher loading, empty, error and list states. -->
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/profile" text="" icon="arrow-back"></ion-back-button></ion-buttons>
+    <ion-title class="cf-title">My Vouchers</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page vouchers-page">
+    <header class="page-intro">
+      <span class="ticket-mark"><ion-icon name="ticket-outline" aria-hidden="true"></ion-icon></span>
+      <div><h1>Sweet savings</h1><p>Copy a code, then apply it in the Review step at checkout.</p></div>
+    </header>
+
+    @if (loading() && !vouchers().length) {
+      <div role="status" aria-label="Loading vouchers">
+        @for (s of skeletons; track s) {
+          <div class="voucher skeleton"><ion-skeleton-text [animated]="true" style="width: 60%"></ion-skeleton-text><ion-skeleton-text [animated]="true" style="width: 85%"></ion-skeleton-text></div>
+        }
+      </div>
+    } @else if (error()) {
+      <section class="state" role="alert">
+        <div class="state-icon"><ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon></div>
+        <h2>Vouchers could not load</h2><p>{{ error() }}</p>
+        <ion-button (click)="load()"><ion-icon slot="start" name="refresh-outline"></ion-icon>Try again</ion-button>
+      </section>
+    } @else if (!vouchers().length) {
+      <section class="state">
+        <div class="state-icon"><ion-icon name="ticket-outline" aria-hidden="true"></ion-icon></div>
+        <h2>No vouchers right now</h2><p>New deals show up here. Check back soon.</p>
+        <ion-button routerLink="/shop">Browse all cookies</ion-button>
+      </section>
+    } @else {
+      @for (v of vouchers(); track v.code) {
+        <article class="voucher" [class.inactive]="v.status !== 'available'" [attr.aria-labelledby]="'voucher-' + v.code">
+          <div class="voucher-main">
+            <span class="status" [class]="'status is-' + v.status">{{ statusLabels[v.status] }}</span>
+            <h2 [id]="'voucher-' + v.code">{{ headline(v) }}</h2>
+            <p>{{ v.description }}</p>
+            <ul>
+              @for (rule of rules(v); track rule) { <li>{{ rule }}</li> }
+              @if (v.endsAt) { <li>Valid until {{ v.endsAt | date: 'MMM d, y' }}</li> }
+            </ul>
+          </div>
+          <div class="voucher-stub">
+            <span class="code">{{ v.code }}</span>
+            @if (v.status === 'available') {
+              <ion-button size="small" class="copy-btn" [attr.aria-label]="'Copy code ' + v.code" (click)="copy(v.code)">
+                <ion-icon slot="start" name="copy-outline" aria-hidden="true"></ion-icon>Copy
+              </ion-button>
+            }
+          </div>
+        </article>
+      }
+      <ion-button expand="block" class="cf-btn-lg shop-btn" routerLink="/shop">Shop cookies</ion-button>
+    }
+  </main>
+</ion-content>

@@ -37,6 +37,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/favorites/favorites.page').then((m) => m.FavoritesPage),
       },
       {
+        path: 'profile/vouchers',
+        title: 'My Vouchers',
+        loadComponent: () => import('./pages/vouchers/vouchers.page').then((m) => m.VouchersPage),
+      },
+      {
         path: 'profile/addresses/new',
         title: 'Add Address',
         loadComponent: () => import('./pages/address-editor/address-editor.page').then((m) => m.AddressEditorPage),

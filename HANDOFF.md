@@ -94,6 +94,10 @@ API startup never changes the schema. Run the explicit migration command against
 - [x] P4C-RUNTIME-1: restarted the stale sandbox API, applied the P4C schema, and verified favorites, settings, proxying, and the valid web manifest in-browser
 - [x] P4C-UX-2: five-tab customer navigation, grouped side menu, and phone-frame-safe Add-to-Cart pack sheet
 - [x] Pre-Capacitor backup: completed milestones security-reviewed and prepared for the existing GitHub `main` branch without private environment files
+- [x] Menu expansion: 11 new cookies (29 total), `season` column with a Halloween specials band on Home, Halloween card sticker and `?show=halloween` filter, offline catalog snapshot v2 (`seasonal_menu_v1` migration)
+- [x] Raspberry Red Velvet moved to Halloween specials and Cosmic Fudge Cookie added (30 total, `seasonal_menu_v2` migration)
+- [x] Swipable rows (mouse drag + arrows, `components/rail.component.ts`), All Cookies filter sheet (price, allergen-free, deals and tags), Home cookie of the day, Halloween countdown, Order again and Your favorites
+- [x] Vouchers: `vouchers` + `voucher_redemptions` tables, `orders.voucher_code/voucher_discount`, total rule now subtotal − voucher + delivery (`vouchers_v1`); WELCOME50 and SPOOKY15 (until Nov 30); `GET /api/vouchers`, `POST /api/vouchers/preview`; checkout voucher box, receipts and My Vouchers page
 
 ### Next milestones (not started)
 - [x] **Build stability correction**: Angular persistent caching is disabled after native LMDB allocator aborts reproduced on Node 22/24; production builds pass without dependency or budget changes
@@ -223,9 +227,9 @@ See `docs/HANDOVER.md` for the full architecture, endpoints, migrations, and rem
 
 ## Last session (where work stopped)
 
-**Date:** 2026-10-26
-**State:** Account security + notifications work committed locally on `main` as three checkpoints (backend, frontend, docs); each builds green (backend 340 / frontend 299 tests, lint clean). README documents the new routes and feature flags. `app/angular.json` is intentionally left uncommitted (local-only cache/host tweaks). Nothing pushed.
-**Next:** Push the three local commits to the shared `main` after a separate review; then P6A physical Android device acceptance and the deferred payment/refund follow-ups. Production OTP/push delivery and Android device acceptance remain future work.
+**Date:** 2026-10-27
+**State:** Batches 1 (swipe, filters, Home) and 2 (vouchers) verified locally: backend 241 pass, app 304 pass, lint and build clean (checkout style budget warning grew to 10.6 kB). Not committed or pushed. Neon needs `npm --prefix server run migrate` for `vouchers_v1`.
+**Next:** Migrate Neon, confirm Cosmic Fudge Cookie's ID is 1524, then commit when approved.
 
 ## Key files map
 

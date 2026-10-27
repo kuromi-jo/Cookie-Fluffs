@@ -49,7 +49,7 @@ describe('ProductService resilient catalog', () => {
   it('shows the bundled public catalog on a fresh installation, then prefers the API', async () => {
     injectService();
     expect(service.source()).toBe('bundled');
-    expect(service.products()).toHaveLength(18);
+    expect(service.products()).toHaveLength(BUNDLED_CATALOG.length);
     expect(service.products().every((product) => product.imageUrl.startsWith('assets/cookies/'))).toBe(true);
 
     const loading = service.load();
@@ -69,7 +69,7 @@ describe('ProductService resilient catalog', () => {
     expect(service.source()).toBe('bundled');
     expect(service.usingFallback()).toBe(true);
     expect(service.error()).toBeNull();
-    await expect(service.getById(12)).resolves.toMatchObject({ slug: 'oreo-vanilla' });
+    await expect(service.getById(168)).resolves.toMatchObject({ slug: 'oreo-vanilla' });
   });
 
   it('restores a valid last-known-good cache after relaunch', () => {
@@ -114,7 +114,7 @@ describe('ProductService resilient catalog', () => {
     expect(service.online()).toBe(false);
     expect(service.source()).toBe('cached');
     expect(service.usingFallback()).toBe(true);
-    expect(service.products()).toHaveLength(18);
+    expect(service.products()).toHaveLength(BUNDLED_CATALOG.length);
   });
 
   it('coalesces reconnect events into one refresh and clears fallback state after success', async () => {
@@ -132,9 +132,10 @@ describe('ProductService resilient catalog', () => {
 
   it('requires a live product response for commerce validation', async () => {
     injectService();
-    const request = service.getLiveById(1);
-    http.expectOne('/api/products/1').flush(BUNDLED_CATALOG[0]);
-    await expect(request).resolves.toMatchObject({ id: 1, slug: 'choco-chip' });
+    const { id } = BUNDLED_CATALOG[0];
+    const request = service.getLiveById(id);
+    http.expectOne(`/api/products/${id}`).flush(BUNDLED_CATALOG[0]);
+    await expect(request).resolves.toMatchObject({ id, slug: 'choco-chip' });
   });
 
   it('does not authorize price-dependent flows when a forced refresh fails', async () => {

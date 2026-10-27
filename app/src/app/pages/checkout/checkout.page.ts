@@ -3,7 +3,7 @@
  * @description Mobile checkout form, selected-cart review, reconciliation, and safe order submission.
  */
 import { DecimalPipe } from '@angular/common';
-import { Component, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
@@ -57,7 +57,8 @@ import {
 } from '../../core/checkout-rules';
 import { apiErrorMessage, apiFieldErrors } from '../../core/api-error';
 import { prefersReducedMotion } from '../../core/preference.service';
-import { FulfillmentMethod, PaymentConfig, PaymentMethod, SavedAddress, thumbUrl } from '../../core/models';
+import { FulfillmentMethod, PaymentConfig, PaymentMethod, SavedAddress, VoucherPreview, thumbUrl } from '../../core/models';
+import { VoucherService } from '../../core/voucher.service';
 import { isAmbiguousOrderError, OrderService, PendingCheckoutError } from '../../core/order.service';
 import { ConsentModalComponent } from '../../components/consent-modal.component';
 
@@ -208,6 +209,7 @@ export class CheckoutPage {
   readonly config = signal<CheckoutConfig>(CLOSED_CHECKOUT_CONFIG);
   readonly geography = inject(GeographyService);
   private orders = inject(OrderService);
+  private voucherApi = inject(VoucherService);
   private router = inject(Router);
   private modals = inject(ModalController);
 
@@ -241,7 +243,22 @@ export class CheckoutPage {
   readonly demoCardFlow = signal<DemoCardFlow | null>(null);
   readonly selected = computed(() => selectedCartLines(this.cartService.cart()));
   readonly selectedLineCount = computed(() => this.selected().items.length + this.selected().boxes.length);
-  readonly preview = computed(() => checkoutPreview(this.cartService.cart(), this.form().fulfillmentMethod));
+  /* ---------- Voucher ---------- */
+  readonly voucherInput = signal('');
+  readonly appliedVoucher = signal<VoucherPreview | null>(null);
+  readonly voucherError = signal('');
+  readonly voucherBusy = signal(false);
+  readonly preview = computed(() => checkoutPreview(
+    this.cartService.cart(),
+    this.form().fulfillmentMethod,
+    this.appliedVoucher()?.discount ?? 0,
+  ));
+  /** If the selected cookies change, the applied voucher is checked again with the new subtotal. */
+  private readonly recheckVoucher = effect(() => {
+    const subtotal = this.cartService.cart().subtotal;
+    const applied = untracked(this.appliedVoucher);
+    if (applied && applied.subtotal !== subtotal) void untracked(() => this.applyVoucher(applied.code, true));
+  });
   readonly thumb = thumbUrl;
   readonly paymentLabel = computed(() => paymentMethodLabel(this.form().paymentMethod));
   readonly onlinePayment = computed(() => isOnlinePayment(this.form().paymentMethod));
@@ -462,6 +479,33 @@ export class CheckoutPage {
       : this.errors().barangayCode ?? this.errors().barangay;
   }
 
+  /** Asks the server whether the code applies to the selected cookies and what it takes off. */
+  async applyVoucher(code = this.voucherInput(), silent = false): Promise<void> {
+    const typed = code.trim();
+    if (!typed || this.voucherBusy()) return;
+    this.voucherBusy.set(true);
+    if (!silent) this.voucherError.set('');
+    try {
+      const result = await this.voucherApi.preview(typed, this.form().fulfillmentMethod);
+      this.appliedVoucher.set(result);
+      this.voucherInput.set('');
+      this.voucherError.set('');
+    } catch (error) {
+      this.appliedVoucher.set(null);
+      this.voucherInput.set(typed.toUpperCase());
+      this.voucherError.set(silent
+        ? `Your cart changed, so ${typed.toUpperCase()} was removed. ${apiErrorMessage(error)}`
+        : apiErrorMessage(error));
+    } finally {
+      this.voucherBusy.set(false);
+    }
+  }
+
+  removeVoucher(): void {
+    this.appliedVoucher.set(null);
+    this.voucherError.set('');
+  }
+
   update(field: CheckoutField, value: unknown): void {
     if (['contactName', 'contactPhone', 'addressLine1', 'addressLine2', 'postalCode'].includes(field)) {
       this.addressDraftChanged = true;
@@ -642,7 +686,10 @@ export class CheckoutPage {
       const agreement = this.agreementEnabled() && agreementVersion
         ? { accepted: true as const, version: agreementVersion }
         : undefined;
-      const order = await this.orders.place(buildOrderDetails(this.form(), agreement), freshSignature);
+      const order = await this.orders.place(
+        buildOrderDetails(this.form(), agreement, this.appliedVoucher()?.code),
+        freshSignature,
+      );
       this.completed.set(true);
       await this.cartService.load().catch(() => undefined);
       if (order.paymentMethod === 'card') {

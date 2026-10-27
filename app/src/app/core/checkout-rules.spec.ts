@@ -126,9 +126,18 @@ describe('guided checkout steps', () => {
 });
 
 describe('checkout pricing preview', () => {
-  it('shows a ₱49 delivery fee below ₱500', () => expect(checkoutPreview(cart(420), 'delivery')).toEqual({ subtotal: 420, deliveryFee: 49, total: 469 }));
-  it('shows free delivery at ₱500', () => expect(checkoutPreview(cart(500), 'delivery')).toEqual({ subtotal: 500, deliveryFee: 0, total: 500 }));
-  it('shows no delivery charge for pickup', () => expect(checkoutPreview(cart(420), 'pickup')).toEqual({ subtotal: 420, deliveryFee: 0, total: 420 }));
+  it('shows a ₱49 delivery fee below ₱500', () => expect(checkoutPreview(cart(420), 'delivery')).toEqual({ subtotal: 420, voucherDiscount: 0, deliveryFee: 49, total: 469 }));
+  it('shows free delivery at ₱500', () => expect(checkoutPreview(cart(500), 'delivery')).toEqual({ subtotal: 500, voucherDiscount: 0, deliveryFee: 0, total: 500 }));
+  it('shows no delivery charge for pickup', () => expect(checkoutPreview(cart(420), 'pickup')).toEqual({ subtotal: 420, voucherDiscount: 0, deliveryFee: 0, total: 420 }));
+  it('subtracts a voucher to the centavo and never below zero merchandise', () => {
+    expect(checkoutPreview(cart(397), 'pickup', 59.55)).toEqual({ subtotal: 397, voucherDiscount: 59.55, deliveryFee: 0, total: 337.45 });
+    expect(checkoutPreview(cart(420), 'delivery', 50).total).toBe(419);
+    expect(checkoutPreview(cart(30), 'pickup', 50).voucherDiscount).toBe(30);
+  });
+  it('sends a voucher code only when one is applied', () => {
+    expect('voucherCode' in buildOrderDetails(deliveryForm())).toBe(false);
+    expect(buildOrderDetails(deliveryForm(), undefined, 'WELCOME50').voucherCode).toBe('WELCOME50');
+  });
 });
 
 describe('checkout form and API boundary', () => {
@@ -229,8 +238,8 @@ describe('fulfillment release safeguards', () => {
     expect(configured).toMatchObject({ delivery: { enabled: true }, pickup: { enabled: true } });
   });
 
-  it('keeps vouchers visibly unavailable without backend support', () => {
+  it('keeps vouchers unavailable until checkout options load', () => {
     expect(CLOSED_CHECKOUT_CONFIG.voucher.enabled).toBe(false);
-    expect(CLOSED_CHECKOUT_CONFIG.voucher.unavailableMessage).toMatch(/future update/i);
+    expect(CLOSED_CHECKOUT_CONFIG.voucher.unavailableMessage).toMatch(/once checkout options load/i);
   });
 });

@@ -203,6 +203,7 @@ export function validateCheckout(form: CheckoutFormValue): CheckoutErrors {
 export function buildOrderDetails(
   form: CheckoutFormValue,
   agreement?: { accepted: true; version: string },
+  voucherCode?: string | null,
 ): OrderDetails {
   const deliveryAddress: DeliveryAddress | null = form.fulfillmentMethod === 'delivery'
     ? {
@@ -227,6 +228,7 @@ export function buildOrderDetails(
     deliveryAddress,
     notes: String(form.notes ?? '').trim(),
     ...(agreement ? { agreementAccepted: agreement.accepted, agreementVersion: agreement.version } : {}),
+    ...(voucherCode ? { voucherCode } : {}),
   };
 }
 
@@ -253,13 +255,17 @@ export function cartSelectionSignature(cart: Cart): string {
   });
 }
 
-export function checkoutPreview(cart: Cart, fulfillment: FulfillmentMethod): {
+export function checkoutPreview(cart: Cart, fulfillment: FulfillmentMethod, voucherDiscount = 0): {
   subtotal: number;
+  voucherDiscount: number;
   deliveryFee: number;
   total: number;
 } {
   const deliveryFee = fulfillment === 'delivery' ? cart.deliveryFee : 0;
-  return { subtotal: cart.subtotal, deliveryFee, total: cart.subtotal + deliveryFee };
+  const discount = Math.min(Math.max(voucherDiscount, 0), cart.subtotal);
+  // Centavo rounding keeps the estimate equal to the server's exact total.
+  const total = Math.round((cart.subtotal - discount + deliveryFee) * 100) / 100;
+  return { subtotal: cart.subtotal, voucherDiscount: discount, deliveryFee, total };
 }
 
 /** Stable property order for a persisted checkout-attempt fingerprint. */

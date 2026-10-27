@@ -43,7 +43,7 @@ describe('ProductDetailPage resilient catalog', () => {
 
   it('updates from the shared catalog after reconnect without resetting quantity or pack', () => {
     const fixture = TestBed.createComponent(ProductDetailPage);
-    fixture.componentRef.setInput('id', '1');
+    fixture.componentRef.setInput('id', String(BUNDLED_CATALOG[0].id));
     fixture.detectChanges();
     const page = fixture.componentInstance;
     page.qty.set(3);
@@ -53,7 +53,7 @@ describe('ProductDetailPage resilient catalog', () => {
     source.set('fresh');
     fixture.detectChanges();
 
-    expect(page.product()).toMatchObject({ id: 1, name: 'Fresh Choco Chip', price: 125 });
+    expect(page.product()).toMatchObject({ id: BUNDLED_CATALOG[0].id, name: 'Fresh Choco Chip', price: 125 });
     expect(page.qty()).toBe(3);
     expect(page.pack()).toBe(6);
     expect(products.getLiveById).not.toHaveBeenCalled();
@@ -61,7 +61,7 @@ describe('ProductDetailPage resilient catalog', () => {
 
   it('handles a product removed by the refreshed catalog without retaining stale details', () => {
     const fixture = TestBed.createComponent(ProductDetailPage);
-    fixture.componentRef.setInput('id', '1');
+    fixture.componentRef.setInput('id', String(BUNDLED_CATALOG[0].id));
     fixture.detectChanges();
     const page = fixture.componentInstance;
 

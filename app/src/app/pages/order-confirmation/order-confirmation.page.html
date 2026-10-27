@@ -158,6 +158,7 @@
       <section class="persisted-total" aria-label="Final order total">
         <div><span>Merchandise subtotal</span><span>₱{{ placed.merchandiseSubtotal | number: '1.2-2' }}</span></div>
         @if (placed.discountTotal > 0) { <div><span>Total savings</span><span>₱{{ placed.discountTotal | number: '1.2-2' }}</span></div> }
+        @if (placed.voucherDiscount && placed.voucherCode) { <div class="cf-voucher-line"><span>Voucher ({{ placed.voucherCode }})</span><span>−₱{{ placed.voucherDiscount | number: '1.2-2' }}</span></div> }
         <div><span>Delivery fee</span><span>{{ placed.deliveryFee ? ('₱' + (placed.deliveryFee | number: '1.2-2')) : 'FREE' }}</span></div>
         <div class="final"><span>Final total</span><strong>₱{{ placed.total | number: '1.2-2' }}</strong></div>
       </section>

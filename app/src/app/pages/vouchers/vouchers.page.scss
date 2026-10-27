@@ -1,0 +1,45 @@
+/** @file vouchers.page.scss @description Ticket-style voucher cards with a code stub. */
+.vouchers-page { padding-top: 14px; }
+.page-intro { display: flex; align-items: center; gap: 13px; margin-bottom: 22px; }
+.page-intro h1 { margin: 0 0 3px; font-size: 1.55rem; }
+.page-intro p { margin: 0; color: var(--cf-choco-light); font-size: 0.82rem; line-height: 1.45; }
+.ticket-mark { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border: 1px solid var(--cf-pink-border); border-radius: 18px; background: var(--cf-pink-soft); color: var(--cf-pink-deep); font-size: 25px; }
+
+.voucher {
+  display: flex;
+  margin-bottom: 14px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 20px;
+  background: #fff;
+  overflow: hidden;
+}
+.voucher.skeleton { flex-direction: column; gap: 8px; padding: 18px; }
+.voucher.inactive { background: var(--cf-canvas); }
+.voucher.inactive h2, .voucher.inactive .code { color: var(--cf-choco-light); }
+
+.voucher-main { flex: 1; min-width: 0; padding: 16px 14px 14px 16px; }
+.voucher-main h2 { margin: 6px 0 4px; font-family: var(--cf-font-display); font-size: 1.2rem; color: var(--cf-choco); }
+.voucher-main p { margin: 0 0 8px; color: var(--cf-choco-medium); font-size: 0.78rem; line-height: 1.45; }
+.voucher-main ul { margin: 0; padding-left: 16px; color: var(--cf-choco-light); font-size: 0.72rem; line-height: 1.6; }
+
+.status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.64rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.status.is-available { background: var(--cf-pink-soft); color: var(--cf-pink-deep); }
+.status.is-used, .status.is-expired, .status.is-unavailable { border: 1px solid var(--cf-pink-border); color: var(--cf-choco-medium); }
+
+.voucher-stub {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 118px;
+  padding: 12px 8px;
+  border-left: 2px dashed var(--cf-pink-border);
+  background: var(--cf-pink-soft);
+}
+.voucher.inactive .voucher-stub { background: transparent; }
+.code { font-family: var(--cf-font-display); font-size: 0.8rem; font-weight: 800; color: var(--cf-choco); overflow-wrap: anywhere; text-align: center; }
+.copy-btn { --background: var(--cf-choco-btn); --color: var(--cf-canvas); min-height: 44px; margin: 0; }
+.shop-btn { margin-top: 8px; }
+.state h2 { margin: 9px 0 5px; font-size: 1.2rem; }

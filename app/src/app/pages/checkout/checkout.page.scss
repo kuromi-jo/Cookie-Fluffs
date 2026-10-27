@@ -124,6 +124,13 @@ ion-content { --background: var(--cf-canvas); }
 .voucher-row .cf-input { margin: 0; }
 .voucher-row ion-button { min-height: 44px; margin: 0; }
 .voucher > p { display: flex; gap: 6px; margin: 10px 4px 0; color: var(--cf-choco-light); font-size: 0.7rem; line-height: 1.4; }
+.voucher > p a { color: var(--cf-pink-deep); font-weight: 800; }
+.voucher-applied { display: flex; align-items: center; gap: 10px; padding: 10px 6px 10px 12px; border: 1px solid var(--cf-pink-border); border-radius: 16px; background: var(--cf-pink-soft); }
+.voucher-applied div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.voucher-applied strong { color: var(--cf-choco); font-size: 0.86rem; }
+.voucher-applied small { color: var(--cf-choco-medium); font-size: 0.74rem; }
+.voucher-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 12px; background: #fff; color: var(--cf-pink-deep); font-size: 18px; }
+.voucher-remove { --color: var(--cf-pink-deep); min-height: 44px; margin: 0; }
 
 .receipt { border: 1px dashed var(--cf-pink-accent); }
 .receipt div { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 0.8rem; }

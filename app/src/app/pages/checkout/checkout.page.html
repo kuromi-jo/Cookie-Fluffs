@@ -165,8 +165,45 @@
             </div>
           </section>
           <section class="cf-card checkout-section" aria-labelledby="notes-heading"><h2 id="notes-heading">Order notes</h2><div class="field-group"><ion-textarea id="checkout-notes" class="cf-input notes" [class.ion-invalid]="!!fieldError('notes')" [class.ion-touched]="isTouched('notes')" label="Notes (optional)" labelPlacement="floating" maxlength="500" autoGrow="true" name="notes" [ngModel]="form().notes" (ngModelChange)="update('notes', $event)" (ionBlur)="blur('notes')"></ion-textarea>@if (fieldError('notes'); as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }<p class="character-count">{{ form().notes.length }}/500</p></div></section>
-          <section class="cf-card checkout-section voucher" aria-labelledby="voucher-heading"><h2 id="voucher-heading">Voucher / Promo code</h2><div class="voucher-row"><ion-input class="cf-input" label="Voucher code" labelPlacement="floating" disabled="true"></ion-input><ion-button fill="outline" disabled="true">Apply</ion-button></div><p><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>{{ config().voucher.unavailableMessage }}</p></section>
-          <section class="cf-card receipt" aria-label="Price preview"><div><span>Merchandise subtotal</span><span>₱{{ preview().subtotal | number: '1.2-2' }}</span></div><div><span>Delivery fee</span><span>{{ preview().deliveryFee ? ('₱' + (preview().deliveryFee | number: '1.2-2')) : 'FREE' }}</span></div><div class="receipt-total"><span>Estimated total</span><strong>₱{{ preview().total | number: '1.2-2' }}</strong></div><p>The server confirms prices and availability when you place the order.</p></section>
+          <section class="cf-card checkout-section voucher" aria-labelledby="voucher-heading">
+            <h2 id="voucher-heading">Voucher / Promo code</h2>
+            @if (appliedVoucher(); as v) {
+              <div class="voucher-applied" role="status">
+                <span class="voucher-icon"><ion-icon name="ticket-outline" aria-hidden="true"></ion-icon></span>
+                <div><strong>{{ v.code }} applied</strong><small>{{ v.title }} · −₱{{ v.discount | number: '1.2-2' }}</small></div>
+                <ion-button fill="clear" class="voucher-remove" [attr.aria-label]="'Remove voucher ' + v.code" (click)="removeVoucher()">Remove</ion-button>
+              </div>
+            } @else {
+              <div class="voucher-row">
+                <ion-input
+                  id="checkout-voucher"
+                  class="cf-input"
+                  label="Voucher code (optional)"
+                  labelPlacement="floating"
+                  autocapitalize="characters"
+                  autocomplete="off"
+                  maxlength="20"
+                  [class.ion-invalid]="!!voucherError()"
+                  [class.ion-touched]="!!voucherError()"
+                  [value]="voucherInput()"
+                  [disabled]="!config().voucher.enabled || voucherBusy()"
+                  (ionInput)="voucherInput.set($event.detail.value ?? '')"
+                  (keyup.enter)="applyVoucher()"
+                ></ion-input>
+                <ion-button fill="outline" class="voucher-apply" [disabled]="!config().voucher.enabled || voucherBusy() || !voucherInput().trim()" (click)="applyVoucher()">
+                  @if (voucherBusy()) { <ion-spinner name="crescent" aria-label="Checking voucher"></ion-spinner> } @else { Apply }
+                </ion-button>
+              </div>
+              @if (voucherError(); as message) {
+                <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p>
+              } @else if (!config().voucher.enabled) {
+                <p><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>{{ config().voucher.unavailableMessage }}</p>
+              } @else {
+                <p><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>Have a code? See <a routerLink="/profile/vouchers">My Vouchers</a>.</p>
+              }
+            }
+          </section>
+          <section class="cf-card receipt" aria-label="Price preview"><div><span>Merchandise subtotal</span><span>₱{{ preview().subtotal | number: '1.2-2' }}</span></div>@if (preview().voucherDiscount) { <div class="cf-voucher-line"><span>Voucher ({{ appliedVoucher()?.code }})</span><span>−₱{{ preview().voucherDiscount | number: '1.2-2' }}</span></div> }<div><span>Delivery fee</span><span>{{ preview().deliveryFee ? ('₱' + (preview().deliveryFee | number: '1.2-2')) : 'FREE' }}</span></div><div class="receipt-total"><span>Estimated total</span><strong>₱{{ preview().total | number: '1.2-2' }}</strong></div><p>The server confirms prices and availability when you place the order.</p></section>
           @if (agreementEnabled()) {
             <section class="cf-card checkout-section agreement" aria-labelledby="agreement-heading">
               <h2 id="agreement-heading">Order agreement</h2>

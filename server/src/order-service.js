@@ -14,6 +14,7 @@ import { lockUserCart } from './cart-lock.js';
 import { loadOrderLifecycle } from './order-lifecycle.js';
 import { loadOrderRefund } from './refund-service.js';
 import { insertNotification } from './notification-service.js';
+import { evaluateVoucher, recordRedemption } from './voucher-service.js';
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 const LOCAL_COOKIE_IMAGE_RE = /^assets\/cookies\/[a-z0-9][a-z0-9-]*\.(?:avif|jpeg|jpg|png|webp)$/i;
@@ -47,6 +48,7 @@ function mapMoneyRow(row) {
     packDiscount: Number(row.packDiscount),
     discountTotal: Number(row.discountTotal),
     deliveryFee: Number(row.deliveryFee),
+    voucherDiscount: Number(row.voucherDiscount ?? 0),
     total: Number(row.total),
   };
 }
@@ -67,6 +69,7 @@ async function loadOrder(client, userId, selector, selectorValue) {
             promotion_discount::text AS "promotionDiscount",
             pack_discount::text AS "packDiscount", discount_total::text AS "discountTotal",
             delivery_fee::text AS "deliveryFee", order_total::text AS total,
+            voucher_code AS "voucherCode", voucher_discount::text AS "voucherDiscount",
             currency, order_agreement_version AS "agreementVersion",
             order_agreement_accepted_at AS "agreementAcceptedAt", created_at AS "createdAt"
      FROM orders WHERE user_id = $1 AND ${selector} = $2`,
@@ -332,7 +335,7 @@ export async function createOrder(client, userId, checkout, requestFingerprint, 
     ])].sort((a, b) => a - b);
     const productResult = await client.query(
       `SELECT id, name, price::text AS price, sale_price::text AS "salePrice",
-              image_url AS "imageUrl", is_available AS "isAvailable"
+              image_url AS "imageUrl", is_available AS "isAvailable", season
        FROM products WHERE id = ANY($1) ORDER BY id FOR SHARE`,
       [productIds],
     );
@@ -381,7 +384,15 @@ export async function createOrder(client, userId, checkout, requestFingerprint, 
     const promotionDiscountCentavos = lines.reduce((sum, line) => sum + line.priced.promotionDiscountCentavos, 0);
     const packDiscountCentavos = lines.reduce((sum, line) => sum + line.priced.packDiscountCentavos, 0);
     const feeCentavos = deliveryFeeCentavos(merchandiseSubtotalCentavos, checkout.fulfillmentMethod);
-    const totalCentavos = merchandiseSubtotalCentavos + feeCentavos;
+    // Re-checked here under the customer's cart lock, so a voucher can't be used twice at once.
+    const voucher = checkout.voucherCode
+      ? await evaluateVoucher((text, params) => client.query(text, params), userId, checkout.voucherCode, {
+        subtotalCentavos: merchandiseSubtotalCentavos,
+        seasons: new Set(productResult.rows.map((product) => product.season).filter(Boolean)),
+      })
+      : null;
+    const voucherDiscount = voucher?.discountCentavos ?? 0;
+    const totalCentavos = merchandiseSubtotalCentavos - voucherDiscount + feeCentavos;
     const address = checkout.deliveryAddress;
     const publicId = crypto.randomUUID();
     const legacyPaymentMethod = checkout.fulfillmentMethod === 'pickup' ? 'cash_on_pickup' : 'cash_on_delivery';
@@ -396,11 +407,12 @@ export async function createOrder(client, userId, checkout, requestFingerprint, 
           region_code, region_name, barangay_code, barangay, city_code, city, province,
           postal_code, notes, merchandise_subtotal, promotion_discount, pack_discount,
           discount_total, delivery_fee, order_total, currency, payment_is_demo,
-          order_agreement_version, order_agreement_accepted_at)
+          order_agreement_version, order_agreement_accepted_at, voucher_code, voucher_discount)
        VALUES
          ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, 'placed', $9, $10, $11,
           $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-          $25, $26, $27, $28, 'PHP', $29, $30, CASE WHEN $30::text IS NULL THEN NULL ELSE now() END)
+          $25, $26, $27, $28, 'PHP', $29, $30, CASE WHEN $30::text IS NULL THEN NULL ELSE now() END,
+          $31, $32)
        RETURNING id`,
       [
         publicId,
@@ -433,9 +445,19 @@ export async function createOrder(client, userId, checkout, requestFingerprint, 
         centavosToMoney(totalCentavos),
         options.paymentIsDemo ?? checkout.paymentMethod === 'card',
         checkout.agreementAccepted ? checkout.agreementVersion : null,
+        voucher?.voucher.code ?? null,
+        centavosToMoney(voucherDiscount),
       ],
     );
     const orderId = orderResult.rows[0].id;
+    if (voucher) {
+      await recordRedemption(client, {
+        code: voucher.voucher.code,
+        userId,
+        orderId,
+        discountCentavos: voucherDiscount,
+      });
+    }
     await client.query(
       `INSERT INTO order_status_events
          (public_id, order_id, from_status, to_status, actor_type, actor_user_id, idempotency_key)

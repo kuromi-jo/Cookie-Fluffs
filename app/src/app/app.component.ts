@@ -119,6 +119,7 @@ export class AppComponent {
     { title: 'My Account', url: '/profile', icon: 'person-outline' },
     { title: 'Notifications', url: '/notifications', icon: 'notifications-outline' },
     { title: 'My Orders', url: '/orders', icon: 'receipt-outline' },
+    { title: 'My Vouchers', url: '/profile/vouchers', icon: 'ticket-outline' },
     { title: 'My Addresses', url: '/profile/addresses', icon: 'location-outline' },
     { title: 'Settings', url: '/profile/settings', icon: 'settings-outline' },
     { title: 'Help & Support', url: '/help', icon: 'help-circle-outline' },

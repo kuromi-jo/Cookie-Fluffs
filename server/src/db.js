@@ -66,6 +66,8 @@ const REQUIRED_SCHEMA_TABLES = Object.freeze([
   'google_auth_events',
   'notifications',
   'verification_challenges',
+  'vouchers',
+  'voucher_redemptions',
 ]);
 
 const REQUIRED_MIGRATION_KEYS = Object.freeze([
@@ -93,6 +95,9 @@ const REQUIRED_MIGRATION_KEYS = Object.freeze([
   'names_v1',
   'menu_v2',
   'collections_v1',
+  'seasonal_menu_v1',
+  'seasonal_menu_v2',
+  'vouchers_v1',
 ]);
 
 const MIGRATION_ADVISORY_LOCK = 1_126_663_214;
@@ -202,6 +207,7 @@ const SCHEMA = `
   ALTER TABLE products   ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN NOT NULL DEFAULT false;
   ALTER TABLE products   ADD COLUMN IF NOT EXISTS is_new         BOOLEAN NOT NULL DEFAULT false;
   ALTER TABLE products   ADD COLUMN IF NOT EXISTS sale_price     NUMERIC(10, 2) CHECK (sale_price >= 0);
+  ALTER TABLE products   ADD COLUMN IF NOT EXISTS season         TEXT;
   ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS selected       BOOLEAN NOT NULL DEFAULT true;
 
   -- v0.7: mix-and-match cookie boxes (4, 6 or 12 cookies) in the cart.
@@ -998,13 +1004,13 @@ export async function initDb() {
       `INSERT INTO products
          (slug, name, tagline, description, flavor_notes, category, price,
           rating, reviews_count, calories, allergens, badge, image_url,
-          is_best_seller, is_new, sale_price)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          is_best_seller, is_new, sale_price, season)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        ON CONFLICT (slug) DO NOTHING`,
       [
         p.slug, p.name, p.tagline, p.description, p.flavorNotes, p.category, p.price,
         p.rating, p.reviewsCount, p.calories, p.allergens, p.badge, p.imageUrl,
-        Boolean(p.isBestSeller), Boolean(p.isNew), p.salePrice ?? null,
+        Boolean(p.isBestSeller), Boolean(p.isNew), p.salePrice ?? null, p.season ?? null,
       ],
     );
     seeded += res.rowCount;
@@ -1012,6 +1018,9 @@ export async function initDb() {
 
   await applyCollectionsOnce();
   await retireOldMenuOnce();
+  await applySeasonalMenuOnce();
+  await applySeasonalMenuV2Once();
+  await applyVouchersOnce();
   return { ready: true, seeded, refundBackfill };
 }
 
@@ -1665,4 +1674,121 @@ async function applyCollectionsOnce() {
     ]);
   }
   await query(`INSERT INTO app_meta (key, value) VALUES ('collections_v1', now()::text)`);
+}
+
+/**
+ * Copies the season tag (e.g. 'halloween') from seed-data.js onto existing products once,
+ * so later edits are never overwritten.
+ */
+async function applySeasonalMenuOnce() {
+  const done = await query(`SELECT 1 FROM app_meta WHERE key = 'seasonal_menu_v1'`);
+  if (done.rowCount) return;
+  for (const p of SEED_PRODUCTS) {
+    if (p.season) await query('UPDATE products SET season = $2 WHERE slug = $1', [p.slug, p.season]);
+  }
+  await query(`INSERT INTO app_meta (key, value) VALUES ('seasonal_menu_v1', now()::text)`);
+}
+
+const VOUCHERS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS vouchers (
+    code             TEXT PRIMARY KEY CHECK (code ~ '^[A-Z0-9]{3,20}$'),
+    title            TEXT NOT NULL CHECK (char_length(title) BETWEEN 3 AND 80),
+    description      TEXT NOT NULL CHECK (char_length(description) BETWEEN 3 AND 200),
+    discount_type    TEXT NOT NULL CHECK (discount_type IN ('fixed', 'percent')),
+    discount_value   NUMERIC(10, 2) NOT NULL CHECK (discount_value > 0),
+    max_discount     NUMERIC(10, 2) CHECK (max_discount > 0),
+    min_spend        NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (min_spend >= 0),
+    first_order_only BOOLEAN NOT NULL DEFAULT false,
+    required_season  TEXT,
+    once_per_user    BOOLEAN NOT NULL DEFAULT true,
+    starts_at        TIMESTAMPTZ,
+    ends_at          TIMESTAMPTZ,
+    is_active        BOOLEAN NOT NULL DEFAULT true,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (discount_type = 'fixed' OR discount_value <= 100)
+  );
+
+  CREATE TABLE IF NOT EXISTS voucher_redemptions (
+    id           SERIAL PRIMARY KEY,
+    voucher_code TEXT NOT NULL REFERENCES vouchers(code),
+    user_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    order_id     INT NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+    discount     NUMERIC(12, 2) NOT NULL CHECK (discount > 0),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS voucher_redemptions_user_idx ON voucher_redemptions (user_id, voucher_code);
+
+  ALTER TABLE orders ADD COLUMN IF NOT EXISTS voucher_code TEXT REFERENCES vouchers(code);
+  ALTER TABLE orders ADD COLUMN IF NOT EXISTS voucher_discount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+  ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_voucher_discount_check;
+  ALTER TABLE orders ADD CONSTRAINT orders_voucher_discount_check
+    CHECK (voucher_discount >= 0 AND voucher_discount <= merchandise_subtotal
+      AND ((voucher_code IS NULL) = (voucher_discount = 0)));
+
+  INSERT INTO vouchers
+    (code, title, description, discount_type, discount_value, max_discount, min_spend,
+     first_order_only, required_season, once_per_user, ends_at)
+  VALUES
+    ('WELCOME50', '₱50 off your first order', 'Welcome to Cookie Fluffs! Take ₱50 off your first order of ₱300 or more.',
+     'fixed', 50, NULL, 300, true, NULL, true, NULL),
+    ('SPOOKY15', '15% off Halloween orders', 'Get 15% off (up to ₱100) when your order includes a Halloween special.',
+     'percent', 15, 100, 0, false, 'halloween', false, '2026-11-30 23:59:59+08')
+  ON CONFLICT (code) DO NOTHING;
+`;
+
+/**
+ * Adds vouchers and lets an order total include a voucher discount. The original total rule
+ * (order_total = merchandise_subtotal + delivery_fee) has a generated name, so it is found by definition.
+ */
+async function applyVouchersOnce() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const claim = await client.query(
+      `INSERT INTO app_meta (key, value)
+       VALUES ('vouchers_v1', 'pending')
+       ON CONFLICT (key) DO NOTHING
+       RETURNING key`,
+    );
+    if (!claim.rowCount) {
+      await client.query('ROLLBACK');
+      return;
+    }
+    await client.query(VOUCHERS_SCHEMA);
+    const oldRule = await client.query(
+      `SELECT conname FROM pg_constraint
+       WHERE conrelid = 'orders'::regclass AND contype = 'c'
+         AND pg_get_constraintdef(oid) = 'CHECK ((order_total = (merchandise_subtotal + delivery_fee)))'`,
+    );
+    for (const { conname } of oldRule.rows) {
+      await client.query(`ALTER TABLE orders DROP CONSTRAINT ${client.escapeIdentifier(conname)}`);
+    }
+    await client.query(
+      `ALTER TABLE orders ADD CONSTRAINT orders_total_with_voucher_check
+         CHECK (order_total = merchandise_subtotal - voucher_discount + delivery_fee)`,
+    );
+    await client.query(`UPDATE app_meta SET value = now()::text WHERE key = 'vouchers_v1'`);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** Moves Raspberry Red Velvet into the Halloween specials once, on databases that already had it as New. */
+async function applySeasonalMenuV2Once() {
+  const done = await query(`SELECT 1 FROM app_meta WHERE key = 'seasonal_menu_v2'`);
+  if (done.rowCount) return;
+  for (const p of SEED_PRODUCTS) {
+    if (!p.season) continue;
+    await query('UPDATE products SET season = $2, badge = $3, is_new = $4 WHERE slug = $1', [
+      p.slug,
+      p.season,
+      p.badge,
+      Boolean(p.isNew),
+    ]);
+  }
+  await query(`INSERT INTO app_meta (key, value) VALUES ('seasonal_menu_v2', now()::text)`);
 }

@@ -11,14 +11,16 @@ const SELECT_PRODUCT = `
   SELECT id, slug, name, tagline, description, flavor_notes AS "flavorNotes", category,
          price::float AS price, rating::float AS rating, reviews_count AS "reviewsCount",
          calories, allergens, badge, image_url AS "imageUrl", is_available AS "isAvailable",
-         is_best_seller AS "isBestSeller", is_new AS "isNew", sale_price::float AS "salePrice"
+         is_best_seller AS "isBestSeller", is_new AS "isNew", sale_price::float AS "salePrice",
+         season
   FROM products`;
 
-/** Home-screen collections: ?collection=best | new | promo */
+/** Home-screen collections: ?collection=best | new | promo | halloween */
 const COLLECTIONS = {
   best: 'is_best_seller',
   new: 'is_new',
   promo: 'sale_price IS NOT NULL',
+  halloween: "season = 'halloween'",
 };
 
 // GET /api/products?category=fruity&search=choco&collection=promo

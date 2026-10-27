@@ -36,6 +36,8 @@ import { FavoriteService } from '../core/favorite.service';
       </a>
       @if (discount()) {
         <span class="sticker promo">-{{ discount() }}%</span>
+      } @else if (p.season === 'halloween') {
+        <span class="sticker seasonal" role="img" aria-label="Halloween special"><ion-icon name="moon" aria-hidden="true"></ion-icon></span>
       } @else if (p.isNew) {
         <span class="sticker new">New</span>
       }
@@ -108,6 +110,7 @@ import { FavoriteService } from '../core/favorite.service';
     }
     .sticker.promo { background: var(--cf-pink-deep); }
     .sticker.new { background: var(--cf-choco-btn); color: #fff5f7; }
+    .sticker.seasonal { background: var(--cf-pink-accent); color: var(--cf-choco); font-size: 1.15rem; }
 
     .panel {
       flex: 1; display: flex; flex-direction: column;
