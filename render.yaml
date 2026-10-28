@@ -1,0 +1,48 @@
+# Render blueprint: hosts the Cookie Fluffs API online so the Android app works without a PC running.
+# Secret values are entered in the Render dashboard (sync: false) and are never stored in this file.
+services:
+  - type: web
+    name: cookie-fluffs-api
+    runtime: node
+    rootDir: server
+    plan: free
+    region: singapore
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/products
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: demo
+      # Capacitor's Android app origin, plus the web app if it is hosted.
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://localhost
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PAYMONGO_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_PUBLIC_KEY
+        sync: false
+      - key: PAYMONGO_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMONGO_ENABLED_METHODS
+        value: gcash,maya
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: Cookie Fluffs
+      - key: CONTACT_INBOX_EMAIL
+        sync: false
+      - key: PASSWORD_RECOVERY_ENABLED
+        value: "true"
+      - key: PASSWORD_RESET_TOKEN_PEPPER
+        generateValue: true
+      - key: VERIFICATION_DELIVERY_ENABLED
+        value: "true"
+      - key: VERIFICATION_CODE_PEPPER
+        generateValue: true
