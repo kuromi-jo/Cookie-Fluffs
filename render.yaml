@@ -18,6 +18,20 @@ services:
       # Capacitor's Android app origin, plus the web app if it is hosted.
       - key: CORS_ALLOWED_ORIGINS
         value: https://localhost
+      - key: ORDER_AGREEMENT_REQUIRED
+        value: "true"
+      - key: ORDER_AGREEMENT_VERSION
+        value: draft-2026-10-24-v1
+      - key: CARD_DEMO_ENABLED
+        value: "false"
+      - key: WALLET_DEMO_ENABLED
+        value: "false"
+      - key: GOOGLE_AUTH_ENABLED
+        value: "false"
+      - key: FULFILLMENT_DELIVERY_ENABLED
+        value: "false"
+      - key: FULFILLMENT_PICKUP_ENABLED
+        value: "false"
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
