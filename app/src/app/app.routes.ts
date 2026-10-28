@@ -3,8 +3,15 @@
  * @description Lazy customer routes within the persistent Cookie Fluffs navigation shell.
  */
 import { Routes } from '@angular/router';
+import { shopHomeGuard, superAdminGuard } from './core/admin.guard';
 
 export const routes: Routes = [
+  {
+    path: 'admin',
+    title: 'Admin dashboard',
+    canActivate: [superAdminGuard],
+    loadComponent: () => import('./pages/admin/admin.page').then((m) => m.AdminPage),
+  },
   { path: '', redirectTo: 'home', pathMatch: 'full' },
   {
     // Customer shell. Existing URLs stay unchanged while the five-tab bar remains available.
@@ -14,6 +21,7 @@ export const routes: Routes = [
       {
         path: 'home',
         title: 'Cookie Fluffs',
+        canActivate: [shopHomeGuard],
         loadComponent: () => import('./pages/home/home.page').then((m) => m.HomePage),
       },
       {
@@ -70,6 +78,11 @@ export const routes: Routes = [
         path: 'profile',
         title: 'My Profile',
         loadComponent: () => import('./pages/profile/profile.page').then((m) => m.ProfilePage),
+      },
+      {
+        path: 'orders/:id/receipt',
+        title: 'Receipt',
+        loadComponent: () => import('./pages/receipt/receipt.page').then((m) => m.ReceiptPage),
       },
       {
         path: 'orders/:id',

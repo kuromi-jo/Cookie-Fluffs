@@ -280,7 +280,9 @@ export class LoginPage implements AfterViewInit, OnDestroy {
       this.password = '';
       this.confirmPassword = '';
       const target = this.returnUrl();
-      await this.nav.navigateRoot(target && target.startsWith('/') && target !== '/login' ? target : '/home');
+      await this.nav.navigateRoot(
+      this.auth.isSuperAdmin() ? '/admin' : target && target.startsWith('/') && target !== '/login' ? target : '/home',
+    );
       void this.ui.toast(welcome, { icon: 'heart' });
     } catch (err) {
       const serverErrors = apiFieldErrors(err);
@@ -477,7 +479,9 @@ export class LoginPage implements AfterViewInit, OnDestroy {
 
   private async completeGoogleNavigation(firstName: string): Promise<void> {
     const target = this.returnUrl();
-    await this.nav.navigateRoot(target && target.startsWith('/') && target !== '/login' ? target : '/home');
+    await this.nav.navigateRoot(
+      this.auth.isSuperAdmin() ? '/admin' : target && target.startsWith('/') && target !== '/login' ? target : '/home',
+    );
     void this.ui.toast(`Welcome, ${firstName}!`, { icon: 'heart' });
   }
 

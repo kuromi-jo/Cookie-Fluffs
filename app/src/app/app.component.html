@@ -1,5 +1,5 @@
 <ion-app>
-  <ion-menu contentId="main-content" type="overlay" class="cf-menu">
+  <ion-menu contentId="main-content" menuId="shop" type="overlay" class="cf-menu" [disabled]="onAdmin()">
     <ion-content>
       <!-- Profile header: user image, name and contact number -->
       <section class="profile">
@@ -36,6 +36,14 @@
       </section>
 
       <ion-list lines="none" class="menu-list">
+        @if (auth.isSuperAdmin()) {
+          <ion-menu-toggle [autoHide]="false">
+            <ion-item button detail="false" class="back-to-admin" (click)="backToAdmin()">
+              <ion-icon slot="start" name="stats-chart-outline" aria-hidden="true"></ion-icon>
+              <ion-label>Back to admin dashboard</ion-label>
+            </ion-item>
+          </ion-menu-toggle>
+        }
         <ion-list-header>Shop</ion-list-header>
         @for (link of shopLinks; track link.url) {
           <ion-menu-toggle [autoHide]="false">
@@ -43,7 +51,8 @@
               button
               detail="false"
               routerDirection="root"
-              [routerLink]="link.url"
+              [routerLink]="link.url === '/notifications' ? null : link.url"
+              (click)="link.url === '/notifications' && openNotifications()"
               [class.active]="isActive(link.url)"
             >
               <ion-icon slot="start" [name]="link.icon" aria-hidden="true"></ion-icon>
@@ -61,7 +70,8 @@
               button
               detail="false"
               routerDirection="root"
-              [routerLink]="link.url"
+              [routerLink]="link.url === '/notifications' ? null : link.url"
+              (click)="link.url === '/notifications' && openNotifications()"
               [class.active]="isActive(link.url)"
             >
               <ion-icon slot="start" [name]="link.icon" aria-hidden="true"></ion-icon>
@@ -77,7 +87,8 @@
               button
               detail="false"
               routerDirection="root"
-              [routerLink]="link.url"
+              [routerLink]="link.url === '/notifications' ? null : link.url"
+              (click)="link.url === '/notifications' && openNotifications()"
               [class.active]="isActive(link.url)"
             >
               <ion-icon slot="start" [name]="link.icon" aria-hidden="true"></ion-icon>
@@ -94,8 +105,13 @@
           <ion-icon name="log-out-outline"></ion-icon> Log out
         </button>
       }
-      <small>Cookie Fluffs v0.6 · Made with <ion-icon name="heart" aria-label="love"></ion-icon> in Cubao</small>
+      <small>Cookie Fluffs v1.0 · Made with <ion-icon name="heart" aria-label="love"></ion-icon> in Cubao</small>
     </ion-footer>
+  </ion-menu>
+
+  <!-- Superadmin dashboard menu (only on /admin) -->
+  <ion-menu contentId="main-content" menuId="admin" type="overlay" class="cf-menu" [disabled]="!onAdmin()">
+    <app-admin-menu />
   </ion-menu>
 
   <ion-router-outlet id="main-content" tabindex="-1" aria-label="Page content"></ion-router-outlet>

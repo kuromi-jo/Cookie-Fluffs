@@ -19,6 +19,10 @@ import preferencesRouter from './routes/preferences.js';
 import notificationsRouter from './routes/notifications.js';
 import verificationRouter from './routes/verification.js';
 import vouchersRouter from './routes/vouchers.js';
+import adminRouter from './routes/admin.js';
+import liveRouter from './routes/live.js';
+import trackingRouter from './routes/tracking.js';
+import { ordersReviewsRouter, productReviewsRouter } from './routes/reviews.js';
 import { corsOptions } from './cors-config.js';
 
 export function livenessHandler(_req, res) {
@@ -46,11 +50,14 @@ export function createApp({ env = process.env, readiness = assertSchemaReady } =
 
   app.use('/api/webhooks/paymongo', express.raw({ type: 'application/json', limit: '256kb' }), paymongoWebhookRouter);
   app.use(express.json({ limit: '1mb' }));
+  app.use('/api/products', productReviewsRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/cart', cartRouter);
   app.use('/api/contact', contactRouter);
   app.use('/api/orders', ordersRouter);
+  app.use('/api/orders', trackingRouter);
+  app.use('/api/orders', ordersReviewsRouter);
   app.use('/api/geography', geographyRouter);
   app.use('/api/payments', paymentsRouter);
   app.use('/api/addresses', addressesRouter);
@@ -59,6 +66,8 @@ export function createApp({ env = process.env, readiness = assertSchemaReady } =
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/verification', verificationRouter);
   app.use('/api/vouchers', vouchersRouter);
+  app.use('/api/admin', adminRouter);
+  app.use('/api/live', liveRouter);
   app.use('/api', (_req, res) => res.status(404).json({ message: 'Endpoint not found.' }));
 
   app.use((err, _req, res, _next) => {

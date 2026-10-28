@@ -41,7 +41,7 @@
       <section class="roulette" [class.won]="rouletteResult()" aria-live="polite">
         <div class="plate" [class.spinning]="spinning()">
           @if (rouletteFace(); as f) {
-            <img [src]="f.imageUrl" [alt]="f.name" />
+            <img [src]="f.imageUrl | cfPhoto | async" [alt]="f.name" />
           } @else {
             <img src="assets/brand/cookie-logo.svg" alt="" class="logo" />
           }

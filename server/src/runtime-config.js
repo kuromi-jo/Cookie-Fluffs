@@ -78,20 +78,14 @@ function corsOrigins(env, appEnv) {
   return Object.freeze([...new Set(origins)]);
 }
 
-/** Validates password-recovery settings without making recovery available by default. */
+/**
+ * Validates password-recovery settings without making recovery available by default.
+ * Recovery emails a 6-digit code (no link), so no public app origin is needed.
+ */
 export function passwordRecoveryConfig(env = process.env) {
   const enabled = optionalStrictBoolean(env, 'PASSWORD_RECOVERY_ENABLED');
   if (!enabled) return Object.freeze({ enabled: false });
 
-  const originText = requiredText(env, 'PASSWORD_RECOVERY_ORIGIN');
-  let origin;
-  try {
-    const parsed = new URL(originText);
-    if (parsed.protocol !== 'https:' || parsed.origin !== originText) throw new Error();
-    origin = parsed.origin;
-  } catch {
-    throw new RuntimeConfigError('PASSWORD_RECOVERY_ORIGIN must be an exact HTTPS origin.');
-  }
   const tokenPepper = requiredText(env, 'PASSWORD_RESET_TOKEN_PEPPER');
   if (tokenPepper.length < 32 || PLACEHOLDER_SECRET_RE.test(tokenPepper) || new Set(tokenPepper).size < 12) {
     throw new RuntimeConfigError('PASSWORD_RESET_TOKEN_PEPPER must be a strong secret of at least 32 characters.');
@@ -103,7 +97,7 @@ export function passwordRecoveryConfig(env = process.env) {
     throw new RuntimeConfigError('BREVO_SENDER_EMAIL must be a valid verified sender.');
   }
   if (senderName.length > 80) throw new RuntimeConfigError('BREVO_SENDER_NAME is too long.');
-  return Object.freeze({ enabled, origin, tokenPepper, brevoApiKey, senderEmail, senderName });
+  return Object.freeze({ enabled, tokenPepper, brevoApiKey, senderEmail, senderName });
 }
 
 /**
@@ -182,9 +176,6 @@ export function validateRuntimeConfig(env = process.env) {
   const passwordRecovery = passwordRecoveryConfig(env);
   const googleAuth = googleAuthConfig(env);
   const allowedCorsOrigins = corsOrigins(env, appEnv);
-  if (passwordRecovery.enabled && !allowedCorsOrigins.includes(passwordRecovery.origin)) {
-    throw new RuntimeConfigError('PASSWORD_RECOVERY_ORIGIN must also be an allowed CORS origin.');
-  }
   if (deliveryRequested && !fulfillment.delivery.enabled) {
     throw new RuntimeConfigError('Enabled delivery requires valid approved PSGC city codes.');
   }

@@ -3,7 +3,7 @@
  * @description Refresh-safe order confirmation loaded from the authenticated order API.
  */
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, OnDestroy, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnDestroy, ViewChild, effect, inject, signal, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -28,8 +28,14 @@ import { presentSimulatedWalletConfirmation } from '../../components/simulated-w
 import { DemoCardFlow, DemoCardScenario, demoScenarioForFlow } from '../../core/demo-card';
 import { Order, RefundStatus, ReorderResult } from '../../core/models';
 import { OrderService } from '../../core/order.service';
+import { LiveService } from '../../core/live.service';
 import { ProductService } from '../../core/product.service';
 import { isOnlinePayment, paymentLabel } from '../../core/checkout-rules';
+import { OrderTracking, ReviewService } from '../../core/review.service';
+import { OrderTrackerMapComponent } from '../../components/order-tracker-map.component';
+import { OrderReviewComponent } from '../../components/order-review.component';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 const PROVIDER_PAYMENT_ERRORS = new Set([
   'Secure payment is not configured.',
@@ -141,7 +147,7 @@ export function orderDocumentTitle(order: Order): string {
   selector: 'app-order-confirmation',
   templateUrl: 'order-confirmation.page.html',
   styleUrls: ['order-confirmation.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     DatePipe,
     DecimalPipe,
     RouterLink,
@@ -155,6 +161,8 @@ export function orderDocumentTitle(order: Order): string {
     IonTitle,
     IonSpinner,
     DemoCardFormComponent,
+    OrderTrackerMapComponent,
+    OrderReviewComponent,
   ],
 })
 export class OrderConfirmationPage implements OnDestroy {
@@ -192,6 +200,23 @@ export class OrderConfirmationPage implements OnDestroy {
     if (document.visibilityState === 'visible') this.refreshOrderOnReturn();
   };
 
+  private live = inject(LiveService);
+  private reviews = inject(ReviewService);
+  /** Map points for the tracker (kitchen and the geocoded delivery address). */
+  readonly tracking = signal<OrderTracking | null>(null);
+
+  /** Live updates: when the admin (or payment) changes this order, refresh it in place. */
+  private readonly liveRefresh = effect(() => {
+    const change = this.live.orderChange();
+    const current = untracked(() => this.order());
+    if (!change || !current || change.orderId !== current.id) return;
+    if (!untracked(() => this.tracking())) void this.loadTracking(current.id);
+    void this.orders
+      .get(current.id)
+      .then((fresh) => this.order.set(fresh))
+      .catch(() => undefined);
+  });
+
   async ionViewWillEnter(): Promise<void> {
     this.startReturnRefreshListeners();
     if (!this.auth.isLoggedIn()) {
@@ -211,6 +236,7 @@ export class OrderConfirmationPage implements OnDestroy {
     try {
       const order = await this.orders.get(id);
       this.order.set(order);
+      void this.loadTracking(order.id);
       const returned = this.route.snapshot.queryParamMap.get('payment');
       this.popupBlocked.set(returned === 'popup-blocked');
       if (returned === 'popup-open' && order.paymentStatus !== 'paid') {
@@ -235,6 +261,19 @@ export class OrderConfirmationPage implements OnDestroy {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private async loadTracking(id: string): Promise<void> {
+    try {
+      this.tracking.set(await this.reviews.tracking(id));
+    } catch {
+      this.tracking.set(null); // the map is a bonus; the timeline below still shows progress
+    }
+  }
+
+  /** When the order left the kitchen, so the rider starts moving from that moment. */
+  outForDeliveryAt(order: Order): string | null {
+    return order.events.find((e) => e.toStatus === 'out_for_delivery')?.createdAt ?? null;
   }
 
   ionViewDidLeave(): void {
@@ -268,8 +307,10 @@ export class OrderConfirmationPage implements OnDestroy {
     return orderDocumentTitle(order);
   }
 
+  /** Opens the printable receipt page; its back arrow returns here (same scroll position). */
   printReceipt(): void {
-    window.print();
+    const order = this.order();
+    if (order) void this.router.navigate(['/orders', order.id, 'receipt']);
   }
 
   async reorder(): Promise<void> {
@@ -316,6 +357,7 @@ export class OrderConfirmationPage implements OnDestroy {
       if (order.demoPayment?.status === 'demo_declined') return 'Demo declined';
       return 'Demo awaiting result';
     }
+    if (order.orderStatus === 'cancelled' && ['pending', 'pending_cash', 'awaiting_payment'].includes(order.paymentStatus)) return 'No payment due';
     return {
       paid: 'Paid',
       processing: 'Processing',

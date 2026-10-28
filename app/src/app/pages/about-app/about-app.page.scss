@@ -89,14 +89,6 @@
       color: var(--ion-color-success);
     }
   }
-
-  &.soon li {
-    color: var(--cf-choco-light);
-
-    ion-icon {
-      color: var(--cf-pink-accent);
-    }
-  }
 }
 
 .course {
@@ -120,4 +112,20 @@
     font-size: 0.74rem;
     color: var(--cf-choco-light);
   }
+}
+
+.done-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 12px;
+  background: var(--cf-pink-soft);
+  color: var(--cf-choco);
+  font-size: 0.84rem;
+  font-weight: 700;
+
+  ion-icon { flex: none; font-size: 20px; color: var(--ion-color-success); }
 }

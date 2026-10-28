@@ -44,6 +44,9 @@ export interface AccountStatus {
   google: { linked: boolean };
 }
 
+/** Hardcoded shop-owner login (must match SUPERADMIN_EMAIL in server/src/admin.js). */
+export const SUPERADMIN_EMAIL = 'superadmin@gmail.com';
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
@@ -52,6 +55,8 @@ export class AuthService {
   readonly token = signal<string | null>(read(TOKEN_KEY));
   readonly user = signal<User | null>(readJson<User>(USER_KEY));
   readonly isLoggedIn = computed(() => !!this.token() && !!this.user());
+  /** The shop owner account; it opens the admin dashboard instead of the shop. */
+  readonly isSuperAdmin = computed(() => this.isLoggedIn() && this.user()?.email?.toLowerCase() === SUPERADMIN_EMAIL);
 
   /** First name for friendly greetings, e.g. "Hi, Jonie". */
   readonly firstName = computed(() => this.user()?.firstName ?? this.user()?.fullName.split(' ')[0] ?? '');
@@ -83,11 +88,15 @@ export class AuthService {
     return user;
   }
 
-  /** Changes the password and atomically replaces this device's revoked session token. */
-  async changePassword(currentPassword: string, newPassword: string): Promise<User> {
+  /**
+   * Changes the password and atomically replaces this device's revoked session token.
+   * `challengeId` is the verified email-code challenge from the verification sheet.
+   */
+  async changePassword(currentPassword: string, newPassword: string, challengeId: string): Promise<User> {
     const response = await firstValueFrom(this.http.post<AuthResponse>(`${this.base}/change-password`, {
       currentPassword,
       newPassword,
+      challengeId,
     }));
     this.setSession(response);
     return response.user;
@@ -216,10 +225,11 @@ export class AuthService {
     return response.message;
   }
 
-  async resetPassword(selector: string, token: string, newPassword: string): Promise<string> {
+  /** Resets a forgotten password with the 6-digit code that was emailed to `email`. */
+  async resetPassword(email: string, code: string, newPassword: string): Promise<string> {
     const response = await firstValueFrom(this.http.post<{ message: string }>(`${this.base}/reset-password`, {
-      selector,
-      token,
+      email,
+      code,
       newPassword,
     }));
     return response.message;

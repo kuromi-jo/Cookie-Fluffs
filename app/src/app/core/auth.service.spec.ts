@@ -57,10 +57,10 @@ describe('AuthService profile API', () => {
   });
 
   it('replaces the revoked session token after a successful password change', async () => {
-    const request = service.changePassword('Old1!Password', 'Fresh2!Password');
+    const request = service.changePassword('Old1!Password', 'Fresh2!Password', 'challenge-1');
     const api = http.expectOne('/api/auth/change-password');
     expect(api.request.method).toBe('POST');
-    expect(api.request.body).toEqual({ currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password' });
+    expect(api.request.body).toEqual({ currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password', challengeId: 'challenge-1' });
     api.flush({ token: 'replacement-token', user });
     expect(await request).toEqual(user);
     expect(service.token()).toBe('replacement-token');
@@ -78,9 +78,9 @@ describe('AuthService profile API', () => {
     forgot.flush({ message: 'Check your email.' });
     expect(await forgotRequest).toBe('Check your email.');
 
-    const resetRequest = service.resetPassword('selector', 'secret', 'Fresh2!Password');
+    const resetRequest = service.resetPassword('maria@example.test', '042917', 'Fresh2!Password');
     const reset = http.expectOne('/api/auth/reset-password');
-    expect(reset.request.body).toEqual({ selector: 'selector', token: 'secret', newPassword: 'Fresh2!Password' });
+    expect(reset.request.body).toEqual({ email: 'maria@example.test', code: '042917', newPassword: 'Fresh2!Password' });
     reset.flush({ message: 'Log in again.' });
     expect(await resetRequest).toBe('Log in again.');
     expect(service.token()).toBe('test-token');

@@ -5,6 +5,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { ModalController, NavController } from '@ionic/angular';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/auth.service';
 import { NotificationService } from '../../core/notification.service';
@@ -46,6 +47,8 @@ describe('NotificationsPage', () => {
       { provide: NotificationService, useValue: notifications },
       { provide: AuthService, useValue: auth },
       { provide: Router, useValue: router },
+      { provide: ModalController, useValue: { dismiss: vi.fn(async () => true) } },
+      { provide: NavController, useValue: { navigateRoot: vi.fn(async () => true) } },
     ] });
   });
 

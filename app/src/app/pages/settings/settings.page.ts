@@ -2,6 +2,7 @@
  * @file settings.page.ts
  * @description Customer accessibility settings backed by PostgreSQL.
  */
+import { BackNavService } from '../../core/back-nav.service';
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -27,6 +28,8 @@ import { UiService } from '../../core/ui.service';
   imports: [IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonIcon, IonToggle, IonButton, IonSpinner],
 })
 export class SettingsPage {
+  /** Back goes to wherever this page was opened from (Profile by default). */
+  readonly backHref = inject(BackNavService).backHref('/profile', '/profile/settings');
   readonly preferences = inject(PreferenceService);
   private auth = inject(AuthService);
   private router = inject(Router);

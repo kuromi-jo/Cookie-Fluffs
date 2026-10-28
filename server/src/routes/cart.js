@@ -10,6 +10,7 @@ import { requireAuth } from '../auth.js';
 import { lockUserCart } from '../cart-lock.js';
 import { loadCart } from '../cart-service.js';
 import { BOX_DISCOUNTS } from '../pricing.js';
+import { availableSql } from '../season.js';
 
 export { BOX_DISCOUNTS } from '../pricing.js';
 
@@ -68,7 +69,7 @@ router.post('/', async (req, res, next) => {
     if (qty === 0) return res.status(400).json({ message: 'Add at least one cookie.' });
 
     const cart = await mutateCart(req.userId, async (client) => {
-      const product = await client.query('SELECT 1 FROM products WHERE id = $1 AND is_available', [productId]);
+      const product = await client.query(`SELECT 1 FROM products WHERE id = $1 AND ${availableSql()}`, [productId]);
       if (!product.rowCount) throw httpError(404, 'That cookie is not available.');
       await client.query(
         `INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, $3)
@@ -122,7 +123,7 @@ router.post('/boxes', async (req, res, next) => {
 
     const cart = await mutateCart(req.userId, async (client) => {
       const unique = [...new Set(ids)];
-      const found = await client.query('SELECT id FROM products WHERE id = ANY($1) AND is_available', [unique]);
+      const found = await client.query(`SELECT id FROM products WHERE id = ANY($1) AND ${availableSql()}`, [unique]);
       if (found.rowCount !== unique.length) throw httpError(400, 'One of those cookies is no longer available.');
       const box = await client.query('INSERT INTO cart_boxes (user_id, size) VALUES ($1, $2) RETURNING id', [
         req.userId,

@@ -24,14 +24,21 @@ async function recordEvent(client, userId, eventType, reason) {
   );
 }
 
-/** Changes one active customer's password while serializing attempts on their user row. */
+/**
+ * Changes one active customer's password while serializing attempts on their user row.
+ * Requires a VERIFIED `change_password` email-code challenge (`challengeId`), consumed in the same
+ * transaction as the change. A wrong current/new password leaves the challenge unconsumed, so the
+ * customer can correct the password without requesting a new code.
+ */
 export async function changeCustomerPassword(
   userId,
   currentPassword,
   newPassword,
-  { databasePool = pool, now = new Date() } = {},
+  { databasePool = pool, verification, challengeId, now = new Date() } = {},
 ) {
   if (!databasePool) throw Object.assign(new Error('Account security is temporarily unavailable.'), { status: 503 });
+  if (!verification) throw new Error('Verification service is required.');
+  if (typeof challengeId !== 'string' || !challengeId) return { kind: 'unverified' };
   const client = await databasePool.connect();
   try {
     await client.query('BEGIN');
@@ -97,6 +104,13 @@ export async function changeCustomerPassword(
       await recordEvent(client, userId, 'password_change_failed', 'password_reuse');
       await client.query('COMMIT');
       return { kind: 'reused' };
+    }
+
+    // Email-code proof, bound to this customer and consumed only together with the change.
+    const consumed = await verification.consumeVerified(client, { userId, challengeId, operation: 'change_password' });
+    if (!consumed) {
+      await client.query('ROLLBACK');
+      return { kind: 'unverified' };
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);

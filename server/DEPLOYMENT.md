@@ -14,12 +14,12 @@ Use Node.js 22 LTS. Run `npm ci` in `server/`; this API has no compile step. A r
 - `ORDER_AGREEMENT_REQUIRED`: explicit `true` or `false`. When true, set `ORDER_AGREEMENT_VERSION` to the approved version; production rejects draft versions.
 - `FULFILLMENT_DELIVERY_ENABLED` and `FULFILLMENT_PICKUP_ENABLED`: explicit booleans. Enabled delivery also needs valid `FULFILLMENT_DELIVERY_CITY_CODES`. Enabled pickup needs approved public `FULFILLMENT_PICKUP_LOCATION` and `FULFILLMENT_PICKUP_HOURS`.
 - `CARD_DEMO_ENABLED` and `WALLET_DEMO_ENABLED`: explicit booleans; both must be false in production.
-- `PASSWORD_RECOVERY_ENABLED`: defaults to `false`. Enabling it also requires an exact HTTPS `PASSWORD_RECOVERY_ORIGIN`, a strong `PASSWORD_RESET_TOKEN_PEPPER`, and server-only `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, and `BREVO_SENDER_NAME`. The sender must be approved and verified before activation.
+- `PASSWORD_RECOVERY_ENABLED`: defaults to `false`. Enabling it also requires a strong `PASSWORD_RESET_TOKEN_PEPPER`, and server-only `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, and `BREVO_SENDER_NAME`. The sender must be approved and verified before activation.
 - `GOOGLE_AUTH_ENABLED`: defaults to `false`. Enabling it requires the web OAuth client ID in `GOOGLE_WEB_CLIENT_ID` and a strong server-only `GOOGLE_AUTH_NONCE_PEPPER`. Neither value is an OAuth client secret; no Google client secret belongs in this application.
 
 PayMongo Test Mode additionally uses `APP_PUBLIC_URL`, `PAYMONGO_SECRET_KEY`, `PAYMONGO_PUBLIC_KEY`, `PAYMONGO_WEBHOOK_SECRET`, and `PAYMONGO_ENABLED_METHODS`. Do not configure live keys for this project. Never place secrets in source control or Android assets.
 
-Password recovery remains unavailable unless every recovery setting validates at startup. Reset links are built only from `PASSWORD_RECOVERY_ORIGIN`; they are never derived from request headers. Keep all Brevo and token-pepper values out of frontend builds and logs.
+Password recovery remains unavailable unless every recovery setting validates at startup. Recovery emails a 6-digit code (stored only as a keyed hash, 30-minute expiry, 5 attempts); no link is sent. Keep all Brevo and token-pepper values out of frontend builds and logs.
 
 Google authentication remains unavailable until `google_auth_v1` is migrated and the web and Android OAuth clients are verified in Google Cloud. The server accepts only Google ID tokens issued for the configured web client ID. Android must register package `ph.cookiefluffs.app` with the debug/release signing certificate fingerprints; web GIS must list each exact HTTPS or loopback JavaScript origin. Never configure a client secret in Angular or Android.
 

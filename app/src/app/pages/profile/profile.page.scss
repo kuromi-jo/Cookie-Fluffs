@@ -230,8 +230,8 @@
 }
 
 .account-row {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
+  /* flex (not a fixed 3-column grid) so an optional unread badge never pushes the chevron to a new line */
+  display: flex;
   align-items: center;
   gap: 12px;
   min-height: 68px;
@@ -239,7 +239,9 @@
   color: var(--cf-choco);
   text-decoration: none;
 
-  > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+  > .row-icon { flex: none; }
+  > span:nth-child(2) { display: grid; flex: 1; gap: 3px; min-width: 0; }
+  > .row-badge, > ion-icon { flex: none; }
   strong { font-size: 0.9rem; }
   small { color: var(--cf-choco-light); font-size: 0.72rem; line-height: 1.35; }
   > ion-icon { color: var(--cf-choco-light); }

@@ -1,0 +1,226 @@
+<ion-header class="cf-header">
+  <ion-toolbar>
+    <ion-buttons slot="start" class="menu-btn"><ion-menu-button menu="admin" [attr.aria-label]="admin.anyBadge() ? 'Open admin menu, items need attention' : 'Open admin menu'"></ion-menu-button>@if (admin.anyBadge()) { <span class="menu-dot" aria-hidden="true"></span> }</ion-buttons>
+    <div class="brand" slot="start">
+      <img src="assets/brand/cookie-logo.svg" alt="" />
+      <span>Cookie <em>Fluffs</em> <small>Admin</small></span>
+    </div>
+    <ion-buttons slot="end">
+      <button
+        type="button"
+        class="icon-btn"
+        (click)="openFeed()"
+        [attr.aria-label]="admin.unread() ? 'Notifications, ' + admin.unread() + ' new' : 'Notifications'"
+      >
+        <ion-icon name="notifications-outline" aria-hidden="true"></ion-icon>
+        @if (admin.unread()) {
+          <span class="badge" aria-hidden="true">{{ admin.unread() > 99 ? '99+' : admin.unread() }}</span>
+        }
+      </button>
+      <button type="button" class="icon-btn" (click)="logout()" aria-label="Log out">
+        <ion-icon name="log-out-outline" aria-hidden="true"></ion-icon>
+      </button>
+    </ion-buttons>
+  </ion-toolbar>
+  <ion-toolbar class="tabs-bar">
+    <!-- Swipe between sections; the little chevron tokens show (and scroll to) the tabs that are off screen. -->
+    <div class="seg-wrap" [class.more-left]="segMore().left" [class.more-right]="segMore().right">
+    @if (segMore().left) { <button type="button" class="seg-token left" (click)="nudgeTabs(-1)" aria-label="Show earlier sections"><ion-icon name="chevron-back" aria-hidden="true"></ion-icon></button> }
+    <ion-segment #segment [value]="tab()" (ionChange)="setTab($event.detail.value)" (scroll)="updateSegMore()" class="switch" [scrollable]="true">
+      <ion-segment-button value="overview">Overview</ion-segment-button>
+      <ion-segment-button value="orders">Orders@if (admin.badges().orders; as n) { <span class="seg-count" [attr.aria-label]="n + ' new'">{{ n > 99 ? '99+' : n }}</span> }</ion-segment-button>
+      <ion-segment-button value="products">Products@if (admin.badges().products; as n) { <span class="seg-count" [attr.aria-label]="n + ' new'">{{ n > 99 ? '99+' : n }}</span> }</ion-segment-button>
+      <ion-segment-button value="reviews">Reviews@if (admin.badges().reviews; as n) { <span class="seg-count" [attr.aria-label]="n + ' new'">{{ n > 99 ? '99+' : n }}</span> }</ion-segment-button>
+      <ion-segment-button value="messages">Messages@if (admin.badges().messages; as n) { <span class="seg-count" [attr.aria-label]="n + ' new'">{{ n > 99 ? '99+' : n }}</span> }</ion-segment-button>
+    </ion-segment>
+    @if (segMore().right) { <button type="button" class="seg-token right" (click)="nudgeTabs(1)" aria-label="Show more sections"><ion-icon name="chevron-forward" aria-hidden="true"></ion-icon></button> }
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="pullToRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="cf-page">
+
+    @if (loading()) {
+      <div class="center"><ion-spinner name="crescent"></ion-spinner></div>
+    } @else if (error()) {
+      <div class="state cf-card" role="alert">
+        <ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon>
+        <h3>We couldn’t load the dashboard</h3>
+        <p>{{ error() }}</p>
+        <ion-button (click)="refresh(true)">Try again</ion-button>
+      </div>
+    } @else {
+      <!-- ============ Overview ============ -->
+      @if (tab() === 'overview' && admin.summary(); as s) {
+        <div class="stats">
+          <div class="stat cf-card accent">
+            <ion-icon name="cash-outline" aria-hidden="true"></ion-icon>
+            <small>Today’s sales</small>
+            <strong>₱{{ s.todaySales | number: '1.2-2' }}</strong>
+          </div>
+          <div class="stat cf-card">
+            <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
+            <small>Orders today</small>
+            <strong>{{ s.todayOrders }}</strong>
+          </div>
+          <button type="button" class="stat cf-card" (click)="tab.set('orders')">
+            <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+            <small>Active orders</small>
+            <strong>{{ s.activeOrders }}</strong>
+          </button>
+          <button type="button" class="stat cf-card" [class.warn]="s.pendingCancellations > 0" (click)="tab.set('orders')">
+            <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+            <small>Cancellation requests</small>
+            <strong>{{ s.pendingCancellations }}</strong>
+          </button>
+        </div>
+        <div class="total cf-card">
+          <span>All-time sales <small>{{ s.totalOrders }} orders, excluding cancelled</small></span>
+          <strong>₱{{ s.totalSales | number: '1.2-2' }}</strong>
+        </div>
+
+        <h2 class="cf-section-title">Best sellers</h2>
+        <div class="cf-card list">
+          @for (b of s.bestSellers; track b.id; let i = $index) {
+            <div class="best">
+              <span class="rank">{{ i + 1 }}</span>
+              <img [src]="b.imageUrl | cfPhoto | async" [alt]="b.name" />
+              <span class="name">{{ b.name }}</span>
+              <span class="sold">{{ b.sold }} sold</span>
+            </div>
+          } @empty {
+            <p class="cf-muted pad">Best sellers appear after the first orders come in.</p>
+          }
+        </div>
+      }
+
+      <!-- ============ Orders ============ -->
+      @if (tab() === 'orders') {
+        <ion-searchbar class="admin-search" placeholder="Search name, address, phone or cookie" [debounce]="350" [value]="admin.orderSearch()" (ionInput)="searchOrders($event.detail.value)" aria-label="Search orders"></ion-searchbar>
+        <nav class="chips" aria-label="Filter orders by status">
+          @for (f of filters; track f) {
+            <button type="button" class="chip" [class.on]="statusFilter() === f" [attr.aria-pressed]="statusFilter() === f" (click)="setFilter(f)">
+              {{ f === 'all' ? 'All' : f === 'cancel_requests' ? 'Cancel requests' : statusLabel[f] }}
+            </button>
+          }
+        </nav>
+
+        @for (o of admin.orders(); track o.id) {
+          <article class="order cf-card" [id]="'order-' + o.id" [class.flag]="o.cancellationRequestId">
+            <header>
+              <div>
+                <strong>#{{ shortId(o.id) }} · {{ o.customerName }}</strong>
+                <small>{{ o.createdAt | date: 'MMM d, h:mm a' }} · {{ o.fulfillment === 'delivery' ? 'Delivery' : 'Pickup' }}</small>
+              </div>
+              <span class="status" [attr.data-status]="o.status">{{ statusLabel[o.status] }}</span>
+            </header>
+            <p class="items">{{ o.items || 'No items' }}</p>
+            @if (o.fulfillment === 'delivery' && o.address) {
+              <p class="meta"><ion-icon name="location-outline" aria-hidden="true"></ion-icon>{{ o.address }}</p>
+            }
+            <p class="meta"><ion-icon name="call-outline" aria-hidden="true"></ion-icon>{{ o.phone }}</p>
+            @if (o.notes) {
+              <p class="meta"><ion-icon name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>“{{ o.notes }}”</p>
+            }
+            <div class="order-foot">
+              <strong class="price">₱{{ o.total | number: '1.2-2' }}</strong>
+              @if (isBusy(o.id)) {
+                <ion-spinner name="crescent"></ion-spinner>
+              }
+            </div>
+
+            @if (o.cancellationRequestId) {
+              <div class="cancel-request" role="status">
+                <p><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>Customer asked to cancel this order.</p>
+                <div class="row">
+                  <ion-button fill="outline" [disabled]="isBusy(o.id)" (click)="decideCancellation(o, 'decline')">Keep order</ion-button>
+                  <ion-button color="danger" [disabled]="isBusy(o.id)" (click)="decideCancellation(o, 'approve')">Approve cancel</ion-button>
+                </div>
+              </div>
+            } @else if (o.nextStatus) {
+              <ion-button expand="block" class="advance" [disabled]="isBusy(o.id)" (click)="advance(o)">
+                {{ actionLabel[o.nextStatus] }}
+                <ion-icon slot="end" name="arrow-forward" aria-hidden="true"></ion-icon>
+              </ion-button>
+            }
+          </article>
+        } @empty {
+          <div class="state cf-card">
+            <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
+            <h3>No orders here</h3>
+            <p>{{ admin.orderSearch().trim() ? 'No orders match “' + admin.orderSearch().trim() + '”. Try a name, street, city or cookie.' : statusFilter() === 'all' ? 'New orders will appear here instantly.' : statusFilter() === 'cancel_requests' ? 'No cancellation requests waiting for you.' : 'Nothing in this status right now.' }}</p>
+            @if (statusFilter() !== 'all') {
+              <ion-button fill="outline" (click)="setFilter('all')">Show all orders</ion-button>
+            }
+          </div>
+        }
+      }
+
+      <!-- ============ Reviews (read only) ============ -->
+      @if (tab() === 'reviews') { <app-admin-reviews /> }
+
+      <!-- ============ Contact Us messages (read only) ============ -->
+      @if (tab() === 'messages') { <app-admin-messages /> }
+
+      <!-- ============ Products ============ -->
+      @if (tab() === 'products') {
+        <ion-button expand="block" class="cf-btn-lg add-product" (click)="openAddProduct()">
+          <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
+          Add product
+        </ion-button>
+        <ion-searchbar class="admin-search" placeholder="Search cookies by name or category" [debounce]="150" [value]="productSearch()" (ionInput)="productSearch.set($event.detail.value ?? '')" aria-label="Search products"></ion-searchbar>
+        @if (productSearch().trim()) { <p class="search-count" role="status">{{ shownProducts().length }} of {{ admin.products().length }} cookies</p> }
+        @for (p of shownProducts(); track p.id) {
+          <article class="product cf-card" [class.off]="!p.isAvailable">
+            <div class="product-top">
+              <img [src]="p.imageUrl | cfPhoto | async" [alt]="p.name" />
+              <div>
+                <strong>{{ p.name }}</strong>
+                <small>{{ p.isAvailable ? 'On the menu' : 'Hidden from customers' }}</small>
+              </div>
+              <ion-toggle
+                [checked]="p.isAvailable"
+                [disabled]="isBusy('p' + p.id)"
+                (ionChange)="toggleAvailable(p, $event.detail.checked)"
+                [attr.aria-label]="'Show ' + p.name + ' on the menu'"
+              ></ion-toggle>
+            </div>
+            <div class="prices">
+              <label>
+                <span>Price (₱)</span>
+                <input type="number" inputmode="decimal" min="1" step="1" [ngModel]="draft(p).price" (ngModelChange)="editDraft(p, 'price', $event)" />
+              </label>
+              <label>
+                <span>Promo price (₱, optional)</span>
+                <input type="number" inputmode="decimal" min="1" step="1" placeholder="None" [ngModel]="draft(p).salePrice" (ngModelChange)="editDraft(p, 'salePrice', $event)" />
+              </label>
+            </div>
+            @if (isDirty(p)) {
+              <ion-button expand="block" [disabled]="isBusy('p' + p.id)" (click)="saveProduct(p)">
+                @if (isBusy('p' + p.id)) {
+                  <ion-spinner name="crescent"></ion-spinner>
+                } @else {
+                  Save changes
+                }
+              </ion-button>
+            }
+          </article>
+        } @empty {
+          @if (productSearch().trim()) {
+            <div class="state cf-card">
+              <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+              <h3>No cookies match</h3>
+              <p>Try another name or category.</p>
+              <ion-button fill="outline" (click)="productSearch.set('')">Clear search</ion-button>
+            </div>
+          }
+        }
+      }
+    }
+  </div>
+</ion-content>

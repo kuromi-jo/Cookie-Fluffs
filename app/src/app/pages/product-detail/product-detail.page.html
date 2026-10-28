@@ -1,7 +1,7 @@
 <ion-header class="cf-header floating">
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/home" text="" icon="arrow-back"></ion-back-button>
+      <ion-button class="round" (click)="goBack()" aria-label="Go back"><ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon></ion-button>
     </ion-buttons>
     <ion-buttons slot="end">
       @if (product(); as p) {
@@ -33,7 +33,7 @@
   @if (product(); as p) {
     <div class="hero">
       <span class="halo" aria-hidden="true"></span>
-      <img [src]="p.imageUrl" [alt]="p.name" />
+      <img [src]="p.imageUrl | cfPhoto | async" [alt]="p.name" />
       @if (p.salePrice !== null) {
         <span class="sticker">-{{ discount() }}%</span>
       }
@@ -101,12 +101,14 @@
         }
       </div>
 
+      <app-product-reviews [productId]="p.id" [highlight]="review() ?? null" />
+
       @if (related().length) {
         <h2>You might also love</h2>
         <div class="related">
           @for (r of related(); track r.id) {
             <a [routerLink]="['/product', r.id]" class="rel" routerDirection="forward">
-              <span class="rel-img"><img [src]="thumb(r.imageUrl)" [alt]="r.name" loading="lazy" /></span>
+              <span class="rel-img"><img [src]="thumb(r.imageUrl) | cfPhoto | async" [alt]="r.name" loading="lazy" /></span>
               <span>{{ r.name }}</span>
               <small>₱{{ (r.salePrice ?? r.price) | number: '1.0-0' }}</small>
             </a>

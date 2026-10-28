@@ -2,6 +2,7 @@
  * @file addresses.page.ts
  * @description Authenticated saved-address list, default selection, and deletion.
  */
+import { BackNavService } from '../../core/back-nav.service';
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -29,6 +30,8 @@ import { UiService } from '../../core/ui.service';
   imports: [RouterLink, IonHeader, IonToolbar, IonButtons, IonBackButton, IonTitle, IonContent, IonButton, IonIcon, IonSpinner],
 })
 export class AddressesPage {
+  /** Back goes to wherever this page was opened from (Profile by default). */
+  readonly backHref = inject(BackNavService).backHref('/profile', '/profile/addresses');
   readonly addressBook = inject(AddressService);
   private auth = inject(AuthService);
   private router = inject(Router);

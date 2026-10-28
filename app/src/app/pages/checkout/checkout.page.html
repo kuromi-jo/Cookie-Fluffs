@@ -27,9 +27,6 @@
       </nav>
       <p class="step-announcement" aria-live="polite">Step {{ step() + 1 }} of 4: {{ steps[step()].label }}</p>
 
-      @if (config().nonProductionDemo) {
-        <aside class="checkout-notice demo-note"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><p><strong>Class-project demo:</strong> fulfillment availability and details come from the test backend configuration.</p></aside>
-      }
       @if (uncertain()) {
         <aside class="checkout-notice recovery" aria-live="polite"><ion-icon name="cloud-outline" aria-hidden="true"></ion-icon><div><h2>Check an earlier order</h2><p>An earlier checkout has an unknown result. Retry its exact details before starting another order.</p><ion-button fill="outline" (click)="retryOriginal()" [disabled]="submitting()">@if (submitting()) { <ion-spinner name="crescent"></ion-spinner> } @else { Retry original order }</ion-button></div></aside>
       }
@@ -54,7 +51,7 @@
             <div id="checkout-fulfillmentMethod" class="selection-options fulfillment-options" role="radiogroup" aria-label="Fulfillment method">
               <button type="button" class="choice-card fulfillment-card" [class.selected]="form().fulfillmentMethod === 'delivery'" [disabled]="!config().delivery.enabled" role="radio" [attr.aria-checked]="form().fulfillmentMethod === 'delivery'" (click)="chooseFulfillment('delivery')"><ion-icon name="bicycle-outline" aria-hidden="true"></ion-icon><span><strong>Delivery</strong><small>Approved NCR areas only</small></span><ion-icon class="choice" name="checkmark-circle" aria-hidden="true"></ion-icon></button>
               @if (!config().delivery.enabled) { <p class="availability-note">{{ config().delivery.unavailableMessage }}</p> }
-              <button type="button" class="choice-card fulfillment-card" [class.selected]="form().fulfillmentMethod === 'pickup'" [disabled]="!config().pickup.enabled" role="radio" [attr.aria-checked]="form().fulfillmentMethod === 'pickup'" (click)="chooseFulfillment('pickup')"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon><span><strong>Store pickup</strong><small>View the configured pickup details below</small></span><ion-icon class="choice" name="checkmark-circle" aria-hidden="true"></ion-icon></button>
+              <button type="button" class="choice-card fulfillment-card" [class.selected]="form().fulfillmentMethod === 'pickup'" [disabled]="!config().pickup.enabled" role="radio" [attr.aria-checked]="form().fulfillmentMethod === 'pickup'" (click)="chooseFulfillment('pickup')"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon><span><strong>Store pickup</strong><small>Pickup location and hours on the next step</small></span><ion-icon class="choice" name="checkmark-circle" aria-hidden="true"></ion-icon></button>
               @if (!config().pickup.enabled) { <p class="availability-note">{{ config().pickup.unavailableMessage }}</p> }
             </div>
             @if (errors().fulfillment; as message) { <p class="field-error" role="alert"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>{{ message }}</p> }
@@ -160,7 +157,7 @@
 
           <section class="cf-card checkout-section" aria-labelledby="review-heading">
             <h2 id="review-heading">Selected cookies</h2><div class="review-lines">
-              @for (item of selected().items; track item.productId) { <article class="review-line"><img [src]="thumb(item.imageUrl)" [alt]="item.name" /><div><strong>{{ item.name }}</strong><small>Qty {{ item.quantity }}</small></div><span>₱{{ item.lineTotal | number: '1.2-2' }}</span></article> }
+              @for (item of selected().items; track item.productId) { <article class="review-line"><img [src]="thumb(item.imageUrl) | cfPhoto | async" [alt]="item.name" /><div><strong>{{ item.name }}</strong><small>Qty {{ item.quantity }}</small></div><span>₱{{ item.lineTotal | number: '1.2-2' }}</span></article> }
               @for (box of selected().boxes; track box.id) { <article class="review-line box-line"><span class="box-mark"><ion-icon name="cube-outline" aria-hidden="true"></ion-icon></span><div><strong>Box of {{ box.size }}</strong><small>{{ boxSummary(boxCookieNames(box)) }}</small><small>Qty {{ box.quantity }} · {{ box.discountPercent }}% box discount</small></div><span>₱{{ box.lineTotal | number: '1.2-2' }}</span></article> }
             </div>
           </section>

@@ -23,6 +23,8 @@ import { ProductService } from '../../core/product.service';
 import { ShopActionsService } from '../../core/shop-actions.service';
 import { UiService } from '../../core/ui.service';
 import { BoxSize, CATEGORIES, CookieCategory, PACK_OPTIONS, Product, effectivePrice, thumbUrl } from '../../core/models';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 /** Small fixed tilt per spot so the cookies look hand-placed. */
 const TILTS = [-8, 6, -3, 9, -6, 4, 7, -9, 2, -4, 8, -2];
@@ -31,7 +33,7 @@ const TILTS = [-8, 6, -3, 9, -6, 4, 7, -9, 2, -4, 8, -2];
   selector: 'app-box-builder',
   templateUrl: 'box-builder.page.html',
   styleUrls: ['box-builder.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     DecimalPipe,
     IonHeader,
     IonToolbar,

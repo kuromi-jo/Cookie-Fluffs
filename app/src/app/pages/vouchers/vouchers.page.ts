@@ -2,6 +2,7 @@
  * @file vouchers.page.ts
  * @description The signed-in customer's vouchers, their rules and whether each can still be used.
  */
+import { BackNavService } from '../../core/back-nav.service';
 import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -48,6 +49,8 @@ export const VOUCHER_STATUS_LABELS: Record<VoucherStatus, string> = {
   ],
 })
 export class VouchersPage {
+  /** Back goes to wherever this page was opened from (Profile by default). */
+  readonly backHref = inject(BackNavService).backHref('/profile', '/profile/vouchers');
   private auth = inject(AuthService);
   private api = inject(VoucherService);
   private ui = inject(UiService);

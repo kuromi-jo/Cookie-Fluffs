@@ -36,8 +36,8 @@ const STATUS_NOTIFICATION = {
     event: 'order_completed',
     title: (method) => (method === 'pickup' ? 'Picked up' : 'Delivered'),
     body: (method) => (method === 'pickup'
-      ? 'Enjoy your Cookie Fluffs! Thanks for picking up.'
-      : 'Your order was delivered. Enjoy your Cookie Fluffs!'),
+      ? 'Enjoy your Cookie Fluffs! Tap to rate your cookies and help other customers choose.'
+      : 'Your order was delivered. Tap to rate your cookies and help other customers choose.'),
   },
 };
 
@@ -48,7 +48,7 @@ function statusCopyValue(value, method) {
 const scrypt = promisify(crypto.scrypt);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const STATUS_VALUES = new Set(['placed', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled']);
-const TRANSITIONS = {
+export const TRANSITIONS = {
   delivery: {
     placed: 'confirmed',
     confirmed: 'preparing',
@@ -193,7 +193,8 @@ export async function loadOrderLifecycle(client, orderId, orderStatus) {
   ]);
   const cancellation = cancellationRow(requestResult.rows[0]);
   let cancellationAction = null;
-  if (!cancellation || cancellation.status !== 'pending') {
+  // A declined request is final: the shop has decided to keep the order, so no new request is offered.
+  if (!cancellation) {
     if (['placed', 'confirmed'].includes(orderStatus)) cancellationAction = 'cancel';
     if (orderStatus === 'preparing') cancellationAction = 'request';
   }
@@ -243,6 +244,13 @@ export async function requestOrderCancellation(client, userId, publicId, idempot
     if (existing.rowCount) {
       await client.query('COMMIT');
       return cancellationRow(existing.rows[0]);
+    }
+    const declined = await client.query(
+      `SELECT 1 FROM order_cancellation_requests WHERE order_id = $1 AND status = 'declined' LIMIT 1`,
+      [order.id],
+    );
+    if (declined.rowCount) {
+      throw httpError(409, 'Cookie Fluffs already reviewed a cancellation for this order and is keeping it. Contact us if you need help.');
     }
     if (!['placed', 'confirmed', 'preparing'].includes(order.orderStatus)) {
       throw httpError(409, 'This order can no longer be cancelled. Contact Cookie Fluffs if you need help.');
@@ -324,6 +332,26 @@ export async function advanceOrderStatus(client, operatorIdentity, orderPublicId
     );
     if (pending.rowCount) throw httpError(409, 'Resolve the pending cancellation request before advancing this order.');
     await client.query('UPDATE orders SET order_status = $2, updated_at = now() WHERE id = $1', [order.id, nextStatus]);
+    // Cash is collected on handover, so a completed cash order is also a paid order.
+    if (nextStatus === 'completed') {
+      const cashPaid = await client.query(
+        `UPDATE orders SET payment_status = 'paid', payment_state = 'paid', updated_at = now()
+         WHERE id = $1 AND payment_method IN ('cash_on_delivery', 'cash_on_pickup')
+           AND COALESCE(payment_state, payment_status) IN ('pending', 'pending_cash')
+         RETURNING id`,
+        [order.id],
+      );
+      if (cashPaid.rowCount) {
+        await insertNotification(client, {
+          userId: order.userId,
+          eventType: 'payment_paid',
+          title: 'Payment received',
+          body: 'Thanks! Your cash payment is recorded and your order is complete.',
+          linkPath: `/orders/${order.publicId}`,
+          dedupeKey: `cash_paid:${order.publicId}`,
+        });
+      }
+    }
     await client.query(
       `INSERT INTO order_status_events
          (public_id, order_id, from_status, to_status, actor_type, operator_id, idempotency_key)

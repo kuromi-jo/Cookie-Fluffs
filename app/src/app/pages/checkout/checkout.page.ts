@@ -61,6 +61,8 @@ import { FulfillmentMethod, PaymentConfig, PaymentMethod, SavedAddress, VoucherP
 import { VoucherService } from '../../core/voucher.service';
 import { isAmbiguousOrderError, OrderService, PendingCheckoutError } from '../../core/order.service';
 import { ConsentModalComponent } from '../../components/consent-modal.component';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 const EMPTY_FORM: CheckoutFormValue = {
   fulfillmentMethod: 'delivery',
@@ -178,7 +180,7 @@ export function fulfillmentCapabilityError(
   selector: 'app-checkout',
   templateUrl: 'checkout.page.html',
   styleUrls: ['checkout.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     DecimalPipe,
     FormsModule,
     RouterLink,

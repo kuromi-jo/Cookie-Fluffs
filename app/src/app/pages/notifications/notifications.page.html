@@ -1,13 +1,20 @@
 <!-- @file notifications.page.html @description Mobile notification center for the authenticated customer. -->
 <ion-header class="cf-header">
   <ion-toolbar>
-    <ion-buttons slot="start"><ion-back-button defaultHref="/profile" text=""></ion-back-button></ion-buttons>
-    <ion-title class="cf-title">Notifications</ion-title>
-    <ion-buttons slot="end">
-      @if (notifications.hasUnread()) {
-        <ion-button (click)="markAllRead()">Mark all read</ion-button>
-      }
-    </ion-buttons>
+    @if (asSheet()) {
+      <ion-title class="cf-title">Notifications</ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="close()" aria-label="Close notifications"><ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon></ion-button>
+      </ion-buttons>
+    } @else {
+      <ion-buttons slot="start"><ion-back-button [defaultHref]="backHref()" text=""></ion-back-button></ion-buttons>
+      <ion-title class="cf-title">Notifications</ion-title>
+      <ion-buttons slot="end">
+        @if (notifications.hasUnread()) {
+          <ion-button (click)="markAllRead()">Mark all read</ion-button>
+        }
+      </ion-buttons>
+    }
   </ion-toolbar>
 </ion-header>
 
@@ -36,9 +43,12 @@
         <span class="empty-mark"><ion-icon name="notifications-outline" aria-hidden="true"></ion-icon></span>
         <h2>No notifications yet</h2>
         <p>Order updates and account alerts will show up here.</p>
-        <ion-button class="cf-btn-lg" routerLink="/shop" routerDirection="root">Browse cookies</ion-button>
+        <ion-button class="cf-btn-lg" (click)="browse()">Browse cookies</ion-button>
       </aside>
     } @else {
+      @if (asSheet() && notifications.hasUnread()) {
+        <div class="sheet-actions"><ion-button fill="clear" size="small" (click)="markAllRead()">Mark all read</ion-button></div>
+      }
       <ul class="note-list">
         @for (item of notifications.items(); track item.id) {
           <li>

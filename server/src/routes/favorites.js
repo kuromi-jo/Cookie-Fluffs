@@ -3,13 +3,14 @@
  * @description Authenticated, owner-scoped customer favorites.
  */
 import { Router } from 'express';
+import { availableSql } from '../season.js';
 import { requireAuth } from '../auth.js';
 import { query } from '../db.js';
 
 const PRODUCT_COLUMNS = `
   p.id, p.slug, p.name, p.tagline, p.description, p.flavor_notes AS "flavorNotes", p.category,
   p.price::float AS price, p.rating::float AS rating, p.reviews_count AS "reviewsCount",
-  p.calories, p.allergens, p.badge, p.image_url AS "imageUrl", p.is_available AS "isAvailable",
+  p.calories, p.allergens, p.badge, p.image_url AS "imageUrl", ${availableSql('p.')} AS "isAvailable",
   p.is_best_seller AS "isBestSeller", p.is_new AS "isNew", p.sale_price::float AS "salePrice"`;
 
 function productId(value) {

@@ -1,0 +1,88 @@
+<!-- @file receipt.page.html @description Paper-style order receipt with a print / save-as-PDF action. -->
+<ion-header class="cf-header no-print">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="back()" aria-label="Go back"><ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon></ion-button>
+    </ion-buttons>
+    <ion-title class="cf-title">Receipt</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <main class="cf-page receipt-page">
+    @if (loading()) {
+      <div class="state" role="status"><ion-spinner name="crescent"></ion-spinner><p>Preparing your receipt…</p></div>
+    } @else if (error()) {
+      <div class="state" role="alert">
+        <ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon>
+        <p>{{ error() }}</p>
+        <ion-button class="cf-btn-lg" expand="block" (click)="load()">Try again</ion-button>
+        <ion-button fill="clear" (click)="back()">Go back</ion-button>
+      </div>
+    } @else if (order(); as o) {
+      <article class="receipt" aria-labelledby="receipt-title">
+        <header class="brand">
+          <img src="assets/brand/cookie-logo.svg" alt="" />
+          <div>
+            <strong>Cookie Fluffs</strong>
+            <small>Cubao, Quezon City</small>
+          </div>
+        </header>
+
+        <h1 id="receipt-title">{{ title(o) }}</h1>
+        <dl class="meta">
+          <div><dt>Order</dt><dd>#{{ reference(o) }}</dd></div>
+          <div><dt>Placed</dt><dd>{{ o.createdAt | date: 'MMM d, y · h:mm a' }}</dd></div>
+          <div><dt>Payment</dt><dd>{{ payment(o) }} · {{ paymentStatus(o) }}</dd></div>
+          <div><dt>{{ o.fulfillmentMethod === 'pickup' ? 'Pickup' : 'Delivery' }}</dt><dd>{{ o.contactName }} · {{ o.contactPhone }}</dd></div>
+          @if (o.deliveryAddress; as a) {
+            <div class="wide"><dt>Address</dt><dd>{{ a.addressLine1 }}@if (a.addressLine2) {, {{ a.addressLine2 }}}, {{ a.barangay }}, {{ a.city }} {{ a.postalCode }}</dd></div>
+          }
+        </dl>
+
+        <div class="cut" aria-hidden="true"></div>
+
+        <table class="items">
+          <caption class="sr-only">Items</caption>
+          <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col" class="num">Amount</th></tr></thead>
+          <tbody>
+            @for (item of o.items; track item.linePosition) {
+              <tr>
+                <td>
+                  <strong>{{ item.displayName }}</strong>
+                  <small>₱{{ item.unitPrice | number: '1.2-2' }} each</small>
+                  @if (item.boxItems.length) { <small>{{ boxContents(item) }}</small> }
+                </td>
+                <td class="num">{{ item.quantity }}</td>
+                <td class="num">₱{{ item.lineTotal | number: '1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <div class="cut" aria-hidden="true"></div>
+
+        <dl class="totals">
+          <div><dt>Subtotal</dt><dd>₱{{ o.merchandiseSubtotal | number: '1.2-2' }}</dd></div>
+          @if (o.discountTotal > 0) { <div><dt>Savings</dt><dd>−₱{{ o.discountTotal | number: '1.2-2' }}</dd></div> }
+          @if (o.voucherDiscount && o.voucherCode) { <div><dt>Voucher ({{ o.voucherCode }})</dt><dd>−₱{{ o.voucherDiscount | number: '1.2-2' }}</dd></div> }
+          <div><dt>Delivery fee</dt><dd>{{ o.deliveryFee ? '₱' + (o.deliveryFee | number: '1.2-2') : 'Free' }}</dd></div>
+          <div class="grand"><dt>Total</dt><dd>₱{{ o.total | number: '1.2-2' }}</dd></div>
+        </dl>
+
+        <footer class="thanks">
+          <p>Thank you for ordering from Cookie Fluffs!</p>
+          <small>Keep this receipt for your records. Questions? Use Contact Us in the app.</small>
+        </footer>
+      </article>
+    }
+  </main>
+</ion-content>
+
+@if (order()) {
+  <ion-footer class="receipt-actions no-print">
+    <ion-button class="cf-btn-lg" expand="block" (click)="print()" [disabled]="printing()">
+      @if (printing()) { <ion-spinner name="crescent"></ion-spinner> } @else { <ion-icon slot="start" name="print-outline" aria-hidden="true"></ion-icon>Print or save as PDF }
+    </ion-button>
+  </ion-footer>
+}

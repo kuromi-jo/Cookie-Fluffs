@@ -148,6 +148,33 @@ export async function migrateWithLock(databasePool = pool, migrate = initDb) {
   }
 }
 
+/** Photos uploaded by the admin for new products (served at /api/products/:id/image). */
+export const PRODUCT_IMAGES_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS product_images (
+    product_id INT PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE,
+    mime_type  TEXT NOT NULL CHECK (mime_type IN ('image/webp', 'image/png', 'image/jpeg')),
+    data       BYTEA NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+`;
+
+/** Customer reviews of cookies from completed orders (one per cookie per order). */
+export const PRODUCT_REVIEWS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS product_reviews (
+    id         BIGSERIAL PRIMARY KEY,
+    public_id  UUID NOT NULL UNIQUE,
+    user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    order_id   BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    rating     INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment    TEXT CHECK (comment IS NULL OR char_length(comment) <= 500),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (order_id, product_id)
+  );
+  CREATE INDEX IF NOT EXISTS product_reviews_product_idx ON product_reviews (product_id, created_at DESC);
+  ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN NOT NULL DEFAULT false;
+`;
+
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS users (
     id            SERIAL PRIMARY KEY,
@@ -229,7 +256,7 @@ const SCHEMA = `
 
   ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;
-`;
+${PRODUCT_IMAGES_SCHEMA}`;
 
 const ORDER_SCHEMA = `
   -- P2a-1: immutable, server-priced cash orders.
@@ -997,6 +1024,20 @@ export async function initDb() {
   await applyVerificationAuthVersionOnce();
   await applyChangeEmailOnce();
   await splitNamesOnce();
+  await query(PRODUCT_REVIEWS_SCHEMA);
+  // Catch-up: these wallet Payment Intent columns were added to the checkout upgrade after it had already
+  // run on existing databases, so GCash/Maya payments failed there. Safe to run every time.
+  await query(`
+    ALTER TABLE payment_attempts ADD COLUMN IF NOT EXISTS flow_type TEXT NOT NULL DEFAULT 'hosted_checkout'
+      CHECK (flow_type IN ('hosted_checkout', 'payment_intent'));
+    ALTER TABLE payment_attempts ADD COLUMN IF NOT EXISTS provider_intent_id TEXT UNIQUE;
+  `);
+  // Cash is collected on handover: completed cash orders from before that rule existed are paid too.
+  await query(
+    `UPDATE orders SET payment_status = 'paid', payment_state = 'paid', updated_at = now()
+     WHERE order_status = 'completed' AND payment_method IN ('cash_on_delivery', 'cash_on_pickup')
+       AND COALESCE(payment_state, payment_status) IN ('pending', 'pending_cash')`,
+  );
 
   let seeded = 0;
   for (const p of SEED_PRODUCTS) {

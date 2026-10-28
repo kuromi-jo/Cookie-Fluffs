@@ -1,21 +1,29 @@
 /**
  * @file reset-password.page.ts
- * @description In-memory reset-token consumption with immediate URL-fragment removal.
+ * @description Forgot-password step 2: enter the 6-digit code from the email and choose a new password.
+ * The email comes from step 1 through navigation state (never the URL) and can be edited.
  */
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import {
   IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonInput,
   IonInputPasswordToggle, IonSpinner, IonTitle, IonToolbar,
 } from '@ionic/angular';
 import { apiErrorMessage, apiFieldErrors } from '../../core/api-error';
 import { AuthService } from '../../core/auth.service';
-import { validateConfirmPassword, validatePassword } from '../../core/signup-rules';
+import { validateConfirmPassword, validateEmail, validatePassword } from '../../core/signup-rules';
 import { PasswordRequirementsComponent } from '../../components/password-requirements.component';
 
-type ResetField = 'newPassword' | 'confirmPassword';
+type ResetField = 'email' | 'code' | 'newPassword' | 'confirmPassword';
 type ResetErrors = Partial<Record<ResetField, string>>;
+
+/** Validates the emailed code: exactly six digits. */
+export function validateResetCode(code: string): string | null {
+  const digits = code.replace(/\s/g, '');
+  if (!digits) return 'Enter the 6-digit code from your email.';
+  return /^\d{6}$/.test(digits) ? null : 'The code is 6 digits, like 042917.';
+}
 
 @Component({
   selector: 'app-reset-password',
@@ -29,39 +37,26 @@ type ResetErrors = Partial<Record<ResetField, string>>;
 })
 export class ResetPasswordPage {
   private auth = inject(AuthService);
-  private route = inject(ActivatedRoute);
-  private selector = '';
-  private token = '';
-  private linkCaptured = false;
 
   readonly loading = signal(true);
   readonly available = signal(false);
-  readonly linkValid = signal(false);
   readonly submitting = signal(false);
   readonly succeeded = signal(false);
   readonly pageError = signal('');
   readonly errors = signal<ResetErrors>({});
+  /** True when the email was carried over from "Forgot password" (shown as "sent to ..."). */
+  readonly emailFromRequest = signal(false);
+  email = '';
+  code = '';
   newPassword = '';
   confirmPassword = '';
 
   async ionViewWillEnter(): Promise<void> {
-    if (!this.linkCaptured) {
-      this.selector = this.route.snapshot.queryParamMap.get('selector') ?? '';
-      try {
-        this.token = this.route.snapshot.fragment?.startsWith('token=')
-          ? decodeURIComponent(this.route.snapshot.fragment.slice(6)) : '';
-      } catch {
-        this.token = '';
-      }
-      this.linkCaptured = true;
-      if (globalThis.history && globalThis.location) {
-        globalThis.history.replaceState(null, '', `${globalThis.location.pathname}${globalThis.location.search}`);
-      }
+    const carried = (globalThis.history?.state as { email?: unknown } | null)?.email;
+    if (typeof carried === 'string' && carried && !this.email) {
+      this.email = carried;
+      this.emailFromRequest.set(true);
     }
-    this.linkValid.set(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(this.selector)
-      && /^[A-Za-z0-9_-]{43}$/.test(this.token),
-    );
     try {
       this.available.set((await this.auth.passwordRecoveryConfig()).enabled);
     } catch {
@@ -72,43 +67,72 @@ export class ResetPasswordPage {
   }
 
   ionViewDidLeave(): void {
-    this.selector = '';
-    this.token = '';
-    this.linkCaptured = false;
+    if (this.succeeded()) this.reset();
   }
 
   update(field: ResetField, value: string | null | undefined): void {
     this[field] = value ?? '';
     this.pageError.set('');
-    if (this.errors()[field]) this.validate();
+    if (this.errors()[field]) this.validateField(field);
+    if (field === 'newPassword' && this.errors().confirmPassword) this.validateField('confirmPassword');
+  }
+
+  validateField(field: ResetField): void {
+    const message = this.messageFor(field);
+    this.errors.update((current) => {
+      const next = { ...current };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
   }
 
   validate(): boolean {
     const errors: ResetErrors = {};
-    const passwordError = validatePassword(this.newPassword);
-    if (passwordError) errors.newPassword = passwordError;
-    const confirmError = validateConfirmPassword(this.newPassword, this.confirmPassword);
-    if (confirmError) errors.confirmPassword = confirmError;
+    for (const field of ['email', 'code', 'newPassword', 'confirmPassword'] as ResetField[]) {
+      const message = this.messageFor(field);
+      if (message) errors[field] = message;
+    }
     this.errors.set(errors);
     return !Object.keys(errors).length;
   }
 
   async submit(): Promise<void> {
-    if (this.submitting() || !this.available() || !this.linkValid() || !this.validate()) return;
+    if (this.submitting() || !this.available() || !this.validate()) return;
     this.submitting.set(true);
     this.pageError.set('');
     try {
-      await this.auth.resetPassword(this.selector, this.token, this.newPassword);
-      this.token = '';
-      this.selector = '';
+      await this.auth.resetPassword(this.email.trim(), this.code.replace(/\s/g, ''), this.newPassword);
+      this.succeeded.set(true);
+      this.code = '';
       this.newPassword = '';
       this.confirmPassword = '';
-      this.succeeded.set(true);
     } catch (error) {
+      // Keep everything typed; just point at the field that needs fixing.
       this.errors.update((current) => ({ ...current, ...(apiFieldErrors(error) as ResetErrors) }));
       this.pageError.set(apiErrorMessage(error));
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  private messageFor(field: ResetField): string | null {
+    switch (field) {
+      case 'email': return validateEmail(this.email);
+      case 'code': return validateResetCode(this.code);
+      case 'newPassword': return validatePassword(this.newPassword);
+      case 'confirmPassword': return validateConfirmPassword(this.newPassword, this.confirmPassword);
+    }
+  }
+
+  private reset(): void {
+    this.email = '';
+    this.code = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.errors.set({});
+    this.pageError.set('');
+    this.succeeded.set(false);
+    this.emailFromRequest.set(false);
   }
 }

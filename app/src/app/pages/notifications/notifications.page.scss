@@ -112,3 +112,6 @@
   font-size: 0.8rem;
   font-weight: 700;
 }
+
+.sheet-actions { display: flex; justify-content: flex-end; margin: -4px 0 4px; }
+.sheet-actions ion-button { min-height: 44px; --color: var(--cf-pink-deep); font-weight: 800; }

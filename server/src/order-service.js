@@ -11,6 +11,7 @@ import {
   priceSingle,
 } from './pricing.js';
 import { lockUserCart } from './cart-lock.js';
+import { availableSql } from './season.js';
 import { loadOrderLifecycle } from './order-lifecycle.js';
 import { loadOrderRefund } from './refund-service.js';
 import { insertNotification } from './notification-service.js';
@@ -335,7 +336,7 @@ export async function createOrder(client, userId, checkout, requestFingerprint, 
     ])].sort((a, b) => a - b);
     const productResult = await client.query(
       `SELECT id, name, price::text AS price, sale_price::text AS "salePrice",
-              image_url AS "imageUrl", is_available AS "isAvailable", season
+              image_url AS "imageUrl", ${availableSql()} AS "isAvailable", season
        FROM products WHERE id = ANY($1) ORDER BY id FOR SHARE`,
       [productIds],
     );

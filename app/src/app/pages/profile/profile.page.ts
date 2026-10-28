@@ -2,6 +2,7 @@
  * @file profile.page.ts
  * @description Authenticated customer profile and editable personal information.
  */
+import { NotificationSheetService } from '../../core/notification-sheet.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -113,6 +114,12 @@ export function validateProfile(draft: ProfileDraft): ProfileErrors {
   ],
 })
 export class ProfilePage {
+  private notificationSheet = inject(NotificationSheetService);
+  /** The bell opens notifications as a slide-up sheet over this page. */
+  openNotifications(): void {
+    void this.notificationSheet.open();
+  }
+
   readonly auth = inject(AuthService);
   readonly notifications = inject(NotificationService);
   private router = inject(Router);

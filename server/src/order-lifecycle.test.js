@@ -39,6 +39,7 @@ test('immediately cancels a paid placed order while preserving payment for refun
       }
       if (sql.includes('idempotency_key = $2')) return { rowCount: 0, rows: [] };
       if (sql.includes("status IN ('pending', 'approved')")) return { rowCount: 0, rows: [] };
+      if (sql.includes("status = 'declined'")) return { rowCount: 0, rows: [] };
       if (sql.startsWith('INSERT INTO order_cancellation_requests')) {
         return { rowCount: 1, rows: [{ id: crypto.randomUUID(), status: 'approved', refundReviewStatus: 'review_required', requestedAt: new Date(), resolvedAt: new Date() }] };
       }
@@ -150,6 +151,7 @@ test('records a preparing cancellation request without changing fulfillment', as
         return { rowCount: 1, rows: [{ id: 9, orderStatus: 'preparing', fulfillmentMethod: 'pickup', paymentStatus: 'pending_cash' }] };
       }
       if (sql.includes('idempotency_key = $2') || sql.includes("status IN ('pending', 'approved')")) return { rowCount: 0, rows: [] };
+      if (sql.includes("status = 'declined'")) return { rowCount: 0, rows: [] };
       if (sql.startsWith('INSERT INTO order_cancellation_requests')) {
         return { rowCount: 1, rows: [{ id: crypto.randomUUID(), status: 'pending', refundReviewStatus: 'not_required', requestedAt: new Date(), resolvedAt: null }] };
       }

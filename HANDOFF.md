@@ -127,8 +127,9 @@ API startup never changes the schema. Run the explicit migration command against
 ### Optional future features
 - [ ] **Community gallery**: share creations, likes, leaderboard
 - [ ] **Loyalty**: Fluff Points, rewards, taste profile
-- [ ] **Reviews & ratings** from real users
-- [ ] **Admin panel**: manage products and inventory, sales dashboard
+- [x] **Reviews & ratings** from real users (completed orders; shown on each cookie page and in the admin feed)
+- [x] **Admin panel**: `/admin` for superadmin@gmail.com (hardcoded in `server/src/admin.js` + `core/auth.service.ts`): sales overview, orders with status moves and cancellation decisions (via order-lifecycle as an auto-created operator), product price/promo/availability, Add product form (photo stored in `product_images`, served at `/api/products/:id/image`), activity bell
+- [x] **Live updates**: `GET /api/live` SSE (`routes/live.js`, 2s shared DB watcher) + `core/live.service.ts`; user bell on Home, orders/order detail and admin dashboard refresh without reloading
 
 ### P2a-1 backend contract
 
@@ -227,9 +228,9 @@ See `docs/HANDOVER.md` for the full architecture, endpoints, migrations, and rem
 
 ## Last session (where work stopped)
 
-**Date:** 2026-10-27
-**State:** Batches 1 (swipe, filters, Home) and 2 (vouchers) verified locally: backend 241 pass, app 304 pass, lint and build clean (checkout style budget warning grew to 10.6 kB). Not committed or pushed. Neon needs `npm --prefix server run migrate` for `vouchers_v1`.
-**Next:** Migrate Neon, confirm Cosmic Fudge Cookie's ID is 1524, then commit when approved.
+**Date:** 2026-10-28
+**State:** Email 6-digit codes now protect Change password (code sheet, consumed with the change) and Forgot password (code replaces the reset link; no HTTPS origin needed). Also: Halloween banner, About = v1.0 complete, admin "new since opened" badges, Contact Us messages in admin notifications (+ optional CONTACT_INBOX_EMAIL forward), product back goes to the page it was opened from. Then: animated tracker (ready / out for delivery), printable receipt page + native Android print plugin (Save as PDF), crescent moon and pumpkin badge, Halloween season Oct 1 to Nov 30 enforced server-side. Then: product form (Halloween switch, badge dropdown, auto "N% off", custom allergens), best sellers from real orders on both sides (best-sellers.js), uploaded photos accepted and shown on the APK (cfPhoto pipe), info-page heroes fixed, FAQ rewritten, back arrows on Contact and About the App. Admin: Messages tab (search, topic, accounts/guests), search on Orders (server), Products and Reviews (cookie + stars filters). Admin: greeting removed; product form dropdowns open as bottom sheets, Badge always a dropdown (locked to "N% off" with a promo price); section tabs scroll inside the screen. Server 242, app 294 tests pass. Not committed.
+**Next:** Restart npm run dev (the running dev server stopped picking up changes), then check the receipt and tracker. For the APK: npm --prefix app run build, npx cap sync android, rebuild in Android Studio (ReceiptPrintPlugin is new). Commit when approved.
 
 ## Key files map
 

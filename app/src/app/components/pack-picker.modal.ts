@@ -8,6 +8,8 @@ import { DecimalPipe } from '@angular/common';
 import { IonButton, IonContent, IonFooter, IonIcon, ModalController } from '@ionic/angular';
 import { PackSize, Product, effectivePrice } from '../core/models';
 import { PackOptionsComponent } from './pack-options.component';
+import { PhotoPipe } from '../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 export interface PackChoice {
   size: PackSize;
@@ -19,12 +21,12 @@ export const PACK_PICKER_INITIAL_BREAKPOINT = 1;
 
 @Component({
   selector: 'app-pack-picker',
-  imports: [DecimalPipe, IonContent, IonFooter, IonButton, IonIcon, PackOptionsComponent],
+  imports: [PhotoPipe, AsyncPipe, DecimalPipe, IonContent, IonFooter, IonButton, IonIcon, PackOptionsComponent],
   template: `
     <ion-content class="sheet">
       <div class="wrap">
         <header>
-          <img [src]="product().imageUrl" [alt]="product().name" />
+          <img [src]="product().imageUrl | cfPhoto | async" [alt]="product().name" />
           <div>
             <span class="cf-eyebrow">Add to cart</span>
             <h2>{{ product().name }}</h2>

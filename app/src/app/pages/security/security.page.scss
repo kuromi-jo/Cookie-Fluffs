@@ -95,7 +95,7 @@
   &.is-off { color: var(--cf-choco-light); }
 }
 
-.method-hint { margin: 12px 2px 0; font-size: 0.76rem; line-height: 1.5; }
+.sign-in-methods .method-hint { margin: 14px 2px 0; font-size: 0.78rem; line-height: 1.55; }
 
 .security-form { padding: 20px; }
 .field-group { margin-bottom: 14px; }
@@ -110,3 +110,6 @@
   .security-intro { grid-template-columns: 44px minmax(0, 1fr); padding: 15px; }
   .security-mark { width: 44px; height: 44px; border-radius: 15px; }
 }
+
+.email-step { display: flex; align-items: flex-start; gap: 6px; margin: 14px 0 10px; font-size: 0.8rem; overflow-wrap: anywhere; }
+.email-step ion-icon { flex: none; margin-top: 2px; color: var(--cf-pink-deep); }

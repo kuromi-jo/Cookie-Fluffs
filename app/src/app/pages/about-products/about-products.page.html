@@ -13,7 +13,7 @@
       <span class="cf-eyebrow light">What makes a fluff</span>
       <h1>Thick. Soft. Loaded.</h1>
       <p>Every Cookie Fluffs cookie is rested for 24 hours, hand-scooped and baked in small batches.</p>
-      <img class="hero-art" src="assets/brand/cookie-logo.svg" alt="" />
+      <img class="hero-art cookie-photo" [src]="heroCookie().src | cfPhoto | async" [alt]="heroCookie().name" />
     </section>
 
     <div class="promise-grid">
@@ -42,7 +42,7 @@
             <div class="minis">
               @for (p of g.items; track p.id) {
                 <a [routerLink]="['/product', p.id]" class="mini">
-                  <img [src]="p.imageUrl" [alt]="p.name" loading="lazy" />
+                  <img [src]="p.imageUrl | cfPhoto | async" [alt]="p.name" loading="lazy" />
                   <span>{{ p.name }}</span>
                 </a>
               }

@@ -26,7 +26,7 @@
             <a class="ticket-link" [routerLink]="['/orders', order.id]">
               <span class="ticket-thumbnails" aria-hidden="true">
                 @for (image of order.thumbnailUrls; track image) {
-                  <span class="ticket-thumb"><ion-icon name="cf-cookie"></ion-icon><img [src]="image" alt="" (error)="hideBrokenImage($event)" /></span>
+                  <span class="ticket-thumb"><ion-icon name="cf-cookie"></ion-icon><img [src]="image | cfPhoto | async" alt="" (error)="hideBrokenImage($event)" /></span>
                 } @empty {
                   <span class="ticket-thumb"><ion-icon name="cf-cookie"></ion-icon></span>
                 }

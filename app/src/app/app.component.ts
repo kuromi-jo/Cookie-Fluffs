@@ -2,6 +2,7 @@
  * @file app.component.ts
  * @description App shell: splash screen, side menu and the router outlet.
  */
+import { NotificationSheetService } from './core/notification-sheet.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -33,6 +34,11 @@ import { AuthService } from './core/auth.service';
 import { CartService } from './core/cart.service';
 import { ProductService } from './core/product.service';
 import { UiService } from './core/ui.service';
+import { LiveService } from './core/live.service';
+import { BackNavService } from './core/back-nav.service';
+import { setAdminShopView } from './core/admin.service';
+import { AdminMenuComponent } from './components/admin-menu.component';
+import { SKIP_SPLASH_KEY } from './core/google-auth.service';
 import { fileToAvatar } from './core/image';
 import { apiErrorMessage } from './core/api-error';
 import { PreferenceService } from './core/preference.service';
@@ -70,6 +76,17 @@ export async function closeMenuBeforeNavigation(
 
 const SPLASH_MIN_MS = 2400;
 
+/** True (once) when the page was reloaded by the Google sign-in re-init rather than opened by the user. */
+function consumeSkipSplash(): boolean {
+  try {
+    const skip = sessionStorage.getItem(SKIP_SPLASH_KEY) === '1';
+    sessionStorage.removeItem(SKIP_SPLASH_KEY);
+    return skip;
+  } catch {
+    return false;
+  }
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
@@ -92,9 +109,16 @@ const SPLASH_MIN_MS = 2400;
     IonRouterOutlet,
     SplashComponent,
     AvatarComponent,
+    AdminMenuComponent,
   ],
 })
 export class AppComponent {
+  private notificationSheet = inject(NotificationSheetService);
+  /** The bell opens notifications as a slide-up sheet over this page. */
+  openNotifications(): void {
+    void this.notificationSheet.open();
+  }
+
   readonly auth = inject(AuthService);
   readonly cart = inject(CartService);
   readonly preferences = inject(PreferenceService);
@@ -103,8 +127,12 @@ export class AppComponent {
   private menu = inject(MenuController);
   private alerts = inject(AlertController);
   private ui = inject(UiService);
+  /** Opens the live-updates stream while logged in (notifications, orders, admin data). */
+  private live = inject(LiveService);
+  private backNav = inject(BackNavService); // starts tracking where each page was opened from
 
-  readonly showSplash = signal(true);
+  /** Shown on app launch, but not after the login page's technical Google reload. */
+  readonly showSplash = signal(!consumeSkipSplash());
   readonly splashLeaving = signal(false);
   readonly uploadingPhoto = signal(false);
 
@@ -142,6 +170,8 @@ export class AppComponent {
   );
 
   readonly activePath = computed(() => this.currentUrl().split('?')[0]);
+  /** The dashboard has its own side menu; the shop menu is used everywhere else. */
+  readonly onAdmin = computed(() => this.activePath() === '/admin');
 
   constructor() {
     registerAppIcons();
@@ -169,6 +199,13 @@ export class AppComponent {
       () => this.router.navigate(['/login'], { queryParams: { returnUrl: this.activePath() } }),
       () => this.focusMainContent(),
     );
+  }
+
+  /** Superadmin browsing the shop: return to the dashboard. */
+  async backToAdmin(): Promise<void> {
+    setAdminShopView(false);
+    await this.menu.close();
+    await this.router.navigateByUrl('/admin', { replaceUrl: true });
   }
 
   async manageAccount(event: Event): Promise<void> {

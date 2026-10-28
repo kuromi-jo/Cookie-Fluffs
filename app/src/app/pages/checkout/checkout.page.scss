@@ -140,7 +140,7 @@ ion-content { --background: var(--cf-canvas); }
 .agreement-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: start; column-gap: 10px; }
 .agreement-row ion-checkbox { --size: 24px; --border-width: 1.5px; --border-color: var(--cf-pink-accent); --border-color-checked: var(--cf-choco-btn); --border-radius: 8px; --checkbox-background: #fff; --checkbox-background-checked: var(--cf-choco-btn); --checkmark-color: var(--cf-canvas); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; margin: 0; }
 .agreement-row p { margin: 0; color: var(--cf-choco-medium); font-size: 0.85rem; line-height: 1.55; }
-.policy-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px; border: 0; background: transparent; color: var(--cf-pink-deep); font: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; vertical-align: middle; }
+.policy-link { display: inline; padding: 0 1px; border: 0; background: transparent; color: var(--cf-pink-deep); font: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .policy-link:focus-visible { outline: 0; box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.15); }
 .agreement-note { margin: 10px 0 0 54px; color: var(--cf-choco-light); font-size: 0.74rem; line-height: 1.5; }
 .agreement .field-error { margin-left: 0; }

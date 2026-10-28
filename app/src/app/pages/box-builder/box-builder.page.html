@@ -48,7 +48,7 @@
                 (click)="box.removeAt(i)"
                 [attr.aria-label]="'Remove ' + p.name + ' from spot ' + (i + 1)"
               >
-                <img [src]="thumb(p.imageUrl)" [alt]="p.name" [style.--tilt.deg]="tilts[i % tilts.length]" />
+                <img [src]="thumb(p.imageUrl) | cfPhoto | async" [alt]="p.name" [style.--tilt.deg]="tilts[i % tilts.length]" />
                 <span class="remove" aria-hidden="true"><ion-icon name="close"></ion-icon></span>
               </button>
             } @else {
@@ -102,7 +102,7 @@
             [attr.aria-label]="'Add ' + p.name + ' to the box'"
           >
             <span class="pick-img">
-              <img [src]="thumb(p.imageUrl)" [alt]="p.name" loading="lazy" />
+              <img [src]="thumb(p.imageUrl) | cfPhoto | async" [alt]="p.name" loading="lazy" />
               @if (counts().get(p.id); as n) {
                 <span class="count">{{ n }}</span>
               } @else {

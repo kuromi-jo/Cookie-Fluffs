@@ -46,3 +46,11 @@ export const cfNut = svg(
     `<path d='M144 208c0 112 48 200 112 248 64-48 112-136 112-248'/>` +
     `<path d='M176 160h160' stroke-width='24'/>`,
 );
+
+/** A carved jack-o'-lantern (face cut out, so the badge colour shows through), for Halloween bakes. */
+export const cfPumpkin = svg(
+  `<path d='M256 140c0-40 18-66 54-76'/>` +
+    `<path fill='currentColor' stroke='none' fill-rule='evenodd' d='M56 300a200 158 0 1 0 400 0a200 158 0 1 0-400 0Z` +
+    `M166 262l42-56 42 56ZM262 262l42-56 42 56Z` +
+    `M150 318q106 84 212 0l-34 10-20 28-24-22-24 24-24-24-24 22-20-28Z'/>`,
+);

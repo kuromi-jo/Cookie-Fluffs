@@ -38,12 +38,17 @@
 
       <section class="status-card">
         <div><span>Fulfillment</span><strong>{{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }}</strong></div>
-        <div><span>Payment</span><strong [class.pending]="!placed.paymentIsDemo && placed.paymentStatus !== 'paid'" [class.demo-approved]="placed.demoPayment?.status === 'demo_approved' || placed.walletDemoPayment?.status === 'demo_approved'">{{ paymentStatusLabel(placed) }}</strong></div>
+        <div><span>Payment</span><strong [class.pending]="!placed.paymentIsDemo && placed.paymentStatus !== 'paid' && placed.orderStatus !== 'cancelled'" [class.demo-approved]="placed.demoPayment?.status === 'demo_approved' || placed.walletDemoPayment?.status === 'demo_approved'">{{ paymentStatusLabel(placed) }}</strong></div>
         <p>{{ paymentLabel(placed) }}.@if (placed.paymentIsDemo) { This result is a class-project simulation and is not a financial settlement. } @else if (!isOnline(placed)) { No online payment was collected. } @else if (placed.paymentStatus !== 'paid') { A browser return does not confirm payment. }</p>
       </section>
 
+      @if (isOrderDetail()) { <app-order-review [orderId]="placed.id" [status]="placed.orderStatus" /> }
+
       <section class="confirmation-section tracking-section" aria-labelledby="tracking-heading">
         <div class="section-heading"><div><p class="cf-eyebrow">Fulfillment tracking</p><h2 id="tracking-heading">Order progress</h2></div><strong>{{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }}</strong></div>
+        @if (tracking(); as t) {
+          @if (placed.orderStatus !== 'cancelled') { <app-order-tracker-map [kitchen]="t.kitchen" [destination]="t.destination" [status]="placed.orderStatus" [outForDeliveryAt]="outForDeliveryAt(placed)" /> }
+        }
         @if (placed.historyAvailable) {
           <ol class="status-timeline">
             @for (event of placed.events; track event.id; let last = $last) {
@@ -58,7 +63,7 @@
       @if (placed.cancellation; as cancellation) {
         <section class="confirmation-section cancellation-state" [class.pending-review]="cancellation.status === 'pending'">
           <h2>{{ cancellation.status === 'pending' ? 'Cancellation requested' : cancellation.status === 'approved' ? 'Order cancellation' : 'Cancellation request declined' }}</h2>
-          <p>@if (cancellation.status === 'pending') { Cookie Fluffs must review this request. Your order remains {{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }} until a bakery operator approves it. } @else if (cancellation.status === 'approved') { This order has been cancelled. } @else { Cookie Fluffs did not approve the earlier request. Check the current fulfillment status before trying again. }</p>
+          <p>@if (cancellation.status === 'pending') { Cookie Fluffs must review this request. Your order remains {{ orderStatusLabel(placed.orderStatus, placed.fulfillmentMethod) }} until a bakery operator approves it. } @else if (cancellation.status === 'approved') { This order has been cancelled. } @else { Cookie Fluffs reviewed your request and is keeping this order, so it will continue as planned. Contact us if you need help. }</p>
           @if (cancellation.refundReviewStatus === 'review_required') { <p class="refund-warning"><strong>Refund review required.</strong> Payment remains {{ paymentStatusLabel(placed) }}. No refund has been issued automatically.</p> }
           <small>Requested {{ cancellation.requestedAt | date: 'medium' }}@if (cancellation.resolvedAt) { · Updated {{ cancellation.resolvedAt | date: 'medium' }}}</small>
         </section>
@@ -126,7 +131,7 @@
         <h2>Order details</h2>
         @for (item of placed.items; track item.linePosition) {
           <article class="order-line">
-            <span class="line-icon"><ion-icon [name]="item.lineType === 'box' ? 'cube-outline' : 'cf-cookie'" aria-hidden="true"></ion-icon>@if (itemImage(item); as image) { <img [src]="image" [alt]="item.displayName" (error)="hideBrokenImage($event)" /> }</span>
+            <span class="line-icon"><ion-icon [name]="item.lineType === 'box' ? 'cube-outline' : 'cf-cookie'" aria-hidden="true"></ion-icon>@if (itemImage(item); as image) { <img [src]="image | cfPhoto | async" [alt]="item.displayName" (error)="hideBrokenImage($event)" /> }</span>
             <div>
               <strong>{{ item.displayName }}</strong>
               <small>Qty {{ item.quantity }} · ₱{{ item.unitPrice | number: '1.2-2' }} each</small>
@@ -134,7 +139,7 @@
                 <small>{{ boxItemsSummary(item) }}</small>
                 <span class="box-thumbnails" aria-label="Cookies in this box">
                   @for (component of item.boxItems.slice(0, 4); track component.slot) {
-                    <span><ion-icon name="cf-cookie" aria-hidden="true"></ion-icon>@if (component.imageUrl) { <img [src]="component.imageUrl" [alt]="component.productName" (error)="hideBrokenImage($event)" /> }</span>
+                    <span><ion-icon name="cf-cookie" aria-hidden="true"></ion-icon>@if (component.imageUrl) { <img [src]="component.imageUrl | cfPhoto | async" [alt]="component.productName" (error)="hideBrokenImage($event)" /> }</span>
                   }
                 </span>
               }
@@ -189,7 +194,7 @@
       }
       <section class="order-actions" aria-label="Order actions">
         @if (!isOrderDetail()) { <ion-button class="cf-btn-lg" expand="block" [routerLink]="['/orders', placed.id]">View My Order</ion-button> }
-        <ion-button fill="outline" expand="block" (click)="printReceipt()"><ion-icon slot="start" name="receipt-outline" aria-hidden="true"></ion-icon>Print Receipt</ion-button>
+        <ion-button fill="outline" expand="block" (click)="printReceipt()"><ion-icon slot="start" name="receipt-outline" aria-hidden="true"></ion-icon>View &amp; print receipt</ion-button>
         @if (isOrderDetail()) {
           <ion-button fill="clear" expand="block" routerLink="/orders">Back to My Orders</ion-button>
           <ion-button fill="clear" expand="block" routerLink="/contact">Help &amp; Support</ion-button>

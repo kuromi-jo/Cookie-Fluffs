@@ -4,6 +4,7 @@
  * Halloween specials, a cookie of the day, Order again and favorites for signed-in customers,
  * then Promos, Best sellers and New arrivals. The full menu lives in the "All Cookies" tab.
  */
+import { NotificationSheetService } from '../../core/notification-sheet.service';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -22,6 +23,7 @@ import {
   RefresherCustomEvent,
 } from '@ionic/angular';
 import { AuthService } from '../../core/auth.service';
+import { NotificationService } from '../../core/notification.service';
 import { CartService } from '../../core/cart.service';
 import { ProductService } from '../../core/product.service';
 import { ShopActionsService } from '../../core/shop-actions.service';
@@ -32,13 +34,16 @@ import { apiErrorMessage } from '../../core/api-error';
 import { CATEGORIES, COLLECTIONS, Collection, OrderSummary, Product, inCollection } from '../../core/models';
 import { ProductCardComponent } from '../../components/product-card.component';
 import { RailComponent } from '../../components/rail.component';
+import { HalloweenSpecialsComponent } from '../../components/halloween-specials.component';
 import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-indicator.component';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['../catalog.scss', 'home.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     RouterLink,
     IonHeader,
     IonToolbar,
@@ -54,11 +59,19 @@ import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-ind
     DecimalPipe,
     ProductCardComponent,
     RailComponent,
+    HalloweenSpecialsComponent,
     OfflineMenuIndicatorComponent,
   ],
 })
 export class HomePage {
+  private notificationSheet = inject(NotificationSheetService);
+  /** The bell opens notifications as a slide-up sheet over this page. */
+  openNotifications(): void {
+    void this.notificationSheet.open();
+  }
+
   readonly auth = inject(AuthService);
+  readonly notifications = inject(NotificationService);
   readonly cart = inject(CartService);
   readonly products = inject(ProductService);
   readonly favorites = inject(FavoriteService);
@@ -85,14 +98,16 @@ export class HomePage {
       .map((id) => ({
         id,
         ...COLLECTIONS[id],
-        items: this.products.products().filter((p) => inCollection(p, id)),
+        items: this.products.products().filter((p) => inCollection(p, id))
+          // Best sellers in the same order as the admin dashboard (most ordered first).
+          .sort((a, b) => (id === 'best' ? (a.bestRank ?? 99) - (b.bestRank ?? 99) : 0)),
       }))
       .filter((s) => s.items.length > 0),
   );
 
   /** Seasonal Halloween bakes, promoted in their own band near the top. Hidden when empty. */
   readonly halloween = computed(() => this.products.products().filter((p) => inCollection(p, 'halloween')));
-  /** Days until Oct 31 (0 on the day itself), or null once Halloween has passed. */
+  /** Days left in the Halloween season (until Nov 30), or null outside it. */
   readonly halloweenDaysLeft = daysUntilHalloween(new Date());
 
   /** Same pick for everyone all day; it changes at midnight. */
@@ -175,10 +190,14 @@ export class HomePage {
   }
 }
 
-/** Whole days from today until Oct 31 of this year (0 on Halloween), or null after it. */
+/**
+ * Whole days left in the Halloween season (Oct 1 to Nov 30; 0 on Nov 30), or null outside it.
+ * Matches the server's seasonal window in server/src/season.js.
+ */
 export function daysUntilHalloween(now: Date): number | null {
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const halloween = Date.UTC(now.getFullYear(), 9, 31);
-  const days = Math.round((halloween - today) / 86_400_000);
-  return days >= 0 ? days : null;
+  const start = Date.UTC(now.getFullYear(), 9, 1);
+  const end = Date.UTC(now.getFullYear(), 10, 30);
+  if (today < start || today > end) return null;
+  return Math.round((end - today) / 86_400_000);
 }

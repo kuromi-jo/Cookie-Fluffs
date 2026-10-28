@@ -42,6 +42,8 @@ import {
 import { ProductCardComponent } from '../../components/product-card.component';
 import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-indicator.component';
 import { prefersReducedMotion } from '../../core/preference.service';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 type SortKey = 'recommended' | 'price-asc' | 'price-desc' | 'rating';
 type PriceBand = 'any' | 'under-120' | '120-140' | 'over-140';
@@ -80,7 +82,7 @@ const isCollection = (v: unknown): v is Collection => typeof v === 'string' && O
   selector: 'app-shop',
   templateUrl: 'shop.page.html',
   styleUrls: ['../catalog.scss', 'shop.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     IonHeader,
     IonToolbar,
     IonButtons,

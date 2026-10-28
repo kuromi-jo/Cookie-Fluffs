@@ -10,11 +10,13 @@ import { Product } from '../../core/models';
 const cookie = (price: number, salePrice: number | null = null) => ({ price, salePrice }) as Product;
 
 describe('daysUntilHalloween', () => {
-  it('counts whole days down to Halloween and returns null after it', () => {
-    expect(daysUntilHalloween(new Date(2026, 9, 27, 23, 30))).toBe(4);
-    expect(daysUntilHalloween(new Date(2026, 9, 30, 8, 0))).toBe(1);
-    expect(daysUntilHalloween(new Date(2026, 9, 31, 22, 0))).toBe(0);
-    expect(daysUntilHalloween(new Date(2026, 10, 1, 0, 5))).toBeNull();
+  it('counts whole days down to the end of the season (Nov 30) and is null outside Oct 1 to Nov 30', () => {
+    expect(daysUntilHalloween(new Date(2026, 8, 30, 12, 0))).toBeNull();
+    expect(daysUntilHalloween(new Date(2026, 9, 1, 0, 5))).toBe(60);
+    expect(daysUntilHalloween(new Date(2026, 9, 31, 22, 0))).toBe(30);
+    expect(daysUntilHalloween(new Date(2026, 10, 29, 8, 0))).toBe(1);
+    expect(daysUntilHalloween(new Date(2026, 10, 30, 22, 0))).toBe(0);
+    expect(daysUntilHalloween(new Date(2026, 11, 1, 0, 5))).toBeNull();
   });
 });
 

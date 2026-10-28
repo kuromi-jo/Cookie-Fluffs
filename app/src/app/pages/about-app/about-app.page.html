@@ -1,8 +1,12 @@
 <ion-header class="cf-header">
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
-    </ion-buttons>
+    <!-- Opened from another page (e.g. Help): back arrow returns there; the menu moves to the right. -->
+    @if (backHref) {
+      <ion-buttons slot="start"><ion-button (click)="goBack()" aria-label="Go back"><ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon></ion-button></ion-buttons>
+      <ion-buttons slot="end"><ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button></ion-buttons>
+    } @else {
+      <ion-buttons slot="start"><ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button></ion-buttons>
+    }
     <ion-title class="cf-title">About the App</ion-title>
   </ion-toolbar>
 </ion-header>
@@ -12,7 +16,7 @@
     <section class="app-card cf-rise">
       <img class="icon" src="assets/icon/icon-512.png" alt="Cookie Fluffs app icon" />
       <h1>Cookie Fluffs</h1>
-      <p class="version">Version {{ version }} · 60% build</p>
+      <p class="version">Version {{ version }} · Complete build</p>
       <p class="title">A Mobile-Based Cookie Shop Management Application for Online Ordering and Sales Tracking</p>
     </section>
 
@@ -42,19 +46,14 @@
       <span><ion-icon name="cloud-done-outline"></ion-icon>Neon DB</span>
     </div>
 
-    <h2 class="cf-section-title">Ready in this build</h2>
+    <h2 class="cf-section-title">Completed in this build</h2>
+    <p class="done-note"><ion-icon name="checkmark-done-outline" aria-hidden="true"></ion-icon>This build is complete: everything below is finished and working.</p>
     <ul class="checks">
       @for (f of ready; track f) {
         <li><ion-icon name="checkmark-circle"></ion-icon>{{ f }}</li>
       }
     </ul>
 
-    <h2 class="cf-section-title">Coming next</h2>
-    <ul class="checks soon">
-      @for (f of next; track f) {
-        <li><ion-icon name="time-outline"></ion-icon>{{ f }}</li>
-      }
-    </ul>
 
     <section class="course cf-card">
       <ion-icon name="school-outline"></ion-icon>

@@ -5,6 +5,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { ModalController } from '@ionic/angular';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/auth.service';
 import { UiService } from '../../core/ui.service';
@@ -22,16 +23,21 @@ describe('SecurityPage', () => {
   };
   const router = { navigate: vi.fn(async () => true) };
   const ui = { toast: vi.fn(async () => undefined) };
+  // The email-code sheet: verified by default, or closed when a test sets sheetResult.role = 'cancel'.
+  let sheetResult: { role: string; data?: { challengeId: string } } = { role: 'verified', data: { challengeId: 'challenge-1' } };
+  const modals = { create: vi.fn(async () => ({ present: async () => undefined, onDidDismiss: async () => sheetResult })) };
 
   beforeEach(() => {
     vi.clearAllMocks();
     auth.isLoggedIn.mockReturnValue(true);
     auth.changePassword.mockResolvedValue({});
+    sheetResult = { role: 'verified', data: { challengeId: 'challenge-1' } };
     auth.accountStatus.mockResolvedValue({ hasPassword: true, google: { linked: false } });
     TestBed.configureTestingModule({ providers: [
       { provide: AuthService, useValue: auth },
       { provide: Router, useValue: router },
       { provide: UiService, useValue: ui },
+      { provide: ModalController, useValue: modals },
     ] });
   });
 
@@ -47,7 +53,8 @@ describe('SecurityPage', () => {
     component.newPassword = 'Fresh2!Password';
     component.confirmPassword = 'Fresh2!Password';
     await component.submit();
-    expect(auth.changePassword).toHaveBeenCalledWith('Old1!Password', 'Fresh2!Password');
+    expect(modals.create).toHaveBeenCalledWith(expect.objectContaining({ componentProps: { operation: 'change_password' } }));
+    expect(auth.changePassword).toHaveBeenCalledWith('Old1!Password', 'Fresh2!Password', 'challenge-1');
     expect(component.succeeded()).toBe(true);
     expect(component.currentPassword).toBe('');
     expect(ui.toast).toHaveBeenCalledWith('Password changed securely.', { icon: 'checkmark-circle' });
@@ -64,6 +71,18 @@ describe('SecurityPage', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/login'], {
       queryParams: { returnUrl: '/profile/security' }, replaceUrl: true,
     });
+  });
+
+  it('does not change the password when the email-code sheet is closed', async () => {
+    sheetResult = { role: 'cancel' };
+    const component = page();
+    component.currentPassword = 'Old1!Password';
+    component.newPassword = 'Fresh2!Password';
+    component.confirmPassword = 'Fresh2!Password';
+    await component.submit();
+    expect(modals.create).toHaveBeenCalledOnce();
+    expect(auth.changePassword).not.toHaveBeenCalled();
+    expect(component.newPassword).toBe('Fresh2!Password');
   });
 
   it('redirects guests before showing account security', async () => {

@@ -1,6 +1,8 @@
 /**
  * @file password-recovery-service.js
- * @description Enumeration-resistant, single-use password recovery with keyed token hashes.
+ * @description Enumeration-resistant, single-use password recovery by emailed 6-digit code.
+ * The code is stored only as a keyed hash bound to the account, expires after 30 minutes, is
+ * invalidated after 5 wrong attempts, and any new request cancels older codes.
  */
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
@@ -15,15 +17,16 @@ const EMAIL_RATE_LIMIT = 3;
 const IP_RATE_LIMIT = 10;
 const TOKEN_FAILURE_LIMIT = 5;
 
-export const RECOVERY_GENERIC_MESSAGE = 'If an account matches that email, password reset instructions will be sent.';
-export const RECOVERY_INVALID_MESSAGE = 'This recovery link is invalid or expired. Request a new one.';
+export const RECOVERY_GENERIC_MESSAGE = 'If an account matches that email, we sent it a 6-digit code.';
+export const RECOVERY_INVALID_MESSAGE = 'That code is incorrect or has expired. Check your latest email or request a new code.';
 
 function keyedHash(value, pepper) {
   return crypto.createHmac('sha256', pepper).update(String(value)).digest('hex');
 }
 
-function resetUrl(config, selector, token) {
-  return `${config.origin}/reset-password?selector=${encodeURIComponent(selector)}#token=${encodeURIComponent(token)}`;
+/** The stored hash binds the code to one account, so the same digits are useless for anyone else. */
+function codeHash(userId, code, pepper) {
+  return keyedHash(`reset:${userId}:${code}`, pepper);
 }
 
 async function event(client, userId, eventType, reason) {
@@ -40,7 +43,7 @@ export function createPasswordRecoveryService({
   config = passwordRecoveryConfig(),
   emailAdapter = config.enabled ? createBrevoEmailAdapter(config) : null,
   now = () => new Date(),
-  randomBytes = crypto.randomBytes,
+  randomInt = crypto.randomInt,
   randomUUID = crypto.randomUUID,
 } = {}) {
   async function requestReset(email, ipAddress) {
@@ -97,12 +100,12 @@ export function createPasswordRecoveryService({
           [user.id, requestedAt],
         );
         const selector = randomUUID();
-        const token = randomBytes(32).toString('base64url');
+        const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
         await client.query(
           `INSERT INTO password_reset_tokens
              (selector, user_id, token_hash, expires_at, created_at)
            VALUES ($1, $2, $3, $4::timestamptz + interval '${TOKEN_TTL_MINUTES} minutes', $4)`,
-          [selector, user.id, keyedHash(token, config.tokenPepper), requestedAt],
+          [selector, user.id, codeHash(user.id, code, config.tokenPepper), requestedAt],
         );
         await event(client, user.id, 'reset_requested', 'customer_request');
         delivery = {
@@ -110,7 +113,7 @@ export function createPasswordRecoveryService({
           userId: user.id,
           recipient: user.email,
           firstName: user.first_name,
-          url: resetUrl(config, selector, token),
+          code,
         };
       }
       await client.query('COMMIT');
@@ -130,7 +133,7 @@ export function createPasswordRecoveryService({
       await emailAdapter.sendPasswordReset({
         recipient: delivery.recipient,
         firstName: delivery.firstName,
-        resetUrl: delivery.url,
+        code: delivery.code,
       });
     } catch {
       status = 'failed';
@@ -157,20 +160,26 @@ export function createPasswordRecoveryService({
     }
   }
 
-  async function resetPassword(selector, token, newPassword) {
+  /** Resets the password with the email address and the latest 6-digit code sent to it. */
+  async function resetPassword(email, code, newPassword) {
     if (!config.enabled) return { kind: 'disabled' };
     if (!databasePool) throw Object.assign(new Error('Password recovery is temporarily unavailable.'), { status: 503 });
+    const normalizedEmail = String(email ?? '').trim().toLowerCase();
     const changedAt = now();
     const client = await databasePool.connect();
     try {
       await client.query('BEGIN');
+      // Only the newest open code for this account can be used; unknown emails look the same as wrong codes.
       const tokenResult = await client.query(
-        `SELECT id, user_id, token_hash, expires_at, used_at, invalidated_at, failed_attempts
-         FROM password_reset_tokens WHERE selector = $1 FOR UPDATE`,
-        [selector],
+        `SELECT t.id, t.user_id, t.token_hash, t.expires_at, t.used_at, t.invalidated_at, t.failed_attempts
+         FROM password_reset_tokens t JOIN users u ON u.id = t.user_id
+         WHERE u.email = $1 AND t.used_at IS NULL AND t.invalidated_at IS NULL
+         ORDER BY t.created_at DESC, t.id DESC LIMIT 1
+         FOR UPDATE OF t`,
+        [normalizedEmail],
       );
       const row = tokenResult.rows[0];
-      const suppliedHash = keyedHash(token, config.tokenPepper);
+      const suppliedHash = row ? codeHash(row.user_id, code, config.tokenPepper) : '';
       const hashMatches = row?.token_hash
         ? crypto.timingSafeEqual(Buffer.from(row.token_hash, 'hex'), Buffer.from(suppliedHash, 'hex'))
         : false;

@@ -6,10 +6,12 @@
 import { Component, computed, input, model } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { PACK_OPTIONS, PackSize, Product, effectivePrice } from '../core/models';
+import { PhotoPipe } from '../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-pack-options',
-  imports: [DecimalPipe],
+  imports: [PhotoPipe, AsyncPipe, DecimalPipe],
   template: `
     <div class="options" role="radiogroup" aria-label="Choose a pack">
       @for (o of rows(); track o.size) {
@@ -23,7 +25,7 @@ import { PACK_OPTIONS, PackSize, Product, effectivePrice } from '../core/models'
         >
           <span class="art" [attr.data-size]="o.size" aria-hidden="true">
             @if (o.size === 1) {
-              <img [src]="thumb()" alt="" />
+              <img [src]="thumb() | cfPhoto | async" alt="" />
             } @else {
               @for (d of dots(o.size); track $index) {
                 <i></i>

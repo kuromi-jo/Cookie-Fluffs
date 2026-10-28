@@ -22,6 +22,8 @@ export interface Product {
   imageUrl: string;
   isAvailable: boolean;
   isBestSeller: boolean;
+  /** Position in Best sellers (1 = most ordered), shared with the admin dashboard; null if not one. */
+  bestRank?: number | null;
   isNew: boolean;
   /** Promo price; null when the cookie is not on promo. */
   salePrice: number | null;

@@ -14,6 +14,7 @@ import { LoginPage } from './login.page';
 
 describe('LoginPage Google authentication', () => {
   const auth = {
+    isSuperAdmin: vi.fn(() => false),
     googleAuthConfig: vi.fn(async () => ({
       enabled: true, webClientId: '123456789-cookie-fluffs.apps.googleusercontent.com',
     })),

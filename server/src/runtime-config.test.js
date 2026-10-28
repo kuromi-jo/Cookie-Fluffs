@@ -65,7 +65,6 @@ test('keeps Google authentication disabled by default and validates activation s
 test('keeps recovery disabled by default and validates every activation prerequisite', () => {
   const enabled = {
     PASSWORD_RECOVERY_ENABLED: 'true',
-    PASSWORD_RECOVERY_ORIGIN: 'https://cookies.example.test',
     PASSWORD_RESET_TOKEN_PEPPER: 'recovery-test-pepper-with-many-unique-characters-9274',
     BREVO_API_KEY: 'test-brevo-key',
     BREVO_SENDER_EMAIL: 'recovery@example.test',
@@ -73,12 +72,8 @@ test('keeps recovery disabled by default and validates every activation prerequi
     CORS_ALLOWED_ORIGINS: 'https://localhost,https://cookies.example.test',
   };
   assert.equal(validateRuntimeConfig(validEnv(enabled)).passwordRecovery.enabled, true);
-  assert.throws(() => validateRuntimeConfig(validEnv({ ...enabled, PASSWORD_RECOVERY_ORIGIN: 'http://cookies.test' })), /HTTPS origin/);
   assert.throws(() => validateRuntimeConfig(validEnv({ ...enabled, PASSWORD_RESET_TOKEN_PEPPER: 'short' })), /TOKEN_PEPPER/);
-  assert.throws(() => validateRuntimeConfig(validEnv({
-    ...enabled,
-    CORS_ALLOWED_ORIGINS: 'https://localhost',
-  })), /allowed CORS origin/);
+  assert.throws(() => validateRuntimeConfig(validEnv({ ...enabled, BREVO_SENDER_EMAIL: 'not-an-email' })), /BREVO_SENDER_EMAIL/);
 });
 
 test('rejects missing, weak and placeholder JWT secrets', () => {

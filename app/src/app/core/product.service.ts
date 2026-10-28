@@ -31,6 +31,9 @@ function isNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
+/** Photo URL of a product added from the admin dashboard (GET /api/products/:id/image). */
+const UPLOADED_PHOTO_RE = /^\/api\/products\/\d+\/image(\?v=\d+)?$/;
+
 /** Rejects malformed API/cache data before it can become the visible catalog. */
 export function isPublicProduct(value: unknown): value is Product {
   if (!value || typeof value !== 'object') return false;
@@ -43,7 +46,8 @@ export function isPublicProduct(value: unknown): value is Product {
     && isNumber(p.price) && isNumber(p.rating) && isNumber(p.reviewsCount) && isNumber(p.calories)
     && Array.isArray(p.allergens) && p.allergens.every(isString)
     && (p.badge === null || isString(p.badge))
-    && isString(p.imageUrl) && p.imageUrl.startsWith('assets/cookies/')
+    // Bundled photos, or photos the admin uploaded (served by the API).
+    && isString(p.imageUrl) && (p.imageUrl.startsWith('assets/cookies/') || UPLOADED_PHOTO_RE.test(p.imageUrl))
     && typeof p.isAvailable === 'boolean' && typeof p.isBestSeller === 'boolean' && typeof p.isNew === 'boolean'
     && (p.salePrice === null || isNumber(p.salePrice))
     && (p.season === undefined || p.season === null || isString(p.season));

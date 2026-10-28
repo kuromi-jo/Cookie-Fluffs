@@ -30,12 +30,14 @@ import { apiErrorMessage } from '../../core/api-error';
 import { CartBox, CartItem, thumbUrl } from '../../core/models';
 import { ShopActionsService } from '../../core/shop-actions.service';
 import { checkoutAccess } from '../../core/checkout-rules';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-cart',
   templateUrl: 'cart.page.html',
   styleUrls: ['cart.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     RouterLink,
     DecimalPipe,
     IonHeader,

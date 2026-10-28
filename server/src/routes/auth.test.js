@@ -349,12 +349,12 @@ test('password change returns one replacement session without exposing sensitive
   });
   const response = responseRecorder();
   await authenticatedRouteHandler(testRouter, '/change-password', 'post')(
-    { userId: 12, body: { currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password' } },
+    { userId: 12, body: { currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password', challengeId: 'cb811ba2-9458-4f3e-bc46-86a346448858' } },
     response,
     (error) => { throw error; },
   );
 
-  assert.deepEqual(received, [12, 'Old1!Password', 'Fresh2!Password']);
+  assert.deepEqual(received, [12, 'Old1!Password', 'Fresh2!Password', 'cb811ba2-9458-4f3e-bc46-86a346448858']);
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.user.email, changedUser.email);
   assert.equal(typeof response.body.token, 'string');
@@ -370,7 +370,7 @@ test('password change rejects extra fields and returns bounded throttling guidan
   const handler = authenticatedRouteHandler(testRouter, '/change-password', 'post');
   const invalidResponse = responseRecorder();
   await handler(
-    { userId: 3, body: { currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password', email: 'x' } },
+    { userId: 3, body: { currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password', challengeId: 'cb811ba2-9458-4f3e-bc46-86a346448858', email: 'x' } },
     invalidResponse,
     (error) => { throw error; },
   );
@@ -379,7 +379,7 @@ test('password change rejects extra fields and returns bounded throttling guidan
 
   const throttledResponse = { ...responseRecorder(), headers: {}, set(name, value) { this.headers[name] = value; } };
   await handler(
-    { userId: 3, body: { currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password' } },
+    { userId: 3, body: { currentPassword: 'Old1!Password', newPassword: 'Fresh2!Password', challengeId: 'cb811ba2-9458-4f3e-bc46-86a346448858' } },
     throttledResponse,
     (error) => { throw error; },
   );
@@ -440,8 +440,8 @@ test('successful reset requires fresh login and never returns a JWT', async () =
   const response = responseRecorder();
   await authenticatedRouteHandler(testRouter, '/reset-password', 'post')({
     body: {
-      selector: 'cb811ba2-9458-4f3e-bc46-86a346448858',
-      token: 'a'.repeat(43),
+      email: 'customer@example.test',
+      code: '123456',
       newPassword: 'Fresh2!Password',
     },
   }, response, (error) => { throw error; });

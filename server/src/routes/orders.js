@@ -8,6 +8,7 @@ import { requireAuth } from '../auth.js';
 import { createOrder, getOrderByPublicId, listOrders } from '../order-service.js';
 import { orderRequestFingerprint, validateOrderRequest } from '../order-validation.js';
 import { createOrReusePaymentIntent, createOrReusePaymentSession } from '../payment-service.js';
+import { syncPendingPayment } from '../payment-sync.js';
 import { PaymongoAdapter } from '../paymongo.js';
 import { paymongoConfig } from '../payment-config.js';
 import { demoPaymentConfig } from '../demo-payment-config.js';
@@ -140,6 +141,8 @@ export function createOrdersRouter(
     const client = await dbPool.connect().catch(next);
     if (!client) return undefined;
     try {
+      // Webhooks cannot reach a local API, so confirm a pending wallet payment with PayMongo directly.
+      await syncPendingPayment(client, req.userId, req.params.id.toLowerCase(), paymentAdapter).catch(() => false);
       const order = await orderActions.getOrderByPublicId(client, req.userId, req.params.id.toLowerCase());
       if (!order) return res.status(404).json({ message: 'Order not found.' });
       return res.json(order);

@@ -2,6 +2,7 @@
  * @file favorites.page.ts
  * @description Authenticated collection of the customer's saved cookies.
  */
+import { BackNavService } from '../../core/back-nav.service';
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { RouterLink } from '@angular/router';
@@ -42,6 +43,8 @@ import { ShopActionsService } from '../../core/shop-actions.service';
   ],
 })
 export class FavoritesPage {
+  /** Back goes to wherever this page was opened from (Profile by default). */
+  readonly backHref = inject(BackNavService).backHref('/profile', '/profile/favorites');
   readonly favorites = inject(FavoriteService);
   readonly cart = inject(CartService);
   private auth = inject(AuthService);

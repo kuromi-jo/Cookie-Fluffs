@@ -3,7 +3,7 @@
  * @description Authenticated, cursor-paginated order history for the current customer.
  */
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
   IonButton,
@@ -21,14 +21,17 @@ import { AuthService } from '../../core/auth.service';
 import { CartService } from '../../core/cart.service';
 import { OrderSummary, ReorderResult } from '../../core/models';
 import { OrderService } from '../../core/order.service';
+import { LiveService } from '../../core/live.service';
 import { paymentLabel } from '../../core/checkout-rules';
 import { ProductService } from '../../core/product.service';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-orders',
   templateUrl: 'orders.page.html',
   styleUrls: ['orders.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     DatePipe,
     DecimalPipe,
     RouterLink,
@@ -59,6 +62,20 @@ export class OrdersPage {
   readonly reorderOrderId = signal('');
   readonly reorderResult = signal<ReorderResult | null>(null);
   readonly reorderError = signal('');
+
+  private live = inject(LiveService);
+
+  /** Live updates: when any of my orders changes, refresh the first page quietly (no spinner). */
+  private readonly liveRefresh = effect(() => {
+    if (!this.live.orderChange() || untracked(() => this.loading() || !this.orders().length)) return;
+    void this.ordersApi
+      .list()
+      .then((page) => {
+        this.orders.set(page.orders);
+        this.nextCursor.set(page.nextCursor);
+      })
+      .catch(() => undefined);
+  });
 
   async ionViewWillEnter(): Promise<void> {
     if (!this.auth.isLoggedIn()) {
@@ -134,6 +151,7 @@ export class OrdersPage {
       if (order.demoPaymentStatus === 'demo_cancelled') return 'Test cancelled';
       return 'Test awaiting confirmation';
     }
+    if (order.orderStatus === 'cancelled' && ['pending', 'pending_cash', 'awaiting_payment'].includes(order.paymentStatus)) return 'No payment due';
     return {
       paid: 'Paid',
       processing: 'Processing',

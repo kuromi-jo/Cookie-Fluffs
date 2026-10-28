@@ -1,8 +1,9 @@
 /**
  * @file forgot-password.page.spec.ts
- * @description Recovery availability, validation, and generic-success UI tests.
+ * @description Recovery availability, validation, and hand-off to the code screen.
  */
 import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/auth.service';
 import { ForgotPasswordPage } from './forgot-password.page';
@@ -12,11 +13,15 @@ describe('ForgotPasswordPage', () => {
     passwordRecoveryConfig: vi.fn(async () => ({ enabled: true })),
     requestPasswordReset: vi.fn(async () => 'Generic response'),
   };
+  const router = { navigate: vi.fn(async () => true) };
 
   beforeEach(() => {
     vi.clearAllMocks();
     auth.passwordRecoveryConfig.mockResolvedValue({ enabled: true });
-    TestBed.configureTestingModule({ providers: [{ provide: AuthService, useValue: auth }] });
+    TestBed.configureTestingModule({ providers: [
+      { provide: AuthService, useValue: auth },
+      { provide: Router, useValue: router },
+    ] });
   });
 
   const page = () => TestBed.runInInjectionContext(() => new ForgotPasswordPage());
@@ -31,16 +36,16 @@ describe('ForgotPasswordPage', () => {
     expect(auth.requestPasswordReset).not.toHaveBeenCalled();
   });
 
-  it('validates email and shows the same generic completion state', async () => {
+  it('validates email, requests a code and opens the code screen without putting the email in the URL', async () => {
     const component = page();
     await component.ionViewWillEnter();
     component.email = 'invalid';
     await component.submit();
     expect(component.emailError()).toMatch(/valid email/i);
-    component.email = 'customer@example.test';
+    expect(auth.requestPasswordReset).not.toHaveBeenCalled();
+    component.email = ' customer@example.test ';
     await component.submit();
     expect(auth.requestPasswordReset).toHaveBeenCalledWith('customer@example.test');
-    expect(component.submitted()).toBe(true);
-    expect(component.email).toBe('');
+    expect(router.navigate).toHaveBeenCalledWith(['/reset-password'], { state: { email: 'customer@example.test' } });
   });
 });

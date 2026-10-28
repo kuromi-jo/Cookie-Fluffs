@@ -6,7 +6,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
-  IonBackButton,
+  NavController,
   IonBadge,
   IonButton,
   IonButtons,
@@ -25,19 +25,22 @@ import { BoxSize, PackSize, Product, discountPercent, effectivePrice, thumbUrl }
 import { PackOptionsComponent } from '../../components/pack-options.component';
 import { FavoriteService } from '../../core/favorite.service';
 import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-indicator.component';
+import { ProductReviewsComponent } from '../../components/product-reviews.component';
+import { BackNavService } from '../../core/back-nav.service';
+import { PhotoPipe } from '../../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-product-detail',
   templateUrl: 'product-detail.page.html',
   styleUrls: ['product-detail.page.scss'],
-  imports: [
+  imports: [PhotoPipe, AsyncPipe, 
     RouterLink,
     DecimalPipe,
     TitleCasePipe,
     IonHeader,
     IonToolbar,
     IonButtons,
-    IonBackButton,
     IonButton,
     IonIcon,
     IonBadge,
@@ -46,16 +49,23 @@ import { OfflineMenuIndicatorComponent } from '../../components/offline-menu-ind
     IonSpinner,
     PackOptionsComponent,
     OfflineMenuIndicatorComponent,
+    ProductReviewsComponent,
   ],
 })
 export class ProductDetailPage {
   /** Route parameter :id (bound by withComponentInputBinding). */
   readonly id = input.required<string>();
+  /** Query parameter ?review=<id> (from the admin): scroll to that review and highlight it. */
+  readonly review = input<string>();
 
   readonly cart = inject(CartService);
   readonly favorites = inject(FavoriteService);
   readonly products = inject(ProductService);
   private shop = inject(ShopActionsService);
+  private nav = inject(NavController);
+  /** The page this cookie was opened from (Favorites, Shop, Home, an order...). Product pages live in the
+   *  All Cookies tab, so the default back stack would not know; fall back to Home on a fresh load. */
+  private readonly backHref = inject(BackNavService).backHref('/home', '');
 
   private readonly directProduct = signal<Product | null>(null);
   readonly product = computed(() => {
@@ -135,6 +145,10 @@ export class ProductDetailPage {
     const ok = await this.shop.addSingle(p, this.qty());
     this.adding.set(false);
     if (ok) this.qty.set(1);
+  }
+
+  goBack(): void {
+    void this.nav.navigateBack(this.backHref);
   }
 
   saveFavorite(product: Product): void {

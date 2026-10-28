@@ -20,7 +20,9 @@ import {
   IonTextarea,
   IonTitle,
   IonToolbar,
+  NavController,
 } from '@ionic/angular';
+import { BackNavService } from '../../core/back-nav.service';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth.service';
 import { UiService } from '../../core/ui.service';
@@ -48,6 +50,14 @@ import { apiErrorMessage } from '../../core/api-error';
   ],
 })
 export class ContactPage {
+  private nav = inject(NavController);
+  /** The page this was opened from (e.g. Help); empty on a fresh load, where only the menu button shows. */
+  readonly backHref = inject(BackNavService).backHref('', '/contact');
+
+  goBack(): void {
+    void this.nav.navigateBack(this.backHref);
+  }
+
   private http = inject(HttpClient);
   private auth = inject(AuthService);
   private ui = inject(UiService);

@@ -529,3 +529,41 @@ html.cf-reduce-motion *:not(ion-spinner)::after {
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
 }
+
+/* Notifications (customer and admin): a full-screen sheet that slides up over the current page */
+ion-modal.cf-notif-sheet {
+  --width: 100%;
+  --height: 100%;
+  --border-radius: 0;
+  --background: var(--cf-canvas);
+}
+
+/* Printing (receipt page): print the whole page, not just the visible screen, and leave app chrome out */
+@media print {
+  ion-tab-bar, ion-menu, ion-toast, ion-modal, .ion-page-hidden { display: none !important; }
+  ion-app, ion-router-outlet, ion-tabs, .ion-page, ion-content {
+    position: static !important;
+    contain: none !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  ion-content { --background: #fff; }
+  ion-content::part(scroll) { position: static; overflow: visible; }
+  body { background: #fff; }
+}
+
+/* Swipeable section tabs (admin dashboard): no scrollbar; fades + chevron tokens show hidden tabs */
+.seg-wrap { position: relative; width: 100%; min-width: 0; overflow: hidden; border-radius: 999px; }
+.seg-wrap ion-segment { width: 100%; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.seg-wrap ion-segment::-webkit-scrollbar { display: none; }
+.seg-wrap::before, .seg-wrap::after { content: ''; position: absolute; top: 0; bottom: 0; z-index: 1; width: 44px; pointer-events: none; opacity: 0; transition: opacity .2s; }
+.seg-wrap::before { left: 0; border-radius: 999px 0 0 999px; background: linear-gradient(90deg, var(--cf-pink-soft) 40%, transparent); }
+.seg-wrap::after { right: 0; border-radius: 0 999px 999px 0; background: linear-gradient(270deg, var(--cf-pink-soft) 40%, transparent); }
+.seg-wrap.more-left::before, .seg-wrap.more-right::after { opacity: 1; }
+.seg-token { position: absolute; top: 50%; z-index: 2; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 1px solid var(--cf-pink-border); border-radius: 50%; background: #fff; color: var(--cf-pink-deep); font-size: 14px; transform: translateY(-50%); cursor: pointer; }
+.seg-token.left { left: 4px; }
+.seg-token.right { right: 4px; animation: nudge 1.6s ease-in-out 2; }
+.seg-token::after { content: ''; position: absolute; inset: -9px; }
+.seg-token:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--cf-pink-accent); }
+@keyframes nudge { 50% { transform: translate(3px, -50%); } }
+@media (prefers-reduced-motion: reduce) { .seg-token.right { animation: none; } }

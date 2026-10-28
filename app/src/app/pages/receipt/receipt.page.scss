@@ -1,0 +1,72 @@
+/** @file receipt.page.scss @description Paper-style receipt that reads well on a phone and prints cleanly. */
+.receipt-page { max-width: 480px; margin: 0 auto; }
+
+.state {
+  display: grid; justify-items: center; gap: 10px; padding: 48px 12px; text-align: center; color: var(--cf-choco-medium);
+  > ion-icon { font-size: 34px; color: var(--cf-pink-deep); }
+  p { margin: 0; }
+}
+
+.receipt {
+  padding: 22px 20px 18px;
+  border: 1px solid var(--cf-pink-border);
+  border-radius: 20px;
+  background: #fff;
+  color: var(--cf-choco);
+}
+
+.brand {
+  display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--cf-pink-border);
+  img { width: 40px; height: 40px; }
+  strong { display: block; font-family: var(--cf-font-display); font-size: 1.2rem; }
+  small { color: var(--cf-choco-light); font-size: .76rem; font-weight: 600; }
+}
+
+h1 { margin: 16px 0 10px; font-family: var(--cf-font-display); font-size: 1.25rem; line-height: 1.25; }
+
+.meta, .totals { margin: 0; }
+.meta {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px;
+  .wide { grid-column: 1 / -1; }
+  dt { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--cf-choco-light); }
+  dd { margin: 2px 0 0; font-size: .86rem; font-weight: 700; overflow-wrap: anywhere; }
+}
+
+/* Dashed tear line like a paper receipt */
+.cut { margin: 16px -20px; border-top: 2px dashed var(--cf-pink-border); }
+
+.items {
+  width: 100%; border-collapse: collapse; font-size: .86rem;
+  th { padding: 0 0 6px; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; color: var(--cf-choco-light); }
+  td { padding: 8px 0; vertical-align: top; border-top: 1px solid var(--cf-pink-soft); }
+  td strong { display: block; font-weight: 800; }
+  td small { display: block; margin-top: 2px; font-size: .74rem; color: var(--cf-choco-light); }
+  .num { width: 1%; padding-left: 12px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+}
+
+.totals {
+  display: grid; gap: 6px;
+  > div { display: flex; justify-content: space-between; gap: 12px; font-size: .88rem; }
+  dt { color: var(--cf-choco-medium); }
+  dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .grand { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--cf-pink-border); }
+  .grand dt { color: var(--cf-choco); font-weight: 800; }
+  .grand dd { font-family: var(--cf-font-display); font-size: 1.35rem; }
+}
+
+.thanks {
+  margin-top: 18px; text-align: center;
+  p { margin: 0 0 4px; font-weight: 800; }
+  small { color: var(--cf-choco-light); font-size: .74rem; }
+}
+
+.receipt-actions { padding: 10px 20px calc(12px + env(safe-area-inset-bottom)); background: var(--cf-canvas); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media print {
+  .no-print { display: none !important; }
+  .receipt-page { max-width: none; padding: 0; }
+  .receipt { border: 0; border-radius: 0; padding: 0; }
+  .cut { margin: 14px 0; }
+}

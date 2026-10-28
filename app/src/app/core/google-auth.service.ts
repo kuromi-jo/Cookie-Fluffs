@@ -31,6 +31,8 @@ declare global {
 const NativeGoogleAuth = registerPlugin<NativeGoogleAuthPlugin>('GoogleAuth');
 const GIS_SCRIPT_ID = 'cookie-fluffs-google-identity';
 const GOOGLE_RESTART_STATE = 'cookieFluffsGoogleRestart';
+/** Session flag read by the app shell: the next page load is a Google re-init, so skip the splash. */
+export const SKIP_SPLASH_KEY = 'cf.skipSplash';
 const STRICT_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const LOCALHOST_REFERRER_POLICY = 'no-referrer-when-downgrade';
 
@@ -157,6 +159,12 @@ export class GoogleAuthService {
     if (notice) next[GOOGLE_RESTART_STATE] = notice;
     else delete next[GOOGLE_RESTART_STATE];
     history.replaceState(next, document.title, window.location.href);
+    // This is a technical reload (fresh Google nonce), not an app launch: skip the splash once.
+    try {
+      sessionStorage.setItem(SKIP_SPLASH_KEY, '1');
+    } catch {
+      /* storage blocked: the splash simply shows */
+    }
     window.location.reload();
   }
 

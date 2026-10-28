@@ -254,76 +254,6 @@
   }
 }
 
-/* ---------- Seasonal band (Halloween specials) ---------- */
-.seasonal {
-  margin-bottom: 22px;
-  padding: 18px 0 10px;
-  border-radius: var(--cf-radius-lg);
-  background: linear-gradient(135deg, var(--cf-choco-btn) 0%, var(--cf-choco) 100%);
-  color: var(--cf-canvas);
-
-  app-rail {
-    margin: 0 18px;
-  }
-
-  .see-all {
-    color: var(--cf-pink-border);
-  }
-}
-
-.seasonal-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 18px 14px;
-
-  > div {
-    flex: 1;
-    min-width: 0;
-  }
-
-  h2 {
-    margin: 4px 0 2px;
-    font-family: var(--cf-font-display);
-    font-size: 1.2rem;
-    line-height: 1.15;
-    color: var(--cf-canvas);
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--cf-pink-border);
-  }
-}
-
-.seasonal-icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 13px;
-  background: var(--cf-pink-accent);
-  color: var(--cf-choco);
-  font-size: 19px;
-}
-
-.seasonal-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid var(--cf-pink-accent);
-  color: var(--cf-pink-border);
-  font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 /* ---------- Cookie of the day ---------- */
 .cotd {
   display: flex;
@@ -588,4 +518,38 @@
     background: var(--cf-choco-btn);
     color: #fff5f7;
   }
+}
+
+.bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--cf-choco);
+  font-size: 24px;
+
+  &:focus-visible {
+    outline: 2px solid var(--cf-pink-deep);
+    outline-offset: 2px;
+  }
+}
+
+.bell-badge {
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border: 2px solid var(--cf-canvas);
+  border-radius: 999px;
+  background: var(--cf-pink-deep);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
 }

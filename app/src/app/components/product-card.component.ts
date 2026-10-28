@@ -9,10 +9,12 @@ import { RouterLink } from '@angular/router';
 import { IonIcon, IonSpinner } from '@ionic/angular';
 import { Product, discountPercent } from '../core/models';
 import { FavoriteService } from '../core/favorite.service';
+import { PhotoPipe } from '../core/photo.pipe';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-product-card',
-  imports: [RouterLink, DecimalPipe, IonIcon, IonSpinner],
+  imports: [PhotoPipe, AsyncPipe, RouterLink, DecimalPipe, IonIcon, IonSpinner],
   template: `
     @let p = product();
     <article class="card">
@@ -32,13 +34,13 @@ import { FavoriteService } from '../core/favorite.service';
         }
       </button>
       <a class="media" [routerLink]="['/product', p.id]" [attr.aria-label]="'View ' + p.name">
-        <img [src]="p.imageUrl" [alt]="p.name" loading="lazy" />
+        <img [src]="p.imageUrl | cfPhoto | async" [alt]="p.name" loading="lazy" />
       </a>
       @if (discount()) {
         <span class="sticker promo">-{{ discount() }}%</span>
-      } @else if (p.season === 'halloween') {
-        <span class="sticker seasonal" role="img" aria-label="Halloween special"><ion-icon name="moon" aria-hidden="true"></ion-icon></span>
-      } @else if (p.isNew) {
+      } @else if (p.season === 'halloween' || p.badge === 'Halloween') {
+        <span class="sticker seasonal" role="img" aria-label="Halloween special"><ion-icon name="cf-pumpkin" aria-hidden="true"></ion-icon></span>
+      } @else if (p.isNew || p.badge === 'New') {
         <span class="sticker new">New</span>
       }
 
@@ -110,7 +112,7 @@ import { FavoriteService } from '../core/favorite.service';
     }
     .sticker.promo { background: var(--cf-pink-deep); }
     .sticker.new { background: var(--cf-choco-btn); color: #fff5f7; }
-    .sticker.seasonal { background: var(--cf-pink-accent); color: var(--cf-choco); font-size: 1.15rem; }
+    .sticker.seasonal { background: var(--cf-hw-night); color: var(--cf-hw-pumpkin); border: 2px solid var(--cf-hw-pumpkin); font-size: 1.3rem; }
 
     .panel {
       flex: 1; display: flex; flex-direction: column;

@@ -21,7 +21,7 @@ test('sends one bounded transactional request using only server-side configurati
   await adapter.sendPasswordReset({
     recipient: 'customer@example.test',
     firstName: '<Customer>',
-    resetUrl: 'https://cookies.example.test/reset-password?selector=test#token=secret',
+    code: '042917',
   });
   const body = JSON.parse(request.options.body);
   assert.equal(request.url, 'https://api.brevo.com/v3/smtp/email');
@@ -33,17 +33,18 @@ test('sends one bounded transactional request using only server-side configurati
     'X-Mailin-track-clicks': '0',
   });
   assert.match(body.htmlContent, /&lt;Customer&gt;/);
-  assert.match(body.htmlContent, /Reset password/);
+  assert.match(body.htmlContent, /042917/);
+  assert.match(body.htmlContent, /Never share this code/);
   assert.match(body.htmlContent, /within 30 minutes/i);
   assert.match(body.htmlContent, /password will remain unchanged/i);
   assert.match(body.htmlContent, /background:#fff5f7/);
   assert.doesNotMatch(body.htmlContent, /<img|tracking|pixel/i);
   assert.match(body.textContent, /Reset your Cookie Fluffs password/);
-  assert.match(body.textContent, /https:\/\/cookies\.example\.test\/reset-password\?selector=test#token=secret/);
+  assert.match(body.textContent, /Your code: 042917/);
   assert.doesNotMatch(JSON.stringify(body), /private-test-key/);
 });
 
-test('escapes untrusted greeting and link content in branded HTML', async () => {
+test('escapes untrusted greeting and keeps only the six code digits in branded HTML', async () => {
   let payload;
   const adapter = createBrevoEmailAdapter({
     brevoApiKey: 'private-test-key', senderEmail: 'verified@example.test', senderName: 'Cookie Fluffs',
@@ -56,10 +57,11 @@ test('escapes untrusted greeting and link content in branded HTML', async () => 
   await adapter.sendPasswordReset({
     recipient: 'customer@example.test',
     firstName: '<script>alert(1)</script>\nCustomer',
-    resetUrl: 'https://cookies.example.test/reset-password?a=1&b=2#token=safe',
+    code: '12<b>34x56',
   });
   assert.doesNotMatch(payload.htmlContent, /<script>/);
   assert.match(payload.htmlContent, /&lt;script&gt;/);
-  assert.match(payload.htmlContent, /a=1&amp;b=2/);
+  assert.match(payload.htmlContent, />123456</);
+  assert.doesNotMatch(payload.htmlContent, /<b>/);
   assert.doesNotMatch(payload.textContent, /\nCustomer,/);
 });

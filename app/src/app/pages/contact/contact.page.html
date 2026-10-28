@@ -1,8 +1,12 @@
 <ion-header class="cf-header">
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button>
-    </ion-buttons>
+    <!-- Opened from another page (e.g. Help): back arrow returns there; the menu moves to the right. -->
+    @if (backHref) {
+      <ion-buttons slot="start"><ion-button (click)="goBack()" aria-label="Go back"><ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon></ion-button></ion-buttons>
+      <ion-buttons slot="end"><ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button></ion-buttons>
+    } @else {
+      <ion-buttons slot="start"><ion-menu-button autoHide="false" aria-label="Open menu"></ion-menu-button></ion-buttons>
+    }
     <ion-title class="cf-title">Contact Us</ion-title>
   </ion-toolbar>
 </ion-header>

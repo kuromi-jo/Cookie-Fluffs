@@ -3,8 +3,8 @@
  * @description Mobile notification center: lists owner notifications, marks read, and refreshes
  * on entry, app resume, and reconnection without constant polling.
  */
-import { Component, DestroyRef, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, DestroyRef, inject, input, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import {
   IonBackButton,
   IonButton,
@@ -17,6 +17,8 @@ import {
   IonSkeletonText,
   IonTitle,
   IonToolbar,
+  ModalController,
+  NavController,
 } from '@ionic/angular';
 import { AuthService } from '../../core/auth.service';
 import { NotificationService } from '../../core/notification.service';
@@ -44,7 +46,6 @@ export function isSafeNotificationLink(linkPath: string | null | undefined): lin
   templateUrl: 'notifications.page.html',
   styleUrls: ['notifications.page.scss'],
   imports: [
-    RouterLink,
     IonHeader,
     IonToolbar,
     IonButtons,
@@ -63,6 +64,10 @@ export class NotificationsPage {
   private auth = inject(AuthService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  private modals = inject(ModalController);
+  private nav = inject(NavController);
+  /** True when opened as the slide-up sheet (bell); the X closes it and the page underneath is untouched. */
+  readonly asSheet = input(false);
   readonly skeletons = [1, 2, 3, 4];
   private listenersBound = false;
 
@@ -82,7 +87,12 @@ export class NotificationsPage {
     }
   }
 
+  /** Where the back arrow goes. Entry points pass `state: { backTo }` (e.g. the Home bell); default is Profile. */
+  readonly backHref = signal('/profile');
+
   async ionViewWillEnter(): Promise<void> {
+    const backTo = (history.state as { backTo?: unknown } | null)?.backTo;
+    this.backHref.set(typeof backTo === 'string' && backTo.startsWith('/') && !backTo.startsWith('//') ? backTo : '/profile');
     if (!this.auth.isLoggedIn()) {
       await this.router.navigate(['/login'], {
         queryParams: { returnUrl: '/notifications' },
@@ -106,7 +116,18 @@ export class NotificationsPage {
     // already validates links at write time; this is a defense-in-depth client guard so an
     // unexpected value can never drive navigation to an external/encoded/unsupported target.
     await this.notifications.markRead(item.id);
-    if (isSafeNotificationLink(item.linkPath)) await this.router.navigateByUrl(item.linkPath);
+    if (!isSafeNotificationLink(item.linkPath)) return;
+    if (this.asSheet()) await this.close();
+    await this.router.navigateByUrl(item.linkPath);
+  }
+
+  async close(): Promise<void> {
+    await this.modals.dismiss();
+  }
+
+  async browse(): Promise<void> {
+    if (this.asSheet()) await this.close();
+    await this.nav.navigateRoot('/shop');
   }
 
   async markAllRead(): Promise<void> {
@@ -118,18 +139,22 @@ export class NotificationsPage {
     (event.target as HTMLIonInfiniteScrollElement).complete();
   }
 
-  /** Short relative time like "just now", "5m", "3h", "2d", else a date. */
   relativeTime(iso: string): string {
-    const then = new Date(iso).getTime();
-    if (Number.isNaN(then)) return '';
-    const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
-    if (seconds < 45) return 'just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d`;
-    return new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+    return relativeTime(iso);
   }
+}
+
+/** Short relative time like "just now", "5m", "3h", "2d", else a date. Shared with the admin notifications. */
+export function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 45) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
 }

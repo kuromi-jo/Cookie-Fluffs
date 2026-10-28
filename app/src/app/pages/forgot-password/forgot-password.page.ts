@@ -1,10 +1,11 @@
 /**
  * @file forgot-password.page.ts
- * @description Enumeration-safe password-reset request form with disabled-mode guidance.
+ * @description Forgot-password step 1: request a 6-digit code by email (enumeration-safe), then
+ * continue to the code screen. The email travels in navigation state, never in the URL.
  */
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonInput,
   IonSpinner, IonTitle, IonToolbar,
@@ -24,11 +25,11 @@ import { validateEmail } from '../../core/signup-rules';
 })
 export class ForgotPasswordPage {
   private auth = inject(AuthService);
+  private router = inject(Router);
 
   readonly loading = signal(true);
   readonly available = signal(false);
   readonly submitting = signal(false);
-  readonly submitted = signal(false);
   readonly error = signal('');
   readonly emailError = signal('');
   email = '';
@@ -62,9 +63,9 @@ export class ForgotPasswordPage {
     this.submitting.set(true);
     this.error.set('');
     try {
-      await this.auth.requestPasswordReset(this.email.trim());
-      this.submitted.set(true);
-      this.email = '';
+      const email = this.email.trim();
+      await this.auth.requestPasswordReset(email);
+      await this.router.navigate(['/reset-password'], { state: { email } });
     } catch (error) {
       this.error.set(apiErrorMessage(error));
     } finally {

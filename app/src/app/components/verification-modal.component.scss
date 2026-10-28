@@ -70,11 +70,13 @@
   strong { color: var(--cf-choco); overflow-wrap: anywhere; }
 }
 
-.verify-code {
-  --letter-spacing: 6px;
+.field-group { margin: 4px 0 0; }
+
+/* Big, spaced digits only: the floating label keeps the normal pill-field size. */
+:host ::ng-deep .verify-code input.native-input {
   font-size: 1.25rem;
   font-weight: 800;
-  text-align: center;
+  letter-spacing: 6px;
 }
 
 .verify-timer {

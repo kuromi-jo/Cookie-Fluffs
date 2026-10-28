@@ -89,7 +89,7 @@
                   <ion-icon name="checkmark" aria-hidden="true"></ion-icon>
                 </button>
                 <a [routerLink]="['/product', item.productId]" class="thumb">
-                  <img [src]="thumb(item.imageUrl)" [alt]="item.name" />
+                  <img [src]="thumb(item.imageUrl) | cfPhoto | async" [alt]="item.name" />
                 </a>
                 <div class="info">
                   <a [routerLink]="['/product', item.productId]" class="name">{{ item.name }}</a>
@@ -143,7 +143,7 @@
                 </button>
                 <span class="mini-box thumb" [attr.data-size]="box.size" aria-hidden="true">
                   @for (c of box.cookies; track $index) {
-                    <img [src]="thumb(c.imageUrl)" alt="" />
+                    <img [src]="thumb(c.imageUrl) | cfPhoto | async" alt="" />
                   }
                 </span>
                 <div class="info">

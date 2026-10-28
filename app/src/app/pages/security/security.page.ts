@@ -3,6 +3,7 @@
  * @description Authenticated password-change form with inline validation and session replacement.
  */
 import { HttpErrorResponse } from '@angular/common/http';
+import { BackNavService } from '../../core/back-nav.service';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -18,12 +19,14 @@ import {
   IonSpinner,
   IonTitle,
   IonToolbar,
+  ModalController,
 } from '@ionic/angular';
 import { apiErrorMessage, apiFieldErrors } from '../../core/api-error';
 import { AccountStatus, AuthService } from '../../core/auth.service';
 import { validateConfirmPassword, validatePassword } from '../../core/signup-rules';
 import { UiService } from '../../core/ui.service';
 import { PasswordRequirementsComponent } from '../../components/password-requirements.component';
+import { VerificationModalComponent } from '../../components/verification-modal.component';
 
 type SecurityField = 'currentPassword' | 'newPassword' | 'confirmPassword';
 type SecurityErrors = Partial<Record<SecurityField, string>>;
@@ -49,9 +52,14 @@ type SecurityErrors = Partial<Record<SecurityField, string>>;
   ],
 })
 export class SecurityPage {
+  /** Back goes to wherever this page was opened from (Profile by default). */
+  readonly backHref = inject(BackNavService).backHref('/profile', '/profile/security');
   private auth = inject(AuthService);
   private router = inject(Router);
   private ui = inject(UiService);
+  private modals = inject(ModalController);
+  /** Verified email-code challenge, kept if only the password needs fixing so no new code is needed. */
+  private verifiedChallenge: string | null = null;
 
   readonly user = this.auth.user;
   readonly saving = signal(false);
@@ -118,10 +126,16 @@ export class SecurityPage {
     this.errors.set(errors);
     if (Object.keys(errors).length) return;
 
+    // Email-code step: confirm it's really the account owner before the password can change.
+    const challengeId = this.verifiedChallenge ?? (await this.verifyByEmail());
+    if (!challengeId) return;
+    this.verifiedChallenge = challengeId;
+
     this.saving.set(true);
     this.pageError.set('');
     try {
-      await this.auth.changePassword(this.currentPassword, this.newPassword);
+      await this.auth.changePassword(this.currentPassword, this.newPassword, challengeId);
+      this.verifiedChallenge = null;
       this.currentPassword = '';
       this.newPassword = '';
       this.confirmPassword = '';
@@ -138,12 +152,26 @@ export class SecurityPage {
         });
         return;
       }
+      // The code expired or was used: the next try asks for a fresh one.
+      if (error instanceof HttpErrorResponse && error.status === 409) this.verifiedChallenge = null;
       const fieldErrors = apiFieldErrors(error) as SecurityErrors;
       this.errors.update((current) => ({ ...current, ...fieldErrors }));
       this.pageError.set(apiErrorMessage(error));
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** Opens the code sheet (emails a 6-digit code); returns the verified challenge id, or null if closed. */
+  private async verifyByEmail(): Promise<string | null> {
+    const sheet = await this.modals.create({
+      component: VerificationModalComponent,
+      componentProps: { operation: 'change_password' },
+      cssClass: 'verify-sheet-modal',
+    });
+    await sheet.present();
+    const { data, role } = await sheet.onDidDismiss<{ challengeId?: string }>();
+    return role === 'verified' && data?.challengeId ? data.challengeId : null;
   }
 
   private validateField(field: SecurityField): void {

@@ -3,6 +3,7 @@
  * @description Rebuilds owned historical order lines into the current cart using live catalog data.
  */
 import { lockUserCart } from './cart-lock.js';
+import { availableSql } from './season.js';
 import { loadCart } from './cart-service.js';
 
 const MAX_QTY = 99;
@@ -65,7 +66,7 @@ export async function reorderOrder(client, userId, sourceOrderPublicId, idempote
     ].filter(Number.isInteger))].sort((a, b) => a - b);
     const productResult = productIds.length
       ? await client.query(
-        `SELECT id, name, is_available AS "isAvailable"
+        `SELECT id, name, ${availableSql()} AS "isAvailable"
          FROM products WHERE id = ANY($1::int[]) ORDER BY id FOR SHARE`,
         [productIds],
       )
